@@ -1,28 +1,28 @@
-# Etapa de build
+##############################
+# 1) Build
+##############################
 FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# Copia de archivos necesarios
+# Instalar dependencias primero
 COPY package*.json ./
-COPY tsconfig.json ./
-COPY next.config.ts ./
-COPY postcss.config.mjs ./
-COPY .env ./
+RUN npm ci
 
-RUN npm install
-
-# Copia del resto del código
+# Copiar el resto del código
 COPY . .
 
-# Build de producción
+# Build para producción (Next.js standalone)
 RUN npm run build
 
-# Etapa final
+##############################
+# 2) Imagen final
+##############################
 FROM node:18-alpine
 
 WORKDIR /app
 
+# Copiar la app standalone generada por Next
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
