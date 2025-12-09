@@ -1,0 +1,18 @@
+const express = require("express");
+const router = express.Router();
+const cajaController = require("../controllers/controladorCaja");
+const authMiddleware = require("../middlewares/authMiddleware");
+
+// Registrar movimiento (venta, gasto o ingreso)
+router.post("/movimiento", authMiddleware, cajaController.crearMovimiento);
+
+// Obtener resumen del día
+router.get("/resumen", authMiddleware, cajaController.obtenerResumen);
+
+// Generar corte de caja
+router.post("/corte", authMiddleware, cajaController.generarCorte);
+
+// Obtener historial de cortes
+router.get("/cortes", authMiddleware, cajaController.obtenerCortes);
+
+module.exports = router;

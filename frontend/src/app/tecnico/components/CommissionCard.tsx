@@ -1,0 +1,79 @@
+'use client'
+import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+
+const API_URL = "http://localhost:5000";
+
+export default function CommissionCard() {
+  const [usuarioId, setUsuarioId] = useState<number | null>(null);
+  const [comisiones, setComisiones] = useState<any[]>([]);
+  const [totalSemana, setTotalSemana] = useState<number>(0);
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/usuarios/me`, { credentials: 'include' })
+      .then(res => {
+        if (!res.ok) throw new Error('No autenticado');
+        return res.json();
+      })
+      .then(data => setUsuarioId(data.user.id))
+      .catch(() => window.location.href = '/login');
+  }, []);
+
+  useEffect(() => {
+    if (!usuarioId) return;
+    fetch(`${API_URL}/api/comisiones/semana/${usuarioId}`, { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => {
+        setComisiones(data.filter((x:any) => x.id !== null));
+        const totalRow = data.find((x:any) => x.total_semana !== null);
+        setTotalSemana(totalRow ? parseFloat(totalRow.total_semana) : 0);
+      });
+  }, [usuarioId]);
+
+  return (
+    <motion.div
+      initial={{ y: 30, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ type: "spring", stiffness: 70, delay: 0.2 }}
+      className="bg-white rounded-xl shadow p-4 sm:p-6 w-full max-w-full"
+    >
+      <h2 className="text-lg font-semibold mb-4 text-gray-700">Comisiones de la semana</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+        <div className="p-4 bg-indigo-50 rounded-lg text-center">
+          <span className="text-sm text-gray-500">Total semana</span>
+          <div className="text-2xl font-bold text-indigo-700 mt-1">
+            ${totalSemana.toLocaleString('es-MX', {minimumFractionDigits: 2})}
+          </div>
+        </div>
+        <div className="p-4 bg-indigo-50 rounded-lg text-center">
+          <span className="text-sm text-gray-500">Equipos armados</span>
+          <div className="text-2xl font-bold text-indigo-700 mt-1">{comisiones.length}</div>
+        </div>
+      </div>
+      <div>
+        <h3 className="mb-2 text-gray-600 font-medium">Detalle de equipos armados</h3>
+        <ul className="divide-y divide-gray-200 text-gray-700 mb-2">
+          {comisiones.length === 0 ? (
+            <li className="py-2 text-center text-gray-400">No hay comisiones esta semana</li>
+          ) : (
+            comisiones.map((c) => (
+              <li key={c.id} className="py-2 flex justify-between">
+                <span>
+                  {c.equipo_id
+                    ? `Equipo #${c.equipo_id}`
+                    : c.mantenimiento_id
+                    ? `Mantenimiento #${c.mantenimiento_id}`
+                    : "Sin referencia"}
+                </span>
+                <span>
+                  ${parseFloat(c.monto).toFixed(2)} |{" "}
+                  {new Date(c.fecha_creacion).toLocaleDateString("es-MX")}
+                </span>
+              </li>
+            ))
+          )}
+        </ul>
+      </div>
+    </motion.div>
+  );
+}

@@ -1,0 +1,39 @@
+############################
+# Root .gitignore – proyecto PERN unificado
+############################
+
+# === BACKEND ===
+backend/node_modules/
+backend/.env
+backend/dist/
+backend/logs/
+
+# === FRONTEND ===
+frontend/node_modules/
+frontend/.env
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/coverage/
+
+# === DOCKER ===
+docker-data/
+*.log
+*.pid
+
+# === NGINX ===
+nginx/*.log
+nginx/conf.d/*
+
+# === SISTEMA OPERATIVO ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === EDITORES ===
+.vscode/
+.idea/
+
+# === OTROS ===
+*.bak
+*.tmp
