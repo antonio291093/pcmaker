@@ -34,7 +34,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      NEXT_PUBLIC_API_URL: "https://pcmaker.mx/api"
+      NEXT_PUBLIC_API_URL: "https://erp.pcmaker.mx/api"
     depends_on:
       - backend
     networks:
@@ -63,15 +63,15 @@ services:
     restart: always
     entrypoint: /bin/sh
     command: -c "
-        # Obtener certificado inicial (solo la primera vez)
+        # Obtener certificado inicial
         certbot certonly --webroot -w /var/www/certbot \
         --email soporte@pcmaker.mx --agree-tos --no-eff-email \
-        -d pcmaker.mx -d www.pcmaker.mx;
+        -d erp.pcmaker.mx;
 
-        # Registrar cron job para renovación diaria
+        # Cronjob para renovación
         echo '0 3 * * * certbot renew --webroot -w /var/www/certbot --quiet && nginx -s reload' > /etc/crontabs/root;
 
-        # Ejecutar cron en modo foreground
+        # Ejecutar cron
         crond -f
     "
     volumes:
