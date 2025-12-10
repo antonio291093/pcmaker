@@ -1,13 +1,13 @@
 version: "3.9"
 
-services:  
+services:
   backend:
     build: ./backend
     container_name: backend_app
     restart: always
     environment:
       NODE_ENV: production
-      PORT: 5000      
+      PORT: 5000
       DATABASE_URL: postgresql://postgres:pcmaker@172.17.0.1:5432/pcmaker
     networks:
       - appnet
@@ -47,25 +47,19 @@ services:
     container_name: certbot_service
     restart: always
     entrypoint: /bin/sh
-    command: -c "
-        # Obtener certificado inicial
-        certbot certonly --webroot -w /var/www/certbot \
-        --email soporte@pcmaker.mx --agree-tos --no-eff-email \
-        -d erp.pcmaker.mx;
-
-        # Cronjob para renovación
-        echo '0 3 * * * certbot renew --webroot -w /var/www/certbot --quiet && nginx -s reload' > /etc/crontabs/root;
-
-        # Ejecutar cron
-        crond -f
-    "
+    command: >
+      -c "certbot certonly --webroot -w /var/www/certbot
+      --email soporte@pcmaker.mx --agree-tos --no-eff-email
+      -d erp.pcmaker.mx &&
+      echo '0 3 * * * certbot renew --webroot -w /var/www/certbot --quiet && nginx -s reload' > /etc/crontabs/root &&
+      crond -f"
     volumes:
       - certbot_web:/var/www/certbot
       - certbot_certs:/etc/letsencrypt
     networks:
       - appnet
 
-volumes:  
+volumes:
   certbot_web:
   certbot_certs:
 
