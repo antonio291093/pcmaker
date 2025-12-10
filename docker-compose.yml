@@ -19,7 +19,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      NEXT_PUBLIC_API_URL: "https://erp.pcmaker.mx/api"
+      NEXT_PUBLIC_API_URL: "http://erp.pcmaker.mx/api"
     depends_on:
       - backend
     networks:
