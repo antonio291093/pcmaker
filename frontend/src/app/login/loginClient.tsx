@@ -3,7 +3,6 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Swal from 'sweetalert2';
-import React from 'react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -20,25 +19,28 @@ export default function LoginClient() {
       .then(data => {
         if (data.user) {
           const { rol_id } = data.user;
-          
           let ruta = ''; 
           if (rol_id === 1) ruta = '/admin';
           else if (rol_id === 2) ruta = '/tecnico';
           else if (rol_id === 3) ruta = '/ventas';
 
-          setTimeout(() => {
-            router.push(ruta);
-          }, 1500);
-
+          Swal.fire({
+            icon: 'success',
+            title: 'Ya estás logueado',
+            timer: 1000,
+            showConfirmButton: false,
+          }).then(() => {
+            window.location.href = ruta;  // ✅ 100% confiable
+          });
         }
       })
       .catch(() => {
         // No hacer nada si no hay sesión
       });
-  }, [router]);
-  
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+    e.preventDefault();
 
     try {
       const response = await fetch(`${API_URL}/api/usuarios/login`, {
@@ -62,25 +64,22 @@ export default function LoginClient() {
       localStorage.setItem('email', data.user.email);
       
       const { rol_id } = data.user;
-      
       let ruta = ''; 
       if (rol_id === 1) ruta = '/admin';
       else if (rol_id === 2) ruta = '/tecnico';
       else if (rol_id === 3) ruta = '/ventas';
 
+      // ✅ window.location.href = SIEMPRE funciona
       Swal.fire({
         icon: 'success',
         title: 'Bienvenido',
         text: `Has iniciado sesión como ${data.user.email}`,
         timer: 1500,
         showConfirmButton: false,
+      }).then(() => {
+        window.location.href = ruta;  // ✅ Fuerza navegación completa
       });
 
-      setTimeout(() => {
-        router.push(ruta);
-      }, 1500);
-
-      // Si todavía necesitas obtener datos adicionales para mostrar en la ruta, podrías hacer el fetch /me aquí
     } catch {
       Swal.fire({
         icon: 'error',
@@ -93,7 +92,6 @@ export default function LoginClient() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-md p-8 bg-white rounded-xl shadow-lg flex flex-col items-center">
-        {/* Reemplaza '/logo.png' con la ruta real de tu logo */}
         <img src="/pcmaker.png" alt="Logo del Negocio" className="w-52 h-52 mb-6 object-contain" />        
         <form className="w-full" onSubmit={handleSubmit}>
           <div className="mb-5">

@@ -5,7 +5,7 @@ const cookieParser = require("cookie-parser");
 const { Pool } = require("pg");
 
 const app = express();
-const allowedOrigins = ["http://localhost:3000"];
+const allowedOrigins = ["http://localhost:3000", process.env.CORS_ORIGIN||"http://erp.pcmaker.mx"];
 
 app.use(
   cors({
