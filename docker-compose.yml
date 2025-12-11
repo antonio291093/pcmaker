@@ -22,7 +22,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}   # <── Necesario en runtime
+      #NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}   # <── Necesario en runtime
     depends_on:
       - backend
     networks:
