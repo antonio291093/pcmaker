@@ -5,14 +5,16 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# Instalar dependencias primero
+# Declarar ARG para que docker-compose pueda pasarlo
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
 COPY package*.json ./
 RUN npm ci
 
-# Copiar el resto del código
 COPY . .
 
-# Build para producción (Next.js standalone)
+# Ahora Next sí recibe la variable en tiempo de build
 RUN npm run build
 
 ##############################
@@ -22,7 +24,6 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Copiar la app standalone generada por Next
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public

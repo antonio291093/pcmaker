@@ -1,8 +1,7 @@
-version: "3.9"
-
 services:
   backend:
-    build: ./backend
+    build:
+      context: ./backend
     container_name: backend_app
     restart: always
     environment:
@@ -13,13 +12,17 @@ services:
       - appnet
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}   # <── Necesario para el build
     container_name: frontend_app
     restart: always
     environment:
       NODE_ENV: production
       PORT: 3000
-      NEXT_PUBLIC_API_URL: "http://erp.pcmaker.mx"
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}   # <── Necesario en runtime
     depends_on:
       - backend
     networks:
