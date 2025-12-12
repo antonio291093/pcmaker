@@ -19,7 +19,7 @@ services:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}  # Build-time para Next.js
     container_name: frontend_app
     restart: always
-    env_file: .env           # Runtime backup
+    env_file: .env          # Runtime backup
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -48,11 +48,11 @@ services:
   certbot:
     image: certbot/certbot
     container_name: certbot_service
-    restart: always
     entrypoint: /bin/sh
     command: >
       -c "certbot certonly --webroot -w /var/www/certbot
       --email soporte@pcmaker.mx --agree-tos --no-eff-email
+      --non-interactive --keep-until-expiring
       -d erp.pcmaker.mx &&
       echo '0 3 * * * certbot renew --webroot -w /var/www/certbot --quiet && nginx -s reload' > /etc/crontabs/root &&
       crond -f"

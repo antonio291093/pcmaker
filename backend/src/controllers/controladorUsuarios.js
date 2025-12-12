@@ -109,8 +109,8 @@ exports.login = async (req, res) => {
 
     res.cookie("token", token, {
       httpOnly: true,
-      secure: true,
-      sameSite: "none",
+      secure: true,        // true en producción (solo por HTTPS)
+      sameSite: "lax",       // está bien para la mayoría de casos
       maxAge: 24 * 60 * 60 * 1000,
       path: "/",
     });
@@ -152,13 +152,14 @@ exports.me = async (req, res) => {
   }
 };
 
-// Logout
-exports.logout = (req, res) => {
+exports.logout = (req, res) => {  
   res.clearCookie("token", {
     httpOnly: true,
-    sameSite: "none",
     secure: true,
+    sameSite: "lax",
     path: "/",
   });
+
   res.json({ message: "Sesión cerrada correctamente." });
 };
+
