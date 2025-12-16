@@ -1,0 +1,1 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,18566,(e,t,o)=>{t.exports=e.r(76562)},52683,e=>{"use strict";e.s(["default",()=>r]);var t=e.i(71645),o=e.i(18566);function r(){let e=(0,o.useRouter)();return(0,t.useEffect)(()=>{localStorage.getItem("token"),e.replace("/ventas")},[e]),null}}]);
