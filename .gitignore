@@ -1,0 +1,19 @@
+# Environment variables
+.env
+.env.*
+*.env
+
+# Node
+node_modules/
+
+# Builds
+dist/
+build/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Docker
+*.log
