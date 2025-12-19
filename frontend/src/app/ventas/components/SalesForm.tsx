@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { FaShoppingCart } from 'react-icons/fa'
 import Swal from 'sweetalert2'
 import ModalSeleccionarProducto from '../../components/SeleccionarProductoModal'
+import ModalSeleccionarServicios from '../../components/ModalSeleccionarServicios'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
 
@@ -18,15 +19,23 @@ export default function SalesForm() {
   const [usuarioId, setUsuarioId] = useState<number | null>(null)
   const [sucursalId, setSucursalId] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
+  const [serviciosSeleccionados, setServiciosSeleccionados] = useState<any[]>([])
+  const [mostrarModalServicios, setMostrarModalServicios] = useState(false)
 
-  // 🔹 Calcular el total acumulado automáticamente
   const total = useMemo(() => {
-    return productosSeleccionados.reduce((acc, p) => {
+    const totalProductos = productosSeleccionados.reduce((acc, p) => {
       const precio = Number(p.precio) || 0
       const cantidad = Number(p.cantidadSeleccionada) || 0
       return acc + precio * cantidad
     }, 0)
-  }, [productosSeleccionados])
+
+    const totalServicios = serviciosSeleccionados.reduce((acc, s) => {
+      return acc + Number(s.costo || 0)
+    }, 0)
+
+    return totalProductos + totalServicios
+  }, [productosSeleccionados, serviciosSeleccionados])
+
 
   // 🔹 Cargar usuario y sucursal
   useEffect(() => {
@@ -76,11 +85,11 @@ export default function SalesForm() {
       return
     }
 
-    if (productosSeleccionados.length === 0) {
+    if (productosSeleccionados.length === 0 && serviciosSeleccionados.length === 0) {
       Swal.fire({
         icon: 'info',
-        title: 'Selecciona productos',
-        text: 'Debes seleccionar al menos un producto antes de registrar la venta.',
+        title: 'Selecciona productos o servicios',
+        text: 'Debes seleccionar al menos un producto o servicio.',
         confirmButtonColor: '#4F46E5'
       })
       return
@@ -111,6 +120,8 @@ export default function SalesForm() {
 
     try {
       setLoading(true)
+      const tieneProductos = productosSeleccionados.length > 0
+      const tieneServicios = serviciosSeleccionados.length > 0
 
       // 1️⃣ Registrar la venta
       const ventaResp = await fetch(`${API_URL}/api/ventas`, {
@@ -123,11 +134,12 @@ export default function SalesForm() {
           usuario_id: usuarioId,
           sucursal_id: sucursalId,
           total,
-          productos: productosSeleccionados.map(p => ({
+          productos: tieneProductos ? productosSeleccionados.map(p => ({
             id: p.id,
             cantidad: p.cantidadSeleccionada,
             precio_unitario: Number(p.precio) || 0
-          }))
+          })): [],
+          servicios: tieneServicios ? serviciosSeleccionados.map(s => s.id) : []
         })
       })
 
@@ -159,30 +171,43 @@ export default function SalesForm() {
         throw new Error(errData.message || 'Error al registrar movimiento en caja.')
       }
 
-      // 3️⃣ Descontar stock desde venta
-      const inventarioResp = await fetch(`${API_URL}/api/inventario/descontar-venta`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sucursal_id: sucursalId,
-          productos: productosSeleccionados.map(p => ({
-            producto_id: p.id,
-            cantidad_vendida: p.cantidadSeleccionada
-          }))
-        })
-      })
+      if (tieneProductos) {
+        const inventarioResp = await fetch(
+          `${API_URL}/api/inventario/descontar-venta`,
+          {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sucursal_id: sucursalId,
+              productos: productosSeleccionados.map(p => ({
+                producto_id: p.id,
+                cantidad_vendida: p.cantidadSeleccionada
+              }))
+            })
+          }
+        )
 
-      if (!inventarioResp.ok) {
-        const errData = await inventarioResp.json()
-        throw new Error(errData.message || 'Error al descontar stock.')
+        if (!inventarioResp.ok) {
+          const errData = await inventarioResp.json()
+          throw new Error(errData.message || 'Error al descontar stock.')
+        }
       }
 
-      // ✅ Todo correcto
+      let mensajeExito = 'La venta se registró correctamente.'
+
+      if (tieneProductos && tieneServicios) {
+        mensajeExito = 'La venta de productos y servicios se registró correctamente.'
+      } else if (tieneProductos) {
+        mensajeExito = 'La venta de productos se registró correctamente.'
+      } else if (tieneServicios) {
+        mensajeExito = 'El servicio fue cobrado correctamente.'
+      }
+
       await Swal.fire({
         icon: 'success',
-        title: 'Venta registrada',
-        text: 'La venta, el movimiento de caja y el descuento de inventario se realizaron correctamente.',
+        title: 'Operación exitosa',
+        text: mensajeExito,
         showConfirmButton: false,
         timer: 3000
       })
@@ -190,6 +215,7 @@ export default function SalesForm() {
       // 🔹 Limpiar formulario
       setFormData({ cliente: '', observaciones: '' })
       setProductosSeleccionados([])
+      setServiciosSeleccionados([])
 
     } catch (error: any) {
       Swal.fire({
@@ -239,6 +265,16 @@ export default function SalesForm() {
             : '➕ Seleccionar productos'}
         </button>
 
+        <button
+          type="button"
+          onClick={() => setMostrarModalServicios(true)}
+          className="bg-green-100 border border-green-300 rounded-md p-2 text-green-700 hover:bg-green-200 transition"
+        >
+          {serviciosSeleccionados.length > 0
+            ? '🔄 Editar servicios seleccionados'
+            : '➕ Seleccionar servicios'}
+        </button>
+
         {/* Listado de productos seleccionados */}
         {productosSeleccionados.length > 0 && (
           <div className='border rounded-md p-3 bg-gray-50'>
@@ -273,6 +309,42 @@ export default function SalesForm() {
             <div className='text-right mt-3 font-bold text-gray-800'>
               Total: ${total.toFixed(2)} MXN
             </div>
+          </div>
+        )}
+
+        {serviciosSeleccionados.length > 0 && (
+          <div className="border rounded-md p-3 bg-green-50">
+            <h4 className="font-semibold text-gray-700 mb-2">
+              Servicios seleccionados
+            </h4>
+
+            <ul className="space-y-2">
+              {serviciosSeleccionados.map((s) => (
+                <li
+                  key={s.id}
+                  className="flex justify-between items-center text-sm bg-white p-2 rounded-md border"
+                >
+                  <div>
+                    <p className="font-medium">{s.tipo_mantenimiento}</p>
+                    <p className="text-gray-500">{s.detalle}</p>
+                    <p className="text-gray-600 font-semibold">
+                      ${Number(s.costo).toFixed(2)} MXN
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setServiciosSeleccionados(prev =>
+                        prev.filter(x => x.id !== s.id)
+                      )
+                    }
+                    className="text-red-500 hover:text-red-700 text-xs font-semibold"
+                  >
+                    ✖
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
@@ -335,6 +407,17 @@ export default function SalesForm() {
           }}
         />
       )}
+
+      {mostrarModalServicios && (
+        <ModalSeleccionarServicios
+          onClose={() => setMostrarModalServicios(false)}
+          onSeleccionar={(servicios) => {
+            setServiciosSeleccionados(servicios)
+            setMostrarModalServicios(false)
+          }}
+        />
+      )}
+
     </motion.div>
   )
 }

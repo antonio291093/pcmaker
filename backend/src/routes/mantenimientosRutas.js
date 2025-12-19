@@ -9,6 +9,12 @@ router.post("/", authMiddleware, mantenimientosController.crearMantenimiento);
 // Obtener todos los mantenimientos (protegido)
 router.get("/", authMiddleware, mantenimientosController.obtenerMantenimientos);
 
+router.get(
+  "/servicios-pendientes",
+  authMiddleware,
+  mantenimientosController.obtenerServiciosPendientesVenta
+);
+
 // Actualizar mantenimiento (protegido)
 router.put(
   "/:id",

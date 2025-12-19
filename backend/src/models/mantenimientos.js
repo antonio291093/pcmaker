@@ -4,21 +4,23 @@ async function crearMantenimiento({
   fecha_mantenimiento,
   detalle,
   tecnico_id,
+  sucursal_id,
   fecha_creacion,
   catalogo_id,
   costo_personalizado,
 }) {
   const query = `
     INSERT INTO mantenimientos (
-      fecha_mantenimiento, detalle, tecnico_id, fecha_creacion, catalogo_id, costo_personalizado
+      fecha_mantenimiento, detalle, tecnico_id, sucursal_id, fecha_creacion, catalogo_id, costo_personalizado
     )
-    VALUES ($1, $2, $3, $4, $5, $6)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
     RETURNING *;
   `;
   const values = [
     fecha_mantenimiento,
     detalle,
     tecnico_id,
+    sucursal_id,
     fecha_creacion,
     catalogo_id || null,
     costo_personalizado || null,
@@ -79,9 +81,35 @@ async function eliminarMantenimiento(id) {
   return rows[0];
 }
 
+async function obtenerMantenimientosPendientesParaVenta({ sucursal_id }) {
+  const query = `
+    SELECT
+      m.id,
+      m.fecha_mantenimiento,
+      m.detalle,
+      m.tecnico_id,
+      m.sucursal_id,
+      cm.descripcion AS tipo_mantenimiento,
+      COALESCE(m.costo_personalizado, cm.costo) AS costo
+    FROM mantenimientos m
+    JOIN catalogo_mantenimiento cm ON m.catalogo_id = cm.id
+    WHERE
+      m.estado = 'pendiente'
+      AND m.sucursal_id = $1
+      AND m.fecha_mantenimiento >= date_trunc('week', CURRENT_DATE)
+      AND m.fecha_mantenimiento < date_trunc('week', CURRENT_DATE) + INTERVAL '7 days'
+    ORDER BY m.fecha_mantenimiento DESC;
+  `;
+
+  const values = [sucursal_id];
+  const { rows } = await pool.query(query, values);
+  return rows;
+}
+
 module.exports = {
   crearMantenimiento,
   obtenerMantenimientos,
+  obtenerMantenimientosPendientesParaVenta,
   actualizarMantenimiento,
   eliminarMantenimiento,
 };

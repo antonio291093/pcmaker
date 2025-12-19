@@ -258,6 +258,32 @@ export default function InventoryHardwareSection() {
     abrirModalEdicion(editandoEquipo);
   }, [editandoEquipo]);
 
+  const guardarInventarioCatalogo = async (body: {
+    tipo: 'RAM' | 'Almacenamiento'
+    especificacion?: string
+    cantidad: number    
+    precio: number
+    estado: string
+    memoria_ram_id: number | null
+    almacenamiento_id: number | null
+    sucursal_id: number
+  }) => {
+    const resp = await fetch(`${API_URL}/api/inventario`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        ...body,
+        fecha_creacion: new Date().toISOString(),
+      }),
+    })
+
+    if (!resp.ok) {
+      throw new Error('Error guardando inventario de catálogo')
+    }
+
+    return resp.json()
+  }
 
   // 🔸 Guardar / editar artículo
   const guardarInventario = async (item: InventarioItem) => {
@@ -295,51 +321,51 @@ export default function InventoryHardwareSection() {
   };
 
   // 🔸 Guardar o actualizar equipo armado
-const guardarEquipoArmado = async (equipo: EquipoArmado) => {
-  try {
-    // 🧹 Crear una copia limpia del equipo antes de enviarlo
-    const equipoLimpio = { ...equipo };
+  const guardarEquipoArmado = async (equipo: EquipoArmado) => {
+    try {
+      // 🧹 Crear una copia limpia del equipo antes de enviarlo
+      const equipoLimpio = { ...equipo };
 
-    // ⚙️ Si los arrays están vacíos, los quitamos del payload
-    // (esto evita que se reemplace por null en la base de datos)
-    if (equipoLimpio.memorias_ram_ids?.length === 0) {
-      delete equipoLimpio.memorias_ram_ids;
+      // ⚙️ Si los arrays están vacíos, los quitamos del payload
+      // (esto evita que se reemplace por null en la base de datos)
+      if (equipoLimpio.memorias_ram_ids?.length === 0) {
+        delete equipoLimpio.memorias_ram_ids;
+      }
+      if (equipoLimpio.almacenamientos_ids?.length === 0) {
+        delete equipoLimpio.almacenamientos_ids;
+      }
+
+      // También puedes limpiar los arrays de nombres si no son relevantes para el backend
+      if (equipoLimpio.memorias_ram?.length === 0) {
+        delete equipoLimpio.memorias_ram;
+      }
+      if (equipoLimpio.almacenamientos?.length === 0) {
+        delete equipoLimpio.almacenamientos;
+      }
+
+      console.log("📤 Enviando equipo al backend:", equipoLimpio);
+
+      const resp = await fetch(`${API_URL}/api/inventario/equipos-armados/${equipo.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(equipoLimpio),
+      });
+
+      if (!resp.ok) throw new Error('Error al actualizar equipo armado');
+      const actualizado = await resp.json();
+
+      setEquiposArmados((prev) =>
+        prev.map((e) => (e.id === actualizado.id ? actualizado : e))
+      );
+
+      Swal.fire('Actualizado', 'El equipo fue editado correctamente', 'success');
+      setEditandoEquipo(null);
+    } catch (error) {
+      console.error("❌ Error al actualizar equipo armado:", error);
+      Swal.fire('Error', 'No se pudo actualizar el equipo', 'error');
     }
-    if (equipoLimpio.almacenamientos_ids?.length === 0) {
-      delete equipoLimpio.almacenamientos_ids;
-    }
-
-    // También puedes limpiar los arrays de nombres si no son relevantes para el backend
-    if (equipoLimpio.memorias_ram?.length === 0) {
-      delete equipoLimpio.memorias_ram;
-    }
-    if (equipoLimpio.almacenamientos?.length === 0) {
-      delete equipoLimpio.almacenamientos;
-    }
-
-    console.log("📤 Enviando equipo al backend:", equipoLimpio);
-
-    const resp = await fetch(`${API_URL}/api/inventario/equipos-armados/${equipo.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(equipoLimpio),
-    });
-
-    if (!resp.ok) throw new Error('Error al actualizar equipo armado');
-    const actualizado = await resp.json();
-
-    setEquiposArmados((prev) =>
-      prev.map((e) => (e.id === actualizado.id ? actualizado : e))
-    );
-
-    Swal.fire('Actualizado', 'El equipo fue editado correctamente', 'success');
-    setEditandoEquipo(null);
-  } catch (error) {
-    console.error("❌ Error al actualizar equipo armado:", error);
-    Swal.fire('Error', 'No se pudo actualizar el equipo', 'error');
-  }
-};
+  };
 
   // 🔸 Eliminar artículo
   const eliminarInventario = async (id: number) => {
@@ -367,6 +393,188 @@ const guardarEquipoArmado = async (equipo: EquipoArmado) => {
       Swal.fire('Error', 'No se pudo eliminar el artículo', 'error');
     }
   };
+
+  const abrirModalInventario = async () => {
+    // 🔹 Cargar catálogos
+    const [ramResp, almacenamientoResp] = await Promise.all([
+      fetch(`${API_URL}/api/catalogoMemoriaRam`, { credentials: 'include' }),
+      fetch(`${API_URL}/api/catalogoAlmacenamiento`, { credentials: 'include' })
+    ])
+
+    const catalogoRam = await ramResp.json()
+    const catalogoAlmacenamiento = await almacenamientoResp.json()
+
+    // 🔹 Opciones HTML
+    const opcionesRam = catalogoRam
+      .map((r: any) => `<option value="${r.id}">${r.descripcion}</option>`)
+      .join('')
+
+    const opcionesAlmacenamiento = catalogoAlmacenamiento
+      .map((a: any) => `<option value="${a.id}">${a.descripcion}</option>`)
+      .join('')
+
+    Swal.fire({
+      title: 'Agregar nuevo artículo',
+      html: `
+        <div style="text-align:left">
+
+          <label><strong>Tipo de artículo</strong></label>
+          <div style="margin-bottom:10px">
+            <label>
+              <input type="radio" name="tipo" value="otro" checked />
+              Otro
+            </label><br/>
+            <label>
+              <input type="radio" name="tipo" value="ram" />
+              Memoria RAM
+            </label><br/>
+            <label>
+              <input type="radio" name="tipo" value="almacenamiento" />
+              Almacenamiento
+            </label>
+          </div>
+
+          <input id="descripcion" class="swal2-input" placeholder="Descripción (solo para Otro)" />
+
+          <select id="ram-select" class="swal2-select" style="display:none">
+            <option value="">Selecciona memoria RAM</option>
+            ${opcionesRam}
+          </select>
+
+          <select id="almacenamiento-select" class="swal2-select" style="display:none">
+            <option value="">Selecciona almacenamiento</option>
+            ${opcionesAlmacenamiento}
+          </select>
+
+          <input id="precio" type="number" min="0" step="0.01" class="swal2-input" placeholder="Precio (MXN)" />
+
+          <select id="estado" class="swal2-select">
+            <option value="nuevo">Nuevo</option>
+            <option value="usado" selected>Usado</option>
+          </select>
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'Guardar',
+      cancelButtonText: 'Cancelar',
+      didOpen: () => {
+        const radios = document.querySelectorAll<HTMLInputElement>('input[name="tipo"]')
+        const descripcion = document.getElementById('descripcion') as HTMLInputElement
+        const ramSelect = document.getElementById('ram-select') as HTMLSelectElement
+        const almSelect = document.getElementById('almacenamiento-select') as HTMLSelectElement
+
+        radios.forEach(radio => {
+          radio.addEventListener('change', () => {
+            if (radio.value === 'ram') {
+              descripcion.style.display = 'none'
+              ramSelect.style.display = 'block'
+              almSelect.style.display = 'none'
+            } else if (radio.value === 'almacenamiento') {
+              descripcion.style.display = 'none'
+              ramSelect.style.display = 'none'
+              almSelect.style.display = 'block'
+            } else {
+              descripcion.style.display = 'block'
+              ramSelect.style.display = 'none'
+              almSelect.style.display = 'none'
+            }
+          })
+        })
+      },
+      preConfirm: () => {
+        const tipo = (document.querySelector('input[name="tipo"]:checked') as HTMLInputElement).value
+        const descripcion = (document.getElementById('descripcion') as HTMLInputElement).value
+        const ramId = (document.getElementById('ram-select') as HTMLSelectElement).value
+        const almId = (document.getElementById('almacenamiento-select') as HTMLSelectElement).value
+        const precio = parseFloat((document.getElementById('precio') as HTMLInputElement).value)
+        const estado = (document.getElementById('estado') as HTMLSelectElement).value
+
+        if (isNaN(precio)) {
+          Swal.showValidationMessage('Precio inválido')
+          return
+        }
+
+        if (tipo === 'otro' && !descripcion.trim()) {
+          Swal.showValidationMessage('La descripción es obligatoria')
+          return
+        }
+
+        if (tipo === 'ram' && !ramId) {
+          Swal.showValidationMessage('Selecciona una memoria RAM')
+          return
+        }
+
+        if (tipo === 'almacenamiento' && !almId) {
+          Swal.showValidationMessage('Selecciona un almacenamiento')
+          return
+        }
+
+        return {
+          tipo,
+          descripcion,
+          memoria_ram_id: tipo === 'ram' ? Number(ramId) : null,
+          almacenamiento_id: tipo === 'almacenamiento' ? Number(almId) : null,
+          precio,
+          estado
+        }
+      }
+    }).then(async res => {
+      if (!res.isConfirmed || !res.value) return
+
+      if (!sucursalId) {
+        Swal.fire('Error', 'No hay sucursal seleccionada', 'error')
+        return
+      }
+
+      const data = res.value
+
+      try {
+        if (data.tipo === 'ram') {
+          await guardarInventarioCatalogo({
+            tipo: 'RAM',
+            cantidad: 1,
+            precio: data.precio,
+            estado: data.estado,
+            memoria_ram_id: data.memoria_ram_id,
+            almacenamiento_id: null,
+            sucursal_id: sucursalId, // ✅ ya es number
+          })
+
+          Swal.fire('Agregado', 'Memoria RAM agregada al inventario', 'success')
+          return
+        }
+
+        if (data.tipo === 'almacenamiento') {
+          await guardarInventarioCatalogo({
+            tipo: 'Almacenamiento',
+            cantidad: 1,
+            precio: data.precio,
+            estado: data.estado,
+            memoria_ram_id: null,
+            almacenamiento_id: data.almacenamiento_id,
+            sucursal_id: sucursalId, // ✅
+          })
+
+          Swal.fire('Agregado', 'Almacenamiento agregado al inventario', 'success')
+          return
+        }
+
+        await guardarInventario({
+          id: 0,
+          tipo: 'Otro',
+          descripcion: data.descripcion,
+          cantidad: 1,
+          disponibilidad: true,
+          estado: data.estado,
+          sucursal_id: sucursalId, // ✅
+          precio: data.precio,
+        } as InventarioItem)
+      } catch (err) {
+        console.error(err)
+        Swal.fire('Error', 'No se pudo guardar el artículo', 'error')
+      }
+    })
+  }
 
   const obtenerIcono = (tipo: string, especificacion?: string) => {
     const texto = `${tipo} ${especificacion || ''}`.toLowerCase().trim();
@@ -398,51 +606,12 @@ const guardarEquipoArmado = async (equipo: EquipoArmado) => {
       {/* === INVENTARIO GENERAL === */}
       <div className="flex justify-between items-center mb-4">
         <h2 className="font-semibold text-lg text-gray-700">Inventario de Hardware y Accesorios</h2>
-        <button
-          onClick={() =>
-            Swal.fire({
-              title: 'Agregar nuevo artículo',
-              html: `
-                <input id="swal-descripcion" class="swal2-input" placeholder="Descripción">
-                <input id="swal-precio" type="number" step="0.01" min="0" class="swal2-input" placeholder="Precio (MXN)">
-                <select id="swal-estado" class="swal2-select">
-                  <option value="nuevo">Nuevo</option>
-                  <option value="usado" selected>Usado</option>
-                </select>
-              `,
-              showCancelButton: true,
-              confirmButtonText: 'Guardar',
-              cancelButtonText: 'Cancelar',
-              preConfirm: () => {
-                const descripcion = (document.getElementById('swal-descripcion') as HTMLInputElement).value;
-                const precio = parseFloat((document.getElementById('swal-precio') as HTMLInputElement).value);
-                const estado = (document.getElementById('swal-estado') as HTMLSelectElement).value;
-                if (!descripcion.trim() || isNaN(precio)) {
-                  Swal.showValidationMessage('Todos los campos son obligatorios');
-                  return null;
-                }
-                return { descripcion, precio, estado };
-              },
-            }).then((res) => {
-              if (res.isConfirmed && res.value) {
-                const { descripcion, precio, estado } = res.value;
-                guardarInventario({
-                  id: 0,
-                  tipo: 'Otro',
-                  descripcion,
-                  cantidad: 1,
-                  disponibilidad: true,
-                  estado,
-                  sucursal_id: sucursalId,
-                  precio,
-                } as InventarioItem);
-              }
-            })
-          }
-          className="flex items-center gap-2 bg-indigo-600 text-white px-3 py-2 rounded-lg shadow hover:bg-indigo-700"
-        >
-          <FaPlus /> Agregar
-        </button>
+          <button
+            onClick={abrirModalInventario}
+            className="flex items-center gap-2 bg-indigo-600 text-white px-3 py-2 rounded-lg shadow hover:bg-indigo-700"
+          >
+            <FaPlus /> Agregar
+          </button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-8">

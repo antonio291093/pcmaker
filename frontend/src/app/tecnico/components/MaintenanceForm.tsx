@@ -20,6 +20,7 @@ export default function MaintenanceForm() {
   const [catalogos, setCatalogos] = useState<any[]>([]);
   const [selectedCosto, setSelectedCosto] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sucursalId, setSucursalId] = useState<number | null>(null);
 
   // --- Cargar fecha actual y usuario ---
   useEffect(() => {
@@ -39,6 +40,7 @@ export default function MaintenanceForm() {
       .then(dataApi => {
         setData(prev => ({ ...prev, tecnico: dataApi.user.nombre }));
         setTecnicoId(dataApi.user.id);
+        setSucursalId(dataApi.user.sucursal_id);
       })
       .catch(() => {
         window.location.href = '/login';
@@ -176,6 +178,7 @@ export default function MaintenanceForm() {
         fecha_mantenimiento: data.fecha,
         detalle: data.detalle,
         tecnico_id: tecnicoId,
+        sucursal_id: sucursalId,
         catalogo_id: catalogoId
       };
 

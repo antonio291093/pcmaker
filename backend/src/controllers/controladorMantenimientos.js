@@ -1,6 +1,7 @@
 const {
   crearMantenimiento,
   obtenerMantenimientos,
+  obtenerMantenimientosPendientesParaVenta,
   actualizarMantenimiento,
   eliminarMantenimiento,
 } = require("../models/mantenimientos");
@@ -11,6 +12,7 @@ exports.crearMantenimiento = async (req, res) => {
     fecha_mantenimiento,
     detalle,
     tecnico_id,
+    sucursal_id,
     catalogo_id,
     costo_personalizado,
   } = req.body;
@@ -21,6 +23,7 @@ exports.crearMantenimiento = async (req, res) => {
       fecha_mantenimiento,
       detalle,
       tecnico_id,
+      sucursal_id,
       fecha_creacion,
       catalogo_id,
       costo_personalizado,
@@ -39,6 +42,25 @@ exports.obtenerMantenimientos = async (req, res) => {
     res.json(mantenimientos);
   } catch (error) {
     console.error("Error obteniendo mantenimientos:", error);
+    res.status(500).json({ message: "Error en el servidor" });
+  }
+};
+
+exports.obtenerServiciosPendientesVenta = async (req, res) => {
+  try {
+    const { sucursal_id } = req.query;
+
+    if (!sucursal_id) {
+      return res.status(400).json({ message: "Sucursal requerida" });
+    }
+
+    const servicios = await obtenerMantenimientosPendientesParaVenta({
+      sucursal_id: Number(sucursal_id)
+    });
+
+    res.json(servicios);
+  } catch (error) {
+    console.error("Error obteniendo servicios pendientes para venta:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };

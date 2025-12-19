@@ -2,30 +2,52 @@ const { registrarVenta, obtenerVentas } = require("../models/ventas");
 
 exports.crearVenta = async (req, res) => {
   try {
-    const { cliente, productos, observaciones, usuario_id, sucursal_id, total } = req.body;
+    const {
+      cliente,
+      productos = [],
+      servicios = [],
+      observaciones,
+      usuario_id,
+      sucursal_id,
+      total
+    } = req.body;
 
-    if (!cliente || !productos || productos.length === 0) {
-      return res.status(400).json({ message: "Faltan datos requeridos o productos vacíos" });
+    // 🧠 Validaciones correctas
+    if (!cliente) {
+      return res.status(400).json({
+        message: "El cliente es obligatorio"
+      });
+    }
+
+    if (productos.length === 0 && servicios.length === 0) {
+      return res.status(400).json({
+        message: "Debes registrar al menos un producto o un servicio"
+      });
     }
 
     const resultado = await registrarVenta({
       cliente,
       productos,
+      servicios,
       observaciones,
       usuario_id,
       sucursal_id,
-      total,
+      total
     });
 
     res.status(201).json({
-      message: resultado.message,
-      venta_id: resultado.ventas[0].id,
+      message: resultado.message || "Venta registrada correctamente",
+      venta_id: resultado.ventas?.[0]?.id,
       total: resultado.total,
       ventas: resultado.ventas
     });
+
   } catch (error) {
     console.error("Error al registrar venta:", error);
-    res.status(500).json({ message: "Error al registrar venta", error: error.message });
+    res.status(500).json({
+      message: "Error al registrar venta",
+      error: error.message
+    });
   }
 };
 
