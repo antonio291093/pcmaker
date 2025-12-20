@@ -1,39 +1,28 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 
+import { useState } from 'react'
 import Sidebar from './components/Sidebar'
-import InventoryList from '../components/InventorySelectorCard';
+import InventoryList from '../components/InventorySelectorCard'
 import SalesForm from './components/SalesForm'
 import ReportsHistory from './components/ReportsHistory'
 import CommissionsCard from './components/CommissionsCard'
 import RecibirLote from '../components/RecibirLote'
 import CorteCaja from './components/CorteCaja'
-
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+import { useUser } from '@/context/UserContext'
 
 export default function DashboardPage() {
   const [active, setActive] = useState('inventario')
-  const router = useRouter()
+  const { user, loading } = useUser()
 
-  useEffect(() => {
-    fetch(`${API_URL}/api/usuarios/me`, {
-      credentials: 'include',
-    })
-      .then(res => {
-        if (!res.ok) throw new Error('No autenticado')
-        return res.json()
-      })
-      .then(data => {
-        if (data.user?.rol_id !== 3) { // rol ventas
-          router.push('/login');
-        }
-      })
-      .catch(() => {
-        router.push('/login');
-      })
-  }, [router])
+  // Mientras se valida sesión
+  if (loading) {
+    return <p className="p-8">Cargando...</p>
+  }
+
+  // Extra safety (middleware ya protegió)
+  if (!user) {
+    return null
+  }
 
   return (
     <>

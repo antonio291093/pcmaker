@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 import { useRouter } from 'next/navigation'
+import { useUser } from '@/context/UserContext'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -39,6 +40,11 @@ interface Serie {
 }
 
 export default function SpecsCard() {
+  const { user, loading } = useUser()
+  if (loading) return <p>Cargando...</p>
+  if (!user) return null
+  const usuarioId = user.id
+  const sucursalId = user.sucursal_id  
   const [specs, setSpecs] = useState({
     modelo: "",
     procesador: "",
@@ -54,8 +60,7 @@ export default function SpecsCard() {
   const [busqueda, setBusqueda] = useState("");
   const [camposDeshabilitados, setCamposDeshabilitados] = useState(false);
   const [equipoEncontrado, setEquipoEncontrado] = useState<any>(null);
-  const [usuarioId, setUsuarioId] = useState<number | null>(null)
-  const [sucursalId, setSucursalId] = useState<number | null>(null);
+  
   const router = useRouter()      
 
   // Dentro de SpecsCard agrega al inicio:
@@ -93,21 +98,7 @@ export default function SpecsCard() {
           text: 'No se pudieron cargar los estados.',
         });
       });
-  }, []);
-
-  // Al montar, obtener info del usuario y sucursal
-  useEffect(() => {
-    fetch(`${API_URL}/api/usuarios/me`, { credentials: 'include' })
-      .then(res => {
-        if (!res.ok) throw new Error('No autenticado');
-        return res.json();
-      })
-      .then(data => {
-        setUsuarioId(data.user.id);
-        setSucursalId(data.user.sucursal_id); // Aquí sacas el sucursal_id
-      })
-      .catch(() => router.push('/login'));
-  }, [router]);
+  }, []); 
 
   // En un useEffect para cargar las opciones de RAM y Almacenamiento desde la API
   useEffect(() => {

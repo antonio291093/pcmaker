@@ -1,23 +1,24 @@
 'use client'
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { useUser } from '@/context/UserContext'
 
-const API_URL = "http://localhost:5000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 export default function CommissionCard() {
-  const [usuarioId, setUsuarioId] = useState<number | null>(null);
-  const [comisiones, setComisiones] = useState<any[]>([]);
-  const [totalSemana, setTotalSemana] = useState<number>(0);
+  const { user, loading: userLoading } = useUser()
 
-  useEffect(() => {
-    fetch(`${API_URL}/api/usuarios/me`, { credentials: 'include' })
-      .then(res => {
-        if (!res.ok) throw new Error('No autenticado');
-        return res.json();
-      })
-      .then(data => setUsuarioId(data.user.id))
-      .catch(() => window.location.href = '/login');
-  }, []);
+  if (userLoading) {
+    return <p>Cargando comisiones...</p>
+  }
+
+  if (!user) {
+    return null
+  }
+
+  const usuarioId = user.id  
+  const [comisiones, setComisiones] = useState<any[]>([]);
+  const [totalSemana, setTotalSemana] = useState<number>(0);  
 
   useEffect(() => {
     if (!usuarioId) return;

@@ -1,14 +1,17 @@
-// app/layout.tsx
-import './globals.css'; // Importa tus estilos globales (ej. Tailwind)
-import { ReactNode } from 'react';
+// src/app/layout.tsx
+import './globals.css'
+import { ReactNode } from 'react'
+import { UserProvider } from '@/context/UserContext'
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="es">
       <head />
       <body>
-        {children}
+        <UserProvider>
+          {children}
+        </UserProvider>
       </body>
     </html>
-  );
+  )
 }

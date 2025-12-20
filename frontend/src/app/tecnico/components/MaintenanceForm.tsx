@@ -2,6 +2,7 @@
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import Swal from "sweetalert2";
+import { useUser } from '@/context/UserContext'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -21,31 +22,29 @@ export default function MaintenanceForm() {
   const [selectedCosto, setSelectedCosto] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [sucursalId, setSucursalId] = useState<number | null>(null);
+  const { user, loading: userLoading } = useUser()
 
-  // --- Cargar fecha actual y usuario ---
   useEffect(() => {
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    const formattedDate = `${yyyy}-${mm}-${dd}`;
+    if (!user) return
 
-    setData(prev => ({ ...prev, fecha: formattedDate }));
+    const today = new Date()
+    const yyyy = today.getFullYear()
+    const mm = String(today.getMonth() + 1).padStart(2, '0')
+    const dd = String(today.getDate()).padStart(2, '0')
+    const formattedDate = `${yyyy}-${mm}-${dd}`
 
-    fetch(`${API_URL}/api/usuarios/me`, { credentials: 'include' })
-      .then(res => {
-        if (!res.ok) throw new Error('No autenticado');
-        return res.json();
-      })
-      .then(dataApi => {
-        setData(prev => ({ ...prev, tecnico: dataApi.user.nombre }));
-        setTecnicoId(dataApi.user.id);
-        setSucursalId(dataApi.user.sucursal_id);
-      })
-      .catch(() => {
-        window.location.href = '/login';
-      });
-  }, []);
+    setData(prev => ({
+      ...prev,
+      fecha: formattedDate,
+      tecnico: user.nombre
+    }))
+
+    setTecnicoId(user.id)
+    setSucursalId(user.sucursal_id)
+
+    setLoading(false) // loading del formulario
+  }, [user])
+
 
   // --- Cargar catálogo ---
   useEffect(() => {

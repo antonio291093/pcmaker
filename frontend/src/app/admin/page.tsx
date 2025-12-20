@@ -1,37 +1,27 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 
+import { useState } from 'react'
 import Sidebar from './components/Sidebar'
 import UserManagement from './components/UserManagement'
-import InventoryManagement from '../components/InventorySelectorCard';
+import InventoryManagement from '../components/InventorySelectorCard'
 import ReportsManagement from './components/ReportsManagement'
 import Configurations from './components/Configurations'
 import RecibirLote from '../components/RecibirLote'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+import { useUser } from '@/context/UserContext'
 
 export default function AdminDashboard() {
   const [active, setActive] = useState('usuarios')
-  const router = useRouter()
+  const { user, loading } = useUser()
 
-  useEffect(() => {
-    fetch(`${API_URL}/api/usuarios/me`, {
-      credentials: 'include',
-    })
-      .then(res => {
-        if (!res.ok) throw new Error('No autenticado');
-        return res.json()
-      })
-      .then(data => {
-        if (data.user?.rol_id !== 1) {
-          router.push('/login')
-        }
-      })
-      .catch(() => {
-        router.push('/login')
-      })
-  }, [router])
+  // Mientras se valida sesión / usuario
+  if (loading) {
+    return <p className="p-8">Cargando...</p>
+  }
+
+  // Seguridad extra (normalmente el middleware ya bloqueó)
+  if (!user) {
+    return null
+  }
 
   return (
     <>
