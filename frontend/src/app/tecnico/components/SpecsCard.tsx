@@ -2,7 +2,6 @@
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import Swal from "sweetalert2";
-import { useRouter } from 'next/navigation'
 import { useUser } from '@/context/UserContext'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -59,9 +58,7 @@ export default function SpecsCard() {
   const [seriales, setSeriales] = useState<Serie[]>([]);
   const [busqueda, setBusqueda] = useState("");
   const [camposDeshabilitados, setCamposDeshabilitados] = useState(false);
-  const [equipoEncontrado, setEquipoEncontrado] = useState<any>(null);
-  
-  const router = useRouter()      
+  const [equipoEncontrado, setEquipoEncontrado] = useState<any>(null);    
 
   // Dentro de SpecsCard agrega al inicio:
   const [ramOptions, setRamOptions] = useState<{ id: number; descripcion: string }[]>([]);

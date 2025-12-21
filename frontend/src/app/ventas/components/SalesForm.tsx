@@ -5,6 +5,7 @@ import { FaShoppingCart } from 'react-icons/fa'
 import Swal from 'sweetalert2'
 import ModalSeleccionarProducto from '../../components/SeleccionarProductoModal'
 import ModalSeleccionarServicios from '../../components/ModalSeleccionarServicios'
+import { useUser } from '@/context/UserContext'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
 
@@ -15,10 +16,19 @@ export default function SalesForm() {
   })
 
   const [productosSeleccionados, setProductosSeleccionados] = useState<any[]>([])
-  const [mostrarModal, setMostrarModal] = useState(false)
-  const [usuarioId, setUsuarioId] = useState<number | null>(null)
-  const [sucursalId, setSucursalId] = useState<number | null>(null)
+  const [mostrarModal, setMostrarModal] = useState(false)  
   const [loading, setLoading] = useState(false)
+  const { user, loading: userLoading } = useUser()
+  if (userLoading) {
+    return <p>Cargando usuario...</p>
+  }
+
+  if (!user) {
+    return null
+  }
+
+  const usuarioId = user.id
+  const sucursalId = user.sucursal_id
   const [serviciosSeleccionados, setServiciosSeleccionados] = useState<any[]>([])
   const [mostrarModalServicios, setMostrarModalServicios] = useState(false)
 
@@ -34,29 +44,7 @@ export default function SalesForm() {
     }, 0)
 
     return totalProductos + totalServicios
-  }, [productosSeleccionados, serviciosSeleccionados])
-
-
-  // 🔹 Cargar usuario y sucursal
-  useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const res = await fetch(`${API_URL}/api/usuarios/me`, { credentials: 'include' })
-        if (!res.ok) throw new Error('No autenticado')
-        const data = await res.json()
-        setUsuarioId(data.user.id)
-        setSucursalId(data.user.sucursal_id)
-      } catch (err) {
-        Swal.fire({
-          icon: 'warning',
-          title: 'Sesión expirada',
-          text: 'Debes iniciar sesión nuevamente.',
-          confirmButtonColor: '#4F46E5'
-        }).then(() => (window.location.href = '/login'))
-      }
-    }
-    fetchUserData()
-  }, [])
+  }, [productosSeleccionados, serviciosSeleccionados])  
 
   // 🔹 Manejador de cambios
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {

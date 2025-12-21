@@ -21,7 +21,7 @@ import {
   FaLaptopCode,
   FaStore
 } from 'react-icons/fa';
-import { useRouter } from 'next/navigation'
+import { useUser } from '@/context/UserContext'
 
 interface InventarioItem {
   id: number;
@@ -60,22 +60,19 @@ export default function InventoryHardwareSection() {
   const [editandoInventario, setEditandoInventario] = useState<InventarioItem | null>(null);
   const [editandoEquipo, setEditandoEquipo] = useState<EquipoArmado | null>(null);  
   const [sucursalId, setSucursalId] = useState<number | null>(null);
-  const router = useRouter()      
+  const { user, loading: userLoading } = useUser();  
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-   // Al montar, obtener info del usuario y sucursal
-    useEffect(() => {
-      fetch(`${API_URL}/api/usuarios/me`, { credentials: 'include' })
-        .then(res => {
-          if (!res.ok) throw new Error('No autenticado');
-          return res.json();
-        })
-        .then(data => {          
-          setSucursalId(data.user.sucursal_id); // Aquí sacas el sucursal_id
-        })
-        .catch(() => router.push('/login'));
-    }, [router]);
+  useEffect(() => {
+    if (userLoading) return
+    if (!user) return
+
+    setSucursalId(user.sucursal_id)
+  }, [user, userLoading])
+
+  if (userLoading) return null
+  if (!user) return null   
 
   // 🔹 Cargar inventario de accesorios
   const cargarInventario = async () => {

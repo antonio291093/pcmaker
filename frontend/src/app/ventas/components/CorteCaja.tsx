@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useUser } from '@/context/UserContext'
 import Swal from 'sweetalert2'
 import {
   FaMoneyBillWave,
@@ -24,26 +24,22 @@ export default function CorteCajaSection() {
   const [movimientos, setMovimientos] = useState<any[]>([])
   const [tipoMovimiento, setTipoMovimiento] = useState('gasto')
   const [monto, setMonto] = useState('')
-  const [descripcion, setDescripcion] = useState('')
-  const router = useRouter()
-
+  const [descripcion, setDescripcion] = useState('')  
   const balance = ventas + ingresos - gastos
+  const { user, loading: userLoading } = useUser()
 
-  // 🔹 Obtener usuario y sucursal
   useEffect(() => {
-    fetch(`${API_URL}/api/usuarios/me`, { credentials: 'include' })
-      .then(res => {
-        if (!res.ok) throw new Error('No autenticado')
-        return res.json()
-      })
-      .then(data => {
-        setUsuarioId(data.user.id)
-        setSucursalId(data.user.sucursal_id)
-        obtenerResumen(data.user.sucursal_id)
-        obtenerCortes(data.user.sucursal_id)
-      })
-      .catch(() => router.push('/login'))
-  }, [router])
+    if (!user) return
+
+    setUsuarioId(user.id)
+    setSucursalId(user.sucursal_id)
+
+    obtenerResumen(user.sucursal_id)
+    obtenerCortes(user.sucursal_id)
+  }, [user])
+
+  if (userLoading) return <p>Cargando corte de caja...</p>
+  if (!user) return null  
 
   // 🔹 Obtener resumen de caja
   const obtenerResumen = async (sucursal_id: number | null) => {

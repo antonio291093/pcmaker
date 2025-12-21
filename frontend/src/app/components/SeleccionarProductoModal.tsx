@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Swal from "sweetalert2";
+import { useUser } from '@/context/UserContext'
 import {
   FaMemory, FaHdd, FaMouse, FaKeyboard, FaHeadphones, FaUsb,
   FaGamepad, FaWifi, FaCamera, FaTools, FaMicrochip, FaQuestionCircle,
@@ -46,24 +47,20 @@ export default function ModalSeleccionarProducto({
   const [equiposArmados, setEquiposArmados] = useState<EquipoArmado[]>([]);
   const [seleccionados, setSeleccionados] = useState<ProductoSeleccionado[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sucursalId, setSucursalId] = useState<number | null>(null);
+  const [sucursalId, setSucursalId] = useState<number | null>(null)
+  const { user, loading: userLoading } = useUser()
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
-  // 1️⃣ Obtener sucursal del usuario autenticado
   useEffect(() => {
-    const obtenerSucursal = async () => {
-      try {
-        const res = await fetch(`${API_URL}/api/usuarios/me`, { credentials: 'include' });
-        if (!res.ok) throw new Error("No autenticado");
-        const data = await res.json();
-        setSucursalId(data.user.sucursal_id);
-      } catch (err) {
-        console.log("Error obteniendo sucursal:", err);
-      }
-    };
-    obtenerSucursal();
-  }, []);
+    if (userLoading) return
+    if (!user) return
+
+    setSucursalId(user.sucursal_id)
+  }, [user, userLoading])
+
+  if (userLoading) return null
+  if (!user) return null
 
   // 2️⃣ Cargar inventario
   const cargarInventario = async () => {

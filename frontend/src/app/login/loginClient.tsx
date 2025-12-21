@@ -3,41 +3,36 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Swal from 'sweetalert2';
+import { useUser } from '@/context/UserContext'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export default function LoginClient() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');  
+  const { user, loading: userLoading } = useUser()
   const router = useRouter();
 
   useEffect(() => {
-    fetch(`${API_URL}/api/usuarios/me`, {
-      credentials: 'include',
-    })
-      .then(res => res.ok ? res.json() : Promise.reject())
-      .then(data => {
-        if (data.user) {
-          const { rol_id } = data.user;
-          let ruta = ''; 
-          if (rol_id === 1) ruta = '/admin';
-          else if (rol_id === 2) ruta = '/tecnico';
-          else if (rol_id === 3) ruta = '/ventas';
+    if (userLoading) return
 
-          Swal.fire({
-            icon: 'success',
-            title: 'Ya estás logueado',
-            timer: 1000,
-            showConfirmButton: false,
-          }).then(() => {
-            window.location.href = ruta;  // ✅ 100% confiable
-          });
-        }
+    if (user) {
+      let ruta = '/login'
+
+      if (user.rol_id === 1) ruta = '/admin'
+      else if (user.rol_id === 2) ruta = '/tecnico'
+      else if (user.rol_id === 3) ruta = '/ventas'
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Ya estás logueado',
+        timer: 1000,
+        showConfirmButton: false
+      }).then(() => {
+        router.replace(ruta)
       })
-      .catch(() => {
-        // No hacer nada si no hay sesión
-      });
-  }, []);
+    }
+  }, [user, userLoading, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

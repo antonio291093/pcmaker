@@ -11,9 +11,9 @@ export default function HomePage() {
     const token = localStorage.getItem('token');
 
     if (token) {
-      router.replace('/ventas');
+      router.replace('/login');
     } else {
-      router.replace('/ventas'); // o /login si después lo cambias
+      router.replace('/login'); // o /login si después lo cambias
     }
   }, [router]);
 

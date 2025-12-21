@@ -1,9 +1,9 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import Swal from 'sweetalert2'
 import 'sweetalert2/dist/sweetalert2.min.css'
+import { useUser } from '@/context/UserContext'
 
 type Etiqueta = { lote: string; id: string }
 
@@ -32,20 +32,18 @@ export default function RecibirLote() {
   const [loteActual, setLoteActual] = useState<number>(1)
   const [etiquetas, setEtiquetas] = useState<Etiqueta[]>([])
   const [loading, setLoading] = useState(false)
-  const [usuarioId, setUsuarioId] = useState<number | null>(null)
-  const router = useRouter()
+  const [usuarioId, setUsuarioId] = useState<number | null>(null)     
+  const { user, loading: userLoading } = useUser()
 
   useEffect(() => {
-    fetch(`${API_URL}/api/usuarios/me`, {
-      credentials: 'include',
-    })
-      .then(res => {
-        if (!res.ok) throw new Error('No autenticado')
-        return res.json()
-      })
-      .then(data => setUsuarioId(data.user.id))
-      .catch(() => router.push('/login'))
-  }, [router])
+    if (userLoading) return
+    if (!user) return
+
+    setUsuarioId(user.id)
+  }, [user, userLoading])
+
+  if (userLoading) return null
+  if (!user) return null
 
   const onChangeEquipos = (value: number) => {
     if (value < 1 || isNaN(value)) {
