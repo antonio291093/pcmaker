@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { FaUsers, FaBoxOpen, FaFileAlt, FaTasks, FaCog, FaTruck, FaSignOutAlt, FaBars } from 'react-icons/fa'
+import { useUser } from '@/context/UserContext'
 import { useRouter } from "next/navigation"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -23,6 +24,7 @@ const navItems = [
 export default function Sidebar({ active, setActive }: SidebarProps) {
   const [open, setOpen] = useState(false); // móvil: estado del sidebar abierto/cerrado
   const [isDesktop, setIsDesktop] = useState(false);
+  const { logout } = useUser()  
   const router = useRouter();
 
   // Detectar si estamos en escritorio
@@ -35,17 +37,14 @@ export default function Sidebar({ active, setActive }: SidebarProps) {
 
   const handleNavClick = async (path: string) => {
     if (path === 'logout') {
-      await fetch(`${API_URL}/api/usuarios/logout`, {
-        method: 'POST',
-        credentials: 'include'
-      });
-      localStorage.removeItem('email');
-      router.push('/login');
-      return;
+      await logout()                 // 🔥 limpia cookie + estado
+      router.replace('/login')       // 👈 importante
+      return
     }
-    setActive(path);
-    setOpen(false); // cierra sidebar tras seleccionar en móvil
-  };
+
+    setActive(path)
+    setOpen(false) // cerrar sidebar en móvil
+  }
 
   return (
     <>

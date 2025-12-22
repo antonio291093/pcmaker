@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { FaBoxOpen, FaShoppingCart, FaFileAlt, FaDollarSign, FaTruck, FaSignOutAlt, FaBars, FaCashRegister } from 'react-icons/fa'
+import { useUser } from '@/context/UserContext'
 import { useRouter } from 'next/navigation'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -19,6 +20,7 @@ const navItems = [
 export default function Sidebar({ active, setActive }: { active: string; setActive: (a: string) => void }) {
   const [open, setOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
+  const { logout } = useUser()  
   const router = useRouter();
 
   useEffect(() => {
@@ -30,17 +32,14 @@ export default function Sidebar({ active, setActive }: { active: string; setActi
 
   const handleNavClick = async (path: string) => {
     if (path === 'logout') {
-      await fetch(`${API_URL}/api/usuarios/logout`, {
-        method: 'POST',
-        credentials: 'include'
-      });
-      localStorage.removeItem('email');
-      router.push('/login');
-      return;
+      await logout()                 // 🔥 limpia cookie + estado
+      router.replace('/login')       // 👈 importante
+      return
     }
-    setActive(path);
-    setOpen(false); // cerrar sidebar tras click en móvil
-  };
+
+    setActive(path)
+    setOpen(false) // cerrar sidebar en móvil
+  }
 
   return (
     <>
