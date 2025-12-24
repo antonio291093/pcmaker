@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import Swal from 'sweetalert2'
 import 'sweetalert2/dist/sweetalert2.min.css'
 import { useUser } from '@/context/UserContext'
+import EtiquetaA4Modal from './EtiquetaA4Modal';
 
 type Etiqueta = { lote: string; id: string }
 
@@ -33,7 +34,9 @@ export default function RecibirLote() {
   const [etiquetas, setEtiquetas] = useState<Etiqueta[]>([])
   const [loading, setLoading] = useState(false)
   const [usuarioId, setUsuarioId] = useState<number | null>(null)     
-  const { user, loading: userLoading } = useUser()
+  const { user, loading: userLoading } = useUser()  
+  const [showPrintModal, setShowPrintModal] = useState(false);
+
 
   useEffect(() => {
     if (userLoading) return
@@ -72,37 +75,32 @@ export default function RecibirLote() {
 
   const handleImprimir = async () => {
     if (etiquetas.length === 0) {
-      Swal.fire('Error', 'Primero genera las etiquetas', 'warning')
-      return
+      Swal.fire('Error', 'Primero genera las etiquetas', 'warning');
+      return;
     }
 
     if (!usuarioId) {
-      Swal.fire('Error', 'No se pudo obtener la información del usuario', 'error')
-      return
+      Swal.fire('Error', 'No se pudo obtener la información del usuario', 'error');
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
 
     try {
-      // Confirmar guardar lote
       const confirm = await Swal.fire({
         title: 'Confirmar acción',
-        text: "Se guardarán las etiquetas generadas como un nuevo lote. ¿Deseas continuar?",
+        text: 'Se guardarán las etiquetas generadas como un nuevo lote. ¿Deseas continuar?',
         icon: 'question',
         showCancelButton: true,
         confirmButtonText: 'Sí, guardar',
-        cancelButtonText: 'Cancelar'
-      })
+        cancelButtonText: 'Cancelar',
+      });
 
-      if (!confirm.isConfirmed) {
-        setLoading(false)
-        return
-      }
+      if (!confirm.isConfirmed) return;
 
-      // Guardar lote y etiquetas
-      const lote = etiquetas[0].lote
-      const fechaRecibo = new Date().toISOString()
-      const totalEquipos = etiquetas.length
+      const lote = etiquetas[0].lote;
+      const fechaRecibo = new Date().toISOString();
+      const totalEquipos = etiquetas.length;
 
       const response = await fetch(`${API_URL}/api/lotes`, {
         method: 'POST',
@@ -114,31 +112,32 @@ export default function RecibirLote() {
           total_equipos: totalEquipos,
           usuario_recibio: usuarioId,
           fecha_creacion: fechaRecibo,
+          series: etiquetas.map(e => e.id), // 👈 recomendado
         }),
-      })
+      });
 
-      if (!response.ok) throw new Error('Error al guardar el lote')
+      if (!response.ok) throw new Error('Error al guardar el lote');
 
-      await response.json()
+      await response.json();
 
       Swal.fire({
         icon: 'success',
         title: 'Lote guardado',
         html: `Se guardaron <b>${totalEquipos}</b> etiquetas del <b>${lote}</b>.`,
-        timer: 2500,
+        timer: 2000,
         showConfirmButton: false,
-      })
+      });
 
-      setEquipos(1)
-      setEtiquetas([])
-      setLoteActual(loteActual + 1)
+      // 🔥 AQUÍ abrimos el modal
+      setShowPrintModal(true);
 
     } catch (error: any) {
-      Swal.fire('Error', error.message || 'Error en el servidor', 'error')
+      Swal.fire('Error', error.message || 'Error en el servidor', 'error');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
+
 
   const cantidadEtiquetas = etiquetas.length
   const primera = cantidadEtiquetas > 0 ? etiquetas[0] : null
@@ -203,6 +202,18 @@ export default function RecibirLote() {
           >
             {loading ? "Guardando..." : "Imprimir etiquetas"}
           </button>
+
+          <EtiquetaA4Modal
+            open={showPrintModal}
+            etiquetas={etiquetas}
+            onClose={() => {
+              setShowPrintModal(false);
+              setEquipos(1);
+              setEtiquetas([]);
+              setLoteActual(loteActual + 1);
+            }}
+          />
+
         </div>
       )}
     </motion.div>
