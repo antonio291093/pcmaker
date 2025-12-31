@@ -16,7 +16,6 @@ const {
   obtenerAlmacenamientosDisponibles,
 } = require("../models/inventario");
 
-
 exports.actualizarEquipoArmado = async (req, res) => {
   const { id } = req.params;
   const data = req.body;

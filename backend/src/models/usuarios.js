@@ -19,10 +19,18 @@ async function crearUsuario({
   return rows[0];
 }
 
-// Obtener todos los usuarios
-async function obtenerUsuarios() {
-  const query = `SELECT * FROM usuarios ORDER BY id ASC;`;
-  const { rows } = await pool.query(query);
+async function obtenerUsuarios(rol = null) {
+  let query = `SELECT * FROM usuarios`;
+  const params = [];
+
+  if (rol) {
+    query += ` WHERE rol_id = $1`;
+    params.push(rol);
+  }
+
+  query += ` ORDER BY id ASC`;
+
+  const { rows } = await pool.query(query, params);
   return rows;
 }
 

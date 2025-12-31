@@ -163,6 +163,49 @@ async function obtenerEquiposPorEstado(estadoId) {
   return rows;
 }
 
+async function obtenerEquiposParaPedido(busqueda = '') {
+  const query = `
+    SELECT 
+      e.id,
+      e.nombre,
+      e.procesador,
+      e.estado_id,
+      le.etiqueta,
+      e.sucursal_id,
+      cs.nombre AS sucursal_nombre,
+      COALESCE(
+        (
+          SELECT json_agg(cmr.descripcion)
+          FROM equipos_ram er
+          JOIN catalogo_memoria_ram cmr ON er.memoria_ram_id = cmr.id
+          WHERE er.equipo_id = e.id
+        ),
+        '[]'
+      ) AS memorias_ram,
+      COALESCE(
+        (
+          SELECT json_agg(ca.descripcion)
+          FROM equipos_almacenamiento ea
+          JOIN catalogo_almacenamiento ca ON ea.almacenamiento_id = ca.id
+          WHERE ea.equipo_id = e.id
+        ),
+        '[]'
+      ) AS almacenamientos
+    FROM equipos e
+    JOIN lotes_etiquetas le ON e.lote_etiqueta_id = le.id
+    LEFT JOIN sucursales cs ON e.sucursal_id = cs.id
+    WHERE e.estado_id IN (2, 4)
+      AND (
+        e.nombre ILIKE '%' || $1 || '%'
+        OR le.etiqueta ILIKE '%' || $1 || '%'
+      )
+    ORDER BY e.id DESC;
+  `;
+
+  const { rows } = await pool.query(query, [busqueda]);
+  return rows;
+}
+
 module.exports = {
   crearEquipo,
   obtenerEquipos,
@@ -173,4 +216,5 @@ module.exports = {
   asignarRamAEquipo,
   asignarAlmacenamientoAEquipo,
   obtenerEquiposPorEstado,
+  obtenerEquiposParaPedido,
 };

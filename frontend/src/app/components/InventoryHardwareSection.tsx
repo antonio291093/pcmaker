@@ -61,6 +61,9 @@ export default function InventoryHardwareSection() {
   const [editandoEquipo, setEditandoEquipo] = useState<EquipoArmado | null>(null);  
   const [sucursalId, setSucursalId] = useState<number | null>(null);
   const { user, loading: userLoading } = useUser();  
+  const [sucursalSeleccionada, setSucursalSeleccionada] = useState<number | null>(null)
+  const [sucursales, setSucursales] = useState<{ id: number; nombre: string }[]>([])
+
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -69,15 +72,31 @@ export default function InventoryHardwareSection() {
     if (!user) return
 
     setSucursalId(user.sucursal_id)
+    setSucursalSeleccionada(user.sucursal_id)
   }, [user, userLoading])
 
   if (userLoading) return null
   if (!user) return null   
 
+  // Cargar sucursales al iniciar
+  useEffect(() => {
+    fetch(`${API_URL}/api/sucursales`, { credentials: 'include' })
+      .then(res => res.ok ? res.json() : Promise.reject())
+      .then(data => setSucursales(data))
+      .catch(() => {
+        setSucursales([]);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'No se pudieron cargar las sucursales',
+        });
+      });
+  }, []);
+
   // 🔹 Cargar inventario de accesorios
   const cargarInventario = async () => {
     try {      
-      const resp = await fetch(`${API_URL}/api/inventario?sucursal_id=${sucursalId}`, { credentials: 'include' });
+      const resp = await fetch(`${API_URL}/api/inventario?sucursal_id=${sucursalSeleccionada}`, { credentials: 'include' });
       if (!resp.ok) throw new Error('Error al obtener inventario');
       const data = await resp.json();
       setInventario(data);
@@ -90,7 +109,7 @@ export default function InventoryHardwareSection() {
   // 🔹 Cargar equipos armados
   const cargarEquiposArmados = async () => {
     try {
-      const resp = await fetch(`${API_URL}/api/inventario/equipos-armados?sucursal_id=${sucursalId}`, { credentials: 'include' });
+      const resp = await fetch(`${API_URL}/api/inventario/equipos-armados?sucursal_id=${sucursalSeleccionada}`, { credentials: 'include' });
       if (!resp.ok) throw new Error('Error al obtener equipos armados');
       const data = await resp.json();
       setEquiposArmados(data);
@@ -101,13 +120,17 @@ export default function InventoryHardwareSection() {
   };
 
   useEffect(() => {
-    if (!sucursalId) return;
-    (async () => {
-      setLoading(true);
-      await Promise.all([cargarInventario(), cargarEquiposArmados()]);
-      setLoading(false);
-    })();
-  }, [sucursalId]);
+    if (!sucursalSeleccionada) return
+
+    ;(async () => {
+      setLoading(true)
+      await Promise.all([
+        cargarInventario(),
+        cargarEquiposArmados()
+      ])
+      setLoading(false)
+    })()
+  }, [sucursalSeleccionada])
 
   // 🔹 Modal de edición (sin cambios)
   useEffect(() => {
@@ -601,15 +624,43 @@ export default function InventoryHardwareSection() {
       className="bg-white p-6 rounded-xl shadow w-full"
     >
       {/* === INVENTARIO GENERAL === */}
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="font-semibold text-lg text-gray-700">Inventario de Hardware y Accesorios</h2>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+
+        {/* Título */}
+        <h2 className="font-semibold text-lg text-gray-700">
+          Inventario de Hardware y Accesorios
+        </h2>
+
+        {/* Acciones */}
+        <div className="flex items-center gap-3">
+
+          {/* Filtro por sucursal */}
+          <div className="flex items-center gap-2">
+            <FaStore className="text-gray-500" />
+            <select
+              value={sucursalSeleccionada ?? ''}
+              onChange={(e) => setSucursalSeleccionada(Number(e.target.value))}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              {sucursales.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Botón agregar */}
           <button
             onClick={abrirModalInventario}
             className="flex items-center gap-2 bg-indigo-600 text-white px-3 py-2 rounded-lg shadow hover:bg-indigo-700"
           >
             <FaPlus /> Agregar
           </button>
+
+        </div>
       </div>
+
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-8">
         {inventario.map((item) => (

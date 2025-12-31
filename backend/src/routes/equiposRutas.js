@@ -30,4 +30,10 @@ router.get(
   equiposController.obtenerEquiposPorEstado
 );
 
+router.get(
+  '/para-pedido',
+  authMiddleware,
+  equiposController.obtenerEquiposParaPedido
+);
+
 module.exports = router;

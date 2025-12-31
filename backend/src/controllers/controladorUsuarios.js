@@ -36,10 +36,10 @@ exports.crearUsuario = async (req, res) => {
   }
 };
 
-// Obtener todos los usuarios (opcional: incluir sucursal_id si deseas)
 exports.obtenerUsuarios = async (req, res) => {
   try {
-    const usuarios = await obtenerUsuarios();
+    const { rol } = req.query; // 👈 viene del ?rol=tecnico
+    const usuarios = await obtenerUsuarios(rol || null);
     res.json(usuarios);
   } catch (error) {
     console.error("Error al obtener usuarios:", error);

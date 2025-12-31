@@ -10,6 +10,7 @@ const {
   asignarRamAEquipo,
   asignarAlmacenamientoAEquipo,
   obtenerEquiposPorEstado,
+  obtenerEquiposParaPedido,
 } = require("../models/equipos");
 
 exports.crearEquipo = async (req, res) => {
@@ -175,3 +176,17 @@ exports.obtenerEquiposPorEstado = async (req, res) => {
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
+
+exports.obtenerEquiposParaPedido = async (req, res) => {
+  try {
+    const busqueda = req.query.q || '';
+
+    const equipos = await obtenerEquiposParaPedido(busqueda);
+
+    res.json(equipos);
+  } catch (error) {
+    console.error('Error al obtener equipos para pedido:', error);
+    res.status(500).json({ message: 'Error en el servidor' });
+  }
+};
+

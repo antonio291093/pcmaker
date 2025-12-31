@@ -1,5 +1,19 @@
 const pool = require("../config/db");
 
+async function obtenerStockEquipo(equipoId) {
+  const query = `
+    SELECT cantidad
+    FROM inventario
+    WHERE equipo_id = $1
+    LIMIT 1;
+  `;
+
+  const { rows } = await pool.query(query, [equipoId]);
+
+  if (rows.length === 0) return 0;
+  return rows[0].cantidad;
+}
+
 // 🔹 Obtener memorias RAM disponibles
 async function obtenerMemoriasRamDisponibles() {
   const query = `
@@ -646,4 +660,5 @@ module.exports = {
   actualizarEquipoArmado,
   obtenerMemoriasRamDisponibles,
   obtenerAlmacenamientosDisponibles,
+  obtenerStockEquipo,
 };
