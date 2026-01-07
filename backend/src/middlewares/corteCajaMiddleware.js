@@ -16,24 +16,36 @@ const corteCajaMiddleware = async (req, res, next) => {
 
     if (rol_id !== 3) return next() // solo ventas
 
-    // 🔹 Último día con movimiento
+    // 🔹 ¿Existe al menos un corte en el sistema?
+    const existeCorte = await pool.query(
+      `SELECT 1 FROM caja_cortes LIMIT 1`
+    )
+
+    // 👉 Sistema recién iniciado → no bloquear
+    if (existeCorte.rowCount === 0) {
+      return next()
+    }
+
+    // 🔹 Último día con movimiento (EXCLUYE hoy)
     const movResult = await pool.query(
       `
       SELECT DATE(fecha) AS fecha
       FROM caja_movimientos
       WHERE usuario_id = $1
+        AND DATE(fecha) < CURRENT_DATE
       ORDER BY fecha DESC
       LIMIT 1
       `,
       [usuario_id]
     )
 
-    // Nunca ha operado → no bloquear
+    // Nunca ha operado antes de hoy → no bloquear
     if (movResult.rowCount === 0) {
       return next()
     }
 
     const fechaOperacion = movResult.rows[0].fecha
+
 
     // 🔹 Verificar corte de ese día
     const corteResult = await pool.query(

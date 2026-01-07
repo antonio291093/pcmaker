@@ -26,26 +26,63 @@ export default function CorteCajaSection() {
   const [monto, setMonto] = useState('')
   const [descripcion, setDescripcion] = useState('')  
   const balance = ventas + ingresos - gastos
+  const [fechaCortePendiente, setFechaCortePendiente] = useState<string | null>(null)
   const { user, loading: userLoading } = useUser()
 
+  if (userLoading) return <p>Cargando corte de caja...</p>
+  if (!user) return null  
+  
   useEffect(() => {
     if (!user) return
 
     setUsuarioId(user.id)
-    setSucursalId(user.sucursal_id)
-
+    setSucursalId(user.sucursal_id)    
     obtenerResumen(user.sucursal_id)
     obtenerCortes(user.sucursal_id)
+    verificarCortePendiente()
   }, [user])
 
-  if (userLoading) return <p>Cargando corte de caja...</p>
-  if (!user) return null  
+  const verificarCortePendiente = async () => {
+    try {
+      const resp = await fetch(`${API_URL}/api/caja/corte-pendiente`, {
+        credentials: 'include'
+      })
 
-  // 🔹 Obtener resumen de caja
+      if (!resp.ok) return
+
+      const data = await resp.json()
+
+      if (data.requiere_corte && data.fecha_pendiente) {
+        setFechaCortePendiente(data.fecha_pendiente)
+
+        Swal.fire({
+          icon: 'warning',
+          title: 'Corte pendiente',
+          text: `Tienes un corte pendiente del día ${new Date(
+            data.fecha_pendiente
+          ).toLocaleDateString()}`,
+          confirmButtonColor: '#16A34A'
+        })
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
   const obtenerResumen = async (sucursal_id: number | null) => {
     try {
-      const resp = await fetch(`${API_URL}/api/caja/resumen`, { credentials: 'include' })
-      if (!resp.ok) return
+      const fecha = new Date().toISOString().split('T')[0] // YYYY-MM-DD
+
+      const resp = await fetch(
+        `${API_URL}/api/caja/resumen?sucursal_id=${sucursal_id}&fecha=${fecha}`,
+        { credentials: 'include' }
+      )
+
+      if (!resp.ok) {
+        console.error('Error HTTP:', resp.status)
+        return
+      }
+
       const data = await resp.json()
       setVentas(Number(data.total_ventas) || 0)
       setGastos(Number(data.total_gastos) || 0)
@@ -119,11 +156,12 @@ export default function CorteCajaSection() {
     }
   }
 
-  // 🔹 Generar corte de caja
-  const generarCorte = async () => {
+  const generarCorte = async () => {    
     const confirm = await Swal.fire({
       title: '¿Generar corte de caja?',
-      text: 'Esto cerrará el balance actual y registrará un nuevo corte.',
+      text: fechaCortePendiente
+        ? `Se generará el corte del día ${new Date(fechaCortePendiente).toLocaleDateString()}`
+        : 'Esto cerrará el balance del día actual.',
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: '#16A34A',
@@ -134,10 +172,19 @@ export default function CorteCajaSection() {
     if (!confirm.isConfirmed) return
 
     try {
-      const resp = await fetch(`${API_URL}/api/caja/corte`, {
+      const resp = await fetch(`${API_URL}/api/caja/corte?sucursal_id=${sucursalId}`, {
         method: 'POST',
-        credentials: 'include'
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          fecha: fechaCortePendiente // 👈 ESTA ES LA CLAVE
+        })
       })
+
+      const data = await resp.json()
+
       if (resp.ok) {
         Swal.fire({
           icon: 'success',
@@ -145,12 +192,14 @@ export default function CorteCajaSection() {
           text: 'El corte de caja se generó correctamente.',
           confirmButtonColor: '#16A34A'
         })
+
+        setFechaCortePendiente(null)
         obtenerCortes(sucursalId)
       } else {
         Swal.fire({
           icon: 'error',
           title: 'Error',
-          text: 'No se pudo generar el corte de caja.',
+          text: data.message || 'No se pudo generar el corte.',
           confirmButtonColor: '#4F46E5'
         })
       }
@@ -159,7 +208,7 @@ export default function CorteCajaSection() {
       Swal.fire({
         icon: 'error',
         title: 'Error inesperado',
-        text: 'Hubo un problema al generar el corte de caja.',
+        text: 'Hubo un problema al generar el corte.',
         confirmButtonColor: '#4F46E5'
       })
     }

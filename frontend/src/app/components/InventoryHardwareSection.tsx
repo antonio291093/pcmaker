@@ -737,12 +737,23 @@ export default function InventoryHardwareSection() {
         </div>
       </div>      
 
+      {/* Mensaje cuando no hay coincidencias en inventario */}
+      {skuBusqueda && inventarioFiltrado.length === 0 && (
+        <p className="text-sm text-gray-500 mb-4">
+          No se encontró inventario con ese SKU
+        </p>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-8">
         {inventarioFiltrado.map((item) => (
           <motion.div
             key={item.id}
             whileHover={{ scale: 1.02 }}
-            className="p-4 rounded-lg bg-gray-50 shadow-sm border border-gray-100 flex flex-col items-start"
+            className={`p-4 rounded-lg shadow-sm flex flex-col items-start
+              ${skuBusqueda
+                ? 'border-2 border-indigo-500 bg-indigo-50'
+                : 'border border-gray-100 bg-gray-50'}
+            `}
           >
             <div className="flex items-center gap-3 mb-2">
               {obtenerIcono(item.tipo, item.especificacion || item.descripcion)}
@@ -793,7 +804,14 @@ export default function InventoryHardwareSection() {
         <FaLaptopCode className="text-indigo-600" /> Equipos Armados
       </h2>
 
-      {equiposArmados.length === 0 ? (
+      {/* Mensaje cuando no hay coincidencias en equipos armados */}
+      {skuBusqueda && equiposArmadosFiltrados.length === 0 && (
+        <p className="text-sm text-gray-500 mb-4">
+          No se encontraron equipos armados con esa serie
+        </p>
+      )}
+
+      {equiposArmadosFiltrados.length === 0 && !skuBusqueda ? (
         <p className="text-gray-500 text-center py-4">
           No hay equipos armados registrados.
         </p>
@@ -803,7 +821,11 @@ export default function InventoryHardwareSection() {
             <motion.div
               key={eq.id}
               whileHover={{ scale: 1.02 }}
-              className="p-5 rounded-2xl bg-white shadow-md border border-gray-200 flex flex-col justify-between"
+              className={`p-5 rounded-2xl shadow-md flex flex-col justify-between
+                ${skuBusqueda
+                  ? 'border-2 border-indigo-500 bg-indigo-50'
+                  : 'border border-gray-200 bg-white'}
+              `}
             >
               {/* 🔹 Encabezado */}
               <div>

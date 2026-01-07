@@ -8,7 +8,7 @@ const corteCajaMiddleware = require("../middlewares/corteCajaMiddleware");
 router.post("/movimiento", authMiddleware, corteCajaMiddleware, cajaController.crearMovimiento);
 
 // Obtener resumen del día
-router.get("/resumen", authMiddleware, cajaController.obtenerResumen);
+router.get("/resumen", authMiddleware, cajaController.obtenerResumenPorFecha);
 
 // Generar corte de caja
 router.post("/corte", authMiddleware, cajaController.generarCorte);
@@ -22,5 +22,10 @@ router.get(
   cajaController.estadoCaja
 );
 
+router.get(
+  '/corte-pendiente',
+  authMiddleware,
+  cajaController.obtenerCortePendiente
+)
 
 module.exports = router;
