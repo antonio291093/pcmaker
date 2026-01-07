@@ -19,8 +19,13 @@ import {
   FaTools,
   FaQuestionCircle,
   FaLaptopCode,
-  FaStore
+  FaStore,
+  FaDownload,
+  FaSearch
 } from 'react-icons/fa';
+import EtiquetaA4Modal from './EtiquetaA4Modal';
+import type { Etiqueta } from './Types';
+
 import { useUser } from '@/context/UserContext'
 
 interface InventarioItem {
@@ -33,6 +38,9 @@ interface InventarioItem {
   estado: string;
   sucursal_id: number;
   precio?: number;
+  sku?: string;
+  es_codigo_generado?: boolean;
+  barcode?: string;
 }
 
 export interface EquipoArmado {
@@ -45,6 +53,7 @@ export interface EquipoArmado {
   precio: number;
   estado: string;
   disponibilidad: boolean;
+  serie:string;
 
   // 🔹 Estas pueden o no existir al momento de enviar el payload
   memorias_ram?: string[];
@@ -53,9 +62,7 @@ export interface EquipoArmado {
   almacenamientos_ids?: number[];
 }
 
-export default function InventoryHardwareSection() {
-  const [inventario, setInventario] = useState<InventarioItem[]>([]);
-  const [equiposArmados, setEquiposArmados] = useState<EquipoArmado[]>([]);
+export default function InventoryHardwareSection() {  
   const [loading, setLoading] = useState(true);  
   const [editandoInventario, setEditandoInventario] = useState<InventarioItem | null>(null);
   const [editandoEquipo, setEditandoEquipo] = useState<EquipoArmado | null>(null);  
@@ -63,8 +70,13 @@ export default function InventoryHardwareSection() {
   const { user, loading: userLoading } = useUser();  
   const [sucursalSeleccionada, setSucursalSeleccionada] = useState<number | null>(null)
   const [sucursales, setSucursales] = useState<{ id: number; nombre: string }[]>([])
-
-
+  const [openImpresion, setOpenImpresion] = useState(false);
+  const [etiquetasImpresion, setEtiquetasImpresion] = useState<Etiqueta[]>([]);
+  const [skuBusqueda, setSkuBusqueda] = useState('');
+  const [inventario, setInventario] = useState<InventarioItem[]>([]);
+  const [equiposArmados, setEquiposArmados] = useState<EquipoArmado[]>([]);
+  const [inventarioFiltrado, setInventarioFiltrado] = useState<any[]>([]);
+  const [equiposArmadosFiltrados, setEquiposArmadosFiltrados] = useState<any[]>([]);
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
   useEffect(() => {
@@ -77,6 +89,29 @@ export default function InventoryHardwareSection() {
 
   if (userLoading) return null
   if (!user) return null   
+
+  useEffect(() => {
+    const valor = skuBusqueda.trim();
+
+    // Sin búsqueda → todo visible
+    if (!valor) {
+      setInventarioFiltrado(inventario);
+      setEquiposArmadosFiltrados(equiposArmados);
+      return;
+    }
+
+    // Filtra inventario por SKU
+    setInventarioFiltrado(
+      inventario.filter(item => item.sku === valor)
+    );
+
+    // Filtra equipos armados por SERIE
+    setEquiposArmadosFiltrados(
+      equiposArmados.filter(eq => eq.serie === valor)
+    );
+
+  }, [skuBusqueda, inventario, equiposArmados]);
+
 
   // Cargar sucursales al iniciar
   useEffect(() => {
@@ -100,6 +135,7 @@ export default function InventoryHardwareSection() {
       if (!resp.ok) throw new Error('Error al obtener inventario');
       const data = await resp.json();
       setInventario(data);
+      setInventarioFiltrado(data);
     } catch (err) {
       console.error('Error cargando inventario:', err);
       Swal.fire('Error', 'No se pudo cargar el inventario', 'error');
@@ -113,6 +149,7 @@ export default function InventoryHardwareSection() {
       if (!resp.ok) throw new Error('Error al obtener equipos armados');
       const data = await resp.json();
       setEquiposArmados(data);
+      setEquiposArmadosFiltrados(data);
     } catch (err) {
       console.error('Error cargando equipos armados:', err);
       Swal.fire('Error', 'No se pudieron cargar los equipos armados', 'error');
@@ -456,6 +493,12 @@ export default function InventoryHardwareSection() {
 
           <input id="descripcion" class="swal2-input" placeholder="Descripción (solo para Otro)" />
 
+          <input
+            id="sku"
+            class="swal2-input"
+            placeholder="Código / SKU (escanea o escribe)"
+          />
+
           <select id="ram-select" class="swal2-select" style="display:none">
             <option value="">Selecciona memoria RAM</option>
             ${opcionesRam}
@@ -507,6 +550,7 @@ export default function InventoryHardwareSection() {
         const ramId = (document.getElementById('ram-select') as HTMLSelectElement).value
         const almId = (document.getElementById('almacenamiento-select') as HTMLSelectElement).value
         const precio = parseFloat((document.getElementById('precio') as HTMLInputElement).value)
+        const sku = (document.getElementById('sku') as HTMLInputElement).value.trim()
         const estado = (document.getElementById('estado') as HTMLSelectElement).value
 
         if (isNaN(precio)) {
@@ -532,6 +576,7 @@ export default function InventoryHardwareSection() {
         return {
           tipo,
           descripcion,
+          sku: sku || null,
           memoria_ram_id: tipo === 'ram' ? Number(ramId) : null,
           almacenamiento_id: tipo === 'almacenamiento' ? Number(almId) : null,
           precio,
@@ -583,6 +628,7 @@ export default function InventoryHardwareSection() {
           id: 0,
           tipo: 'Otro',
           descripcion: data.descripcion,
+          sku: data.sku || null,
           cantidad: 1,
           disponibilidad: true,
           estado: data.estado,
@@ -612,6 +658,20 @@ export default function InventoryHardwareSection() {
     return <FaQuestionCircle className="text-gray-400 text-3xl" />;
   };
 
+  const imprimirEtiquetasInventario = (item: InventarioItem) => {
+    if (!item.sku || !item.barcode) return;
+
+    setEtiquetasImpresion([
+      {
+        lote: item.descripcion || item.especificacion || 'INVENTARIO',
+        id: item.sku,
+        barcode: item.barcode,
+      },
+    ]);
+
+    setOpenImpresion(true);
+  }; 
+
   if (loading) {
     return <div className="text-center text-gray-500 py-6">Cargando inventario...</div>;
   }
@@ -629,10 +689,26 @@ export default function InventoryHardwareSection() {
         {/* Título */}
         <h2 className="font-semibold text-lg text-gray-700">
           Inventario de Hardware y Accesorios
-        </h2>
+        </h2>        
 
         {/* Acciones */}
         <div className="flex items-center gap-3">
+
+          <div className="relative">
+            <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              autoFocus
+              placeholder="Escanear SKU o Serie"
+              value={skuBusqueda}
+              onChange={(e) => setSkuBusqueda(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setSkuBusqueda('');
+              }}
+              className="pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm
+                        focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
 
           {/* Filtro por sucursal */}
           <div className="flex items-center gap-2">
@@ -659,11 +735,10 @@ export default function InventoryHardwareSection() {
           </button>
 
         </div>
-      </div>
-
+      </div>      
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-        {inventario.map((item) => (
+        {inventarioFiltrado.map((item) => (
           <motion.div
             key={item.id}
             whileHover={{ scale: 1.02 }}
@@ -681,13 +756,33 @@ export default function InventoryHardwareSection() {
             </span>
             <span className="text-xs text-gray-400 mt-1">Estado: {item.estado}</span>
 
-            <div className="flex gap-3 mt-4">
-              <button onClick={() => setEditandoInventario(item)} className="text-blue-600 hover:text-blue-800">
+            <div className="flex gap-3 mt-4 items-center">
+              <button
+                onClick={() => setEditandoInventario(item)}
+                className="text-blue-600 hover:text-blue-800"
+                title="Editar"
+              >
                 <FaEdit />
               </button>
-              <button onClick={() => eliminarInventario(item.id)} className="text-red-500 hover:text-red-700">
+
+              <button
+                onClick={() => eliminarInventario(item.id)}
+                className="text-red-500 hover:text-red-700"
+                title="Eliminar"
+              >
                 <FaTrash />
               </button>
+
+                {/* 🏷️ Imprimir etiquetas (solo si fue generado) */}
+                {item.es_codigo_generado && item.sku && item.barcode && (
+                  <button
+                    onClick={() => imprimirEtiquetasInventario(item)}
+                    className="text-green-600 hover:text-green-800"
+                    title="Imprimir etiquetas"
+                  >
+                    <FaDownload />
+                  </button>
+                )}              
             </div>
           </motion.div>
         ))}
@@ -762,6 +857,13 @@ export default function InventoryHardwareSection() {
           ))}
         </div>
       )}
+
+      <EtiquetaA4Modal
+        open={openImpresion}
+        etiquetas={etiquetasImpresion}
+        onClose={() => setOpenImpresion(false)}
+        allowCantidad
+      />
 
     </motion.div>
   );

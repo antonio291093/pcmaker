@@ -1,9 +1,13 @@
 const { registrarVenta, obtenerVentas } = require("../models/ventas");
 
+// controllers/controladorVentas.js
 exports.crearVenta = async (req, res) => {
   try {
     const {
       cliente,
+      telefono,
+      correo,
+      metodo_pago,
       productos = [],
       servicios = [],
       observaciones,
@@ -12,7 +16,6 @@ exports.crearVenta = async (req, res) => {
       total
     } = req.body;
 
-    // 🧠 Validaciones correctas
     if (!cliente) {
       return res.status(400).json({
         message: "El cliente es obligatorio"
@@ -27,6 +30,9 @@ exports.crearVenta = async (req, res) => {
 
     const resultado = await registrarVenta({
       cliente,
+      telefono,
+      correo,
+      metodo_pago,
       productos,
       servicios,
       observaciones,
@@ -41,7 +47,6 @@ exports.crearVenta = async (req, res) => {
       total: resultado.total,
       ventas: resultado.ventas
     });
-
   } catch (error) {
     console.error("Error al registrar venta:", error);
     res.status(500).json({

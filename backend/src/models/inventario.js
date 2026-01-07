@@ -1,4 +1,5 @@
 const pool = require("../config/db");
+const { generarBarcodeBase64 } = require('../utils/barcode');
 
 async function obtenerStockEquipo(equipoId) {
   const query = `
@@ -344,7 +345,10 @@ async function obtenerInventario(sucursalId = null) {
       i.memoria_ram_id,
       i.almacenamiento_id,
       i.sucursal_id,
-      i.fecha_creacion
+      i.fecha_creacion,
+      i.es_codigo_generado,
+      i.barcode,
+      i.sku
     FROM inventario i
     LEFT JOIN catalogo_memoria_ram cm ON i.memoria_ram_id = cm.id
     LEFT JOIN catalogo_almacenamiento ca ON i.almacenamiento_id = ca.id
@@ -370,6 +374,7 @@ async function obtenerEquiposArmados(sucursalId = null) {
       e.nombre,
       e.procesador,
       le.etiqueta,
+      le.serie,
       e.sucursal_id,
       s.nombre AS sucursal_nombre,
       i.precio,
@@ -437,6 +442,8 @@ async function actualizarInventario(
     memoria_ram_id = null,
     almacenamiento_id = null,
     sucursal_id = null,
+    sku = null,                     
+    es_codigo_generado = false,    
   }
 ) {
   // 🧩 Si no hay especificacion pero sí descripcion, úsala
@@ -454,8 +461,10 @@ async function actualizarInventario(
         precio = $6,
         memoria_ram_id = $7,
         almacenamiento_id = $8,
-        sucursal_id = $9
-    WHERE id = $10;
+        sucursal_id = $9,
+        sku = $10,
+        es_codigo_generado = $11
+    WHERE id = $12;
   `;
 
   const values = [
@@ -468,6 +477,8 @@ async function actualizarInventario(
     memoria_ram_id,
     almacenamiento_id,
     sucursal_id,
+    sku,
+    es_codigo_generado,
     id,
   ];
 
@@ -485,7 +496,9 @@ async function actualizarInventario(
       i.memoria_ram_id,
       i.almacenamiento_id,
       i.sucursal_id,
-      i.fecha_creacion
+      i.fecha_creacion,
+      i.sku,
+      i.es_codigo_generado
     FROM inventario i
     LEFT JOIN catalogo_memoria_ram cm ON i.memoria_ram_id = cm.id
     LEFT JOIN catalogo_almacenamiento ca ON i.almacenamiento_id = ca.id
@@ -613,19 +626,82 @@ async function validarStockInventario({
 async function crearInventarioGeneral({
   tipo,
   descripcion,
+  sku = null,
   cantidad = 1,
   disponibilidad = true,
   estado = "usado",
   sucursal_id,
-  precio = 0, // ✅ nuevo campo
+  precio = 0,
 }) {
   if (!tipo || !descripcion || !sucursal_id)
     throw new Error("Faltan datos requeridos");
 
+  let skuFinal = sku;
+  let esGenerado = false;
+
+  // 🧠 1. Generar SKU numérico si no viene
+  if (!skuFinal) {
+    const fecha = new Date();
+
+    const yyyy = fecha.getFullYear();
+    const mm = String(fecha.getMonth() + 1).padStart(2, '0');
+    const dd = String(fecha.getDate()).padStart(2, '0');
+    const hh = String(fecha.getHours()).padStart(2, '0');
+    const mi = String(fecha.getMinutes()).padStart(2, '0');
+    const ss = String(fecha.getSeconds()).padStart(2, '0');
+
+    // 🔢 consecutivo por segundo y sucursal
+    const { rows } = await pool.query(
+      `
+      SELECT COUNT(*) FROM inventario
+      WHERE sku LIKE $1 AND sucursal_id = $2
+      `,
+      [`${yyyy}${mm}${dd}${hh}${mi}${ss}%`, sucursal_id]
+    );
+
+    const consecutivo = String(Number(rows[0].count) + 1).padStart(3, '0');
+
+    // ✅ SKU final (NUMÉRICO)
+    skuFinal = `${yyyy}${mm}${dd}${hh}${mi}${ss}${consecutivo}`;
+    esGenerado = true;
+  }
+
+  // 🧾 2. Generar código de barras (imagen) usando el SKU
+  const barcode = await generarBarcodeBase64(skuFinal);
+
+  // 🔎 3. Verificar duplicado (solo inventario general)
+  const existe = await pool.query(
+    `
+    SELECT id FROM inventario
+    WHERE sku = $1 AND sucursal_id = $2 AND equipo_id IS NULL
+    `,
+    [skuFinal, sucursal_id]
+  );
+
+  if (existe.rows.length > 0) {
+    await pool.query(
+      `
+      UPDATE inventario
+      SET cantidad = cantidad + $1
+      WHERE id = $2
+      `,
+      [cantidad, existe.rows[0].id]
+    );
+
+    const { rows } = await pool.query(
+      `SELECT * FROM inventario WHERE id = $1`,
+      [existe.rows[0].id]
+    );
+
+    return rows[0];
+  }
+
+  // 🧾 4. Insertar nuevo artículo
   const insertQuery = `
-    INSERT INTO inventario 
-      (tipo, especificacion, cantidad, disponibilidad, estado, sucursal_id, precio)
-    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    INSERT INTO inventario
+      (tipo, especificacion, cantidad, disponibilidad, estado,
+       sucursal_id, precio, sku, es_codigo_generado, barcode)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
     RETURNING *;
   `;
 
@@ -636,12 +712,16 @@ async function crearInventarioGeneral({
     disponibilidad,
     estado,
     sucursal_id,
-    precio, // ✅ incluirlo en la inserción
+    precio,
+    skuFinal,
+    esGenerado,
+    barcode,
   ];
 
   const { rows } = await pool.query(insertQuery, values);
   return rows[0];
 }
+
 
 module.exports = {
   agregarOActualizarInventario,

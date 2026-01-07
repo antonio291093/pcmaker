@@ -5,8 +5,7 @@ import Swal from 'sweetalert2'
 import 'sweetalert2/dist/sweetalert2.min.css'
 import { useUser } from '@/context/UserContext'
 import EtiquetaA4Modal from './EtiquetaA4Modal';
-
-type Etiqueta = { lote: string; id: string }
+import type { EtiquetaDraft, Etiqueta } from './Types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
@@ -25,13 +24,16 @@ function generarIdFechaConsecutivo(i: number) {
   const dd = String(now.getDate()).padStart(2, '0')
   const mm = String(now.getMonth() + 1).padStart(2, '0')
   const yyyy = now.getFullYear()
-  return `${dd}${mm}${yyyy}${i}`
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mi = String(now.getMinutes()).padStart(2, '0');
+  return `${yyyy}${mm}${dd}${hh}${mi}${i}`
 }
 
 export default function RecibirLote() {
   const [equipos, setEquipos] = useState<number>(1)
   const [loteActual, setLoteActual] = useState<number>(1)
-  const [etiquetas, setEtiquetas] = useState<Etiqueta[]>([])
+  const [etiquetasDraft, setEtiquetasDraft] = useState<EtiquetaDraft[]>([]);
+  const [etiquetas, setEtiquetas] = useState<Etiqueta[]>([]);
   const [loading, setLoading] = useState(false)
   const [usuarioId, setUsuarioId] = useState<number | null>(null)     
   const { user, loading: userLoading } = useUser()  
@@ -63,18 +65,18 @@ export default function RecibirLote() {
     }
 
     const lote = getLoteLabel();
-    const nuevasEtiquetas = [];
+    const nuevasEtiquetas: EtiquetaDraft[] = [];
     for (let numSerie = 1; numSerie <= equipos; numSerie++) {
       nuevasEtiquetas.push({
         lote,
         id: generarIdFechaConsecutivo(numSerie), // Formato basado en fecha + consecutivo
       });
     }
-    setEtiquetas(nuevasEtiquetas)
+    setEtiquetasDraft(nuevasEtiquetas)
   }
 
   const handleImprimir = async () => {
-    if (etiquetas.length === 0) {
+    if (etiquetasDraft.length === 0) {
       Swal.fire('Error', 'Primero genera las etiquetas', 'warning');
       return;
     }
@@ -98,9 +100,9 @@ export default function RecibirLote() {
 
       if (!confirm.isConfirmed) return;
 
-      const lote = etiquetas[0].lote;
+      const lote = etiquetasDraft[0].lote;
       const fechaRecibo = new Date().toISOString();
-      const totalEquipos = etiquetas.length;
+      const totalEquipos = etiquetasDraft.length;
 
       const response = await fetch(`${API_URL}/api/lotes`, {
         method: 'POST',
@@ -111,14 +113,22 @@ export default function RecibirLote() {
           fecha_recibo: fechaRecibo,
           total_equipos: totalEquipos,
           usuario_recibio: usuarioId,
-          fecha_creacion: fechaRecibo,
-          series: etiquetas.map(e => e.id), // 👈 recomendado
+          fecha_creacion: fechaRecibo,          
         }),
       });
 
       if (!response.ok) throw new Error('Error al guardar el lote');
 
-      await response.json();
+      const data = await response.json();      
+
+      // 👇 estas ya vienen listas para el PDF
+      setEtiquetas(
+        data.etiquetas.map((e: any) => ({
+          lote: data.lote.etiqueta,
+          id: e.serie,
+          barcode: e.barcode,
+        }))
+      );
 
       Swal.fire({
         icon: 'success',
@@ -128,9 +138,7 @@ export default function RecibirLote() {
         showConfirmButton: false,
       });
 
-      // 🔥 AQUÍ abrimos el modal
-      setShowPrintModal(true);
-
+      setShowPrintModal(true);    
     } catch (error: any) {
       Swal.fire('Error', error.message || 'Error en el servidor', 'error');
     } finally {
@@ -139,9 +147,9 @@ export default function RecibirLote() {
   };
 
 
-  const cantidadEtiquetas = etiquetas.length
-  const primera = cantidadEtiquetas > 0 ? etiquetas[0] : null
-  const ultima = cantidadEtiquetas > 1 ? etiquetas[cantidadEtiquetas - 1] : primera
+  const cantidadEtiquetas = etiquetasDraft.length
+  const primera = cantidadEtiquetas > 0 ? etiquetasDraft[0] : null
+  const ultima = cantidadEtiquetas > 1 ? etiquetasDraft[cantidadEtiquetas - 1] : primera
 
   return (
     <motion.div
@@ -210,6 +218,7 @@ export default function RecibirLote() {
               setShowPrintModal(false);
               setEquipos(1);
               setEtiquetas([]);
+              setEtiquetasDraft([]);
               setLoteActual(loteActual + 1);
             }}
           />

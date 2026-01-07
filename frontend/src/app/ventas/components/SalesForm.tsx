@@ -12,7 +12,10 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
 export default function SalesForm() {
   const [formData, setFormData] = useState({
     cliente: '',
-    observaciones: ''
+    observaciones: '',
+    telefono: '',
+    correo: '',
+    metodo_pago: 'efectivo', // valor por defecto
   })
 
   const [productosSeleccionados, setProductosSeleccionados] = useState<any[]>([])
@@ -118,6 +121,9 @@ export default function SalesForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           cliente: formData.cliente,
+          telefono: formData.telefono || null,
+          correo: formData.correo || null,
+          metodo_pago: formData.metodo_pago,
           observaciones: formData.observaciones,
           usuario_id: usuarioId,
           sucursal_id: sucursalId,
@@ -201,7 +207,13 @@ export default function SalesForm() {
       })
 
       // 🔹 Limpiar formulario
-      setFormData({ cliente: '', observaciones: '' })
+      setFormData({
+        cliente: '',
+        observaciones: '',
+        telefono: '',
+        correo: '',
+        metodo_pago: 'efectivo',
+      });
       setProductosSeleccionados([])
       setServiciosSeleccionados([])
 
@@ -240,6 +252,24 @@ export default function SalesForm() {
           value={formData.cliente}
           onChange={handleChange}
           className='border rounded-md p-2 text-gray-600'          
+        />
+
+        <input
+          type="tel"
+          name="telefono"          
+          value={formData.telefono}
+          onChange={handleChange}
+          className="border rounded-md p-2 text-gray-600"
+          placeholder="Ej. 8441234567"
+        />
+
+         <input
+          type="email"
+          name="correo"
+          value={formData.correo}
+          onChange={handleChange}
+          className="border rounded-md p-2 text-gray-600"
+          placeholder="cliente@correo.com"
         />
 
         {/* Botón para abrir modal */}
@@ -344,6 +374,33 @@ export default function SalesForm() {
           rows={3}
           className='border rounded-md p-2 text-gray-600 resize-none'
         />
+
+        <div>
+          <span className="block text-sm font-medium text-gray-700 mb-1">
+            Método de pago
+          </span>
+          <div className="flex flex-wrap gap-4">
+            {[
+              { value: 'efectivo', label: 'Efectivo' },
+              { value: 'terminal', label: 'Terminal' },
+              { value: 'transferencia', label: 'Transferencia' },
+              { value: 'factura', label: 'Factura' },
+            ].map(op => (
+              <label key={op.value} className="inline-flex items-center space-x-2">
+                <input
+                  type="radio"
+                  name="metodo_pago"
+                  value={op.value}
+                  checked={formData.metodo_pago === op.value}
+                  onChange={handleChange}
+                  className="text-indigo-600"
+                />
+                <span className="text-sm text-gray-700">{op.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
 
         <button
           type="submit"

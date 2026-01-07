@@ -81,21 +81,29 @@ async function eliminarLote(id) {
   return rows[0];
 }
 
-// Guardar etiquetas en lotes_etiquetas para un lote dado
-async function guardarEtiquetasLote(loteId, etiquetas) {
+async function guardarEtiquetasLote(etiquetas) {
+  if (!Array.isArray(etiquetas)) {
+    throw new Error('guardarEtiquetasLote espera un arreglo de etiquetas');
+  }
+
   const client = await pool.connect();
+
   try {
-    await client.query("BEGIN");
-    // Insertar todas las etiquetas (cada etiqueta es texto con el número de serie)
-    for (const etiqueta of etiquetas) {
+    await client.query('BEGIN');
+
+    for (const e of etiquetas) {
       await client.query(
-        "INSERT INTO lotes_etiquetas (lote_id, etiqueta) VALUES ($1, $2)",
-        [loteId, etiqueta]
+        `
+        INSERT INTO lotes_etiquetas (lote_id, etiqueta, serie, barcode)
+        VALUES ($1, $2, $3, $4)
+        `,
+        [e.lote_id, e.etiqueta, e.serie, e.barcode]
       );
     }
-    await client.query("COMMIT");
+
+    await client.query('COMMIT');
   } catch (error) {
-    await client.query("ROLLBACK");
+    await client.query('ROLLBACK');
     throw error;
   } finally {
     client.release();

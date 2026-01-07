@@ -28,7 +28,7 @@ async function obtenerResumen(sucursal_id) {
 }
 
 // Registrar corte de caja
-async function generarCorte({ total_ventas, total_gastos, total_ingresos, balance_final, sucursal_id, usuario_id }) {
+async function crearCorteCaja({ total_ventas, total_gastos, total_ingresos, balance_final, sucursal_id, usuario_id }) {
   const query = `
     INSERT INTO caja_cortes (fecha, total_ventas, total_gastos, total_ingresos, balance_final, sucursal_id, usuario_id)
     VALUES (CURRENT_DATE, $1, $2, $3, $4, $5, $6)
@@ -50,9 +50,24 @@ async function obtenerCortes(sucursal_id) {
   return rows;
 }
 
+async function existeCorteHoy(usuario_id) {
+  const query = `
+    SELECT 1
+    FROM caja_cortes
+    WHERE usuario_id = $1
+      AND fecha = CURRENT_DATE
+      AND es_extra = false
+    LIMIT 1;
+  `
+  const { rowCount } = await pool.query(query, [usuario_id])
+  return rowCount > 0
+}
+
+
 module.exports = {
   registrarMovimiento,
   obtenerResumen,
-  generarCorte,
+  crearCorteCaja,
   obtenerCortes,
+  existeCorteHoy,
 };

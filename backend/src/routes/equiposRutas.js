@@ -15,15 +15,6 @@ router.get(
   equiposController.buscarEquipoPorEtiqueta
 );
 
-// Obtener equipo por ID (protegida)
-router.get("/:id", authMiddleware, equiposController.obtenerEquipoPorId);
-
-// Actualizar equipo (protegida)
-router.put("/:id", authMiddleware, equiposController.actualizarEquipo);
-
-// Eliminar equipo (protegida)
-router.delete("/:id", authMiddleware, equiposController.eliminarEquipo);
-
 router.get(
   "/estado/:estado_id",
   authMiddleware,
@@ -35,5 +26,14 @@ router.get(
   authMiddleware,
   equiposController.obtenerEquiposParaPedido
 );
+
+// Obtener equipo por ID (protegida)
+router.get("/:id", authMiddleware, equiposController.obtenerEquipoPorId);
+
+// Actualizar equipo (protegida)
+router.put("/:id", authMiddleware, equiposController.actualizarEquipo);
+
+// Eliminar equipo (protegida)
+router.delete("/:id", authMiddleware, equiposController.eliminarEquipo);
 
 module.exports = router;

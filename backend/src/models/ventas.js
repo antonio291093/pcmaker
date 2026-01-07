@@ -2,6 +2,9 @@ const pool = require("../config/db");
 
 async function registrarVenta({
   cliente,
+  telefono,
+  correo,
+  metodo_pago,
   productos = [],
   servicios = [],
   observaciones,
@@ -10,7 +13,6 @@ async function registrarVenta({
   total
 }) {
   const client = await pool.connect();
-
   try {
     await client.query("BEGIN");
 
@@ -21,6 +23,9 @@ async function registrarVenta({
       const query = `
         INSERT INTO ventas (
           cliente,
+          telefono,
+          correo,
+          metodo_pago,
           producto_id,
           equipo_id,
           cantidad,
@@ -29,27 +34,26 @@ async function registrarVenta({
           observaciones,
           fecha_venta
         )
-        VALUES ($1, $2, NULL, $3, $4, $5, $6, NOW())
+        VALUES ($1, $2, $3, $4, $5, NULL, $6, $7, $8, $9, NOW())
         RETURNING *;
       `;
-
       const values = [
         cliente,
+        telefono || null,
+        correo || null,
+        metodo_pago || null,
         producto.id,
         producto.cantidad,
         producto.precio_unitario,
         usuario_id,
         observaciones || ""
       ];
-
       const { rows } = await client.query(query, values);
       ventasInsertadas.push(rows[0]);
     }
 
-    // Registrar servicios (mantenimientos)
+    // 2️⃣ Registrar servicios (mantenimientos)
     for (const mantenimientoId of servicios) {
-
-      // 1️⃣ Obtener precio real del mantenimiento
       const { rows } = await client.query(
         `
         SELECT
@@ -68,16 +72,17 @@ async function registrarVenta({
       }
 
       const { precio, estado } = rows[0];
-
       if (estado !== 'pendiente') {
         throw new Error(`Mantenimiento ${mantenimientoId} ya fue cobrado`);
       }
 
-      // 2️⃣ Insertar venta (servicio)
       await client.query(
         `
         INSERT INTO ventas (
           cliente,
+          telefono,
+          correo,
+          metodo_pago,
           producto_id,
           mantenimiento_id,
           equipo_id,
@@ -87,10 +92,13 @@ async function registrarVenta({
           observaciones,
           fecha_venta
         )
-        VALUES ($1, NULL, $2, NULL, 1, $3, $4, $5, NOW())
+        VALUES ($1, $2, $3, $4, NULL, $5, NULL, 1, $6, $7, $8, NOW())
         `,
         [
           cliente,
+          telefono || null,
+          correo || null,
+          metodo_pago || null,
           mantenimientoId,
           precio,
           usuario_id,
@@ -98,7 +106,6 @@ async function registrarVenta({
         ]
       );
 
-      // 3️⃣ Marcar mantenimiento como cobrado
       await client.query(
         `
         UPDATE mantenimientos
@@ -116,7 +123,6 @@ async function registrarVenta({
       ventas: ventasInsertadas,
       total
     };
-
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("❌ Error en registrarVenta:", error);

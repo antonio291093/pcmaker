@@ -1,8 +1,9 @@
 const {
   registrarMovimiento,
   obtenerResumen,
-  generarCorte,
+  crearCorteCaja,
   obtenerCortes,
+  existeCorteHoy,
 } = require("../models/caja");
 
 // Registrar un movimiento (venta, gasto o ingreso)
@@ -47,6 +48,14 @@ exports.generarCorte = async (req, res) => {
   try {
     const sucursal_id = req.user?.sucursal_id || null;
     const usuario_id = req.user?.id || null;
+      
+    const yaExiste = await existeCorteHoy(usuario_id)
+
+    if (yaExiste) {
+      return res.status(409).json({
+        message: "Ya existe un corte de caja hoy"
+      })
+    }
 
     const resumen = await obtenerResumen(sucursal_id);
     const balance_final =
@@ -54,7 +63,7 @@ exports.generarCorte = async (req, res) => {
       parseFloat(resumen.total_ingresos) -
       parseFloat(resumen.total_gastos);
 
-    const corte = await generarCorte({
+    const corte = await crearCorteCaja({
       total_ventas: resumen.total_ventas,
       total_gastos: resumen.total_gastos,
       total_ingresos: resumen.total_ingresos,
@@ -81,3 +90,23 @@ exports.obtenerCortes = async (req, res) => {
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
+
+// Obtener estado de caja (si requiere corte)
+exports.estadoCaja = async (req, res) => {
+  try {
+    const user = req.user
+    
+    if (!user || user.rol !== 'ventas') {
+      return res.json({ requiere_corte: false })
+    }
+
+    const yaHizoCorte = await existeCorteHoy(user.id)
+
+    res.json({
+      requiere_corte: !yaHizoCorte
+    })
+  } catch (error) {
+    console.error("Error en estadoCaja:", error)
+    res.status(500).json({ message: "Error en el servidor" })
+  }
+}

@@ -8,6 +8,8 @@ const {
   obtenerEtiquetasPorLote,
 } = require("../models/lotes");
 
+const { generarBarcodeBase64 } = require('../utils/barcode');
+
 exports.crearLote = async (req, res) => {
   const {
     etiqueta,
@@ -18,6 +20,7 @@ exports.crearLote = async (req, res) => {
   } = req.body;
 
   try {
+    // 1️⃣ Crear lote
     const loteCreado = await crearLote({
       etiqueta,
       total_equipos,
@@ -26,21 +29,43 @@ exports.crearLote = async (req, res) => {
       fecha_creacion,
     });
 
-    // Generar las etiquetas con la misma lógica que la función generarSeriesPorLote
-    const fecha = new Date(loteCreado.fecha_recibo);
-    const fechaNum = fecha.toISOString().slice(0, 10).replace(/-/g, "");
+    // 2️⃣ Preparar datos base
+    const fecha =  new Date(); // hora actual REAL
+
+    const yyyy = fecha.getFullYear();
+    const MM = String(fecha.getMonth() + 1).padStart(2, '0');
+    const dd = String(fecha.getDate()).padStart(2, '0');
+    const HH = String(fecha.getHours()).padStart(2, '0');
+    const mm = String(fecha.getMinutes()).padStart(2, '0');
+    const fechaNum = `${yyyy}${MM}${dd}${HH}${mm}`;     // 202601021505    
+
+    // 3️⃣ Generar etiquetas (ARRAY REAL)
     const etiquetas = [];
+
     for (let i = 1; i <= loteCreado.total_equipos; i++) {
-      etiquetas.push(`${loteCreado.etiqueta} - ${fechaNum}${i}`);
+      const consecutivo = String(i).padStart(3, '0');
+      const serie = `${fechaNum}${consecutivo}`; // 202601021505001      
+      console.log(serie);
+      const barcode = await generarBarcodeBase64(serie);
+
+      etiquetas.push({
+        lote_id: loteCreado.id,
+        etiqueta: `${loteCreado.etiqueta} - ${serie}`,
+        serie,
+        barcode,
+      });
     }
+    
+    await guardarEtiquetasLote(etiquetas);
 
-    // Guardar etiquetas en la tabla correspondiente
-    await guardarEtiquetasLote(loteCreado.id, etiquetas);
+    res.status(201).json({
+      lote: loteCreado,
+      etiquetas,
+    });
 
-    res.status(201).json(loteCreado);
   } catch (error) {
-    console.error("Error creando lote:", error);
-    res.status(500).json({ message: "Error en el servidor" });
+    console.error('Error creando lote:', error);
+    res.status(500).json({ message: 'Error en el servidor' });
   }
 };
 

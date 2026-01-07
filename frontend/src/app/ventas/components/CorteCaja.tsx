@@ -55,7 +55,6 @@ export default function CorteCajaSection() {
     }
   }
 
-  // 🔹 Registrar movimiento (gasto / ingreso)
   const registrarMovimiento = async () => {
     if (!monto || !tipoMovimiento || !usuarioId || !sucursalId) {
       Swal.fire({
@@ -81,6 +80,8 @@ export default function CorteCajaSection() {
         })
       })
 
+      const data = await resp.json() // 👈 CLAVE
+
       if (resp.ok) {
         Swal.fire({
           icon: 'success',
@@ -93,12 +94,19 @@ export default function CorteCajaSection() {
         obtenerResumen(sucursalId)
         obtenerCortes(sucursalId)
       } else {
+        // 👉 AQUÍ YA SABEMOS QUÉ PASÓ
         Swal.fire({
-          icon: 'error',
-          title: 'Error al registrar',
-          text: 'Hubo un problema al registrar el movimiento.',
+          icon: 'warning',
+          title: 'Acción bloqueada',
+          text: data.message || 'No se pudo registrar el movimiento.',
           confirmButtonColor: '#4F46E5'
         })
+
+        // Opcional: si quieres reaccionar al bloqueo
+        if (data.requiere_corte) {
+          // aquí luego podemos abrir modal de corte
+          console.log('Debe realizar corte de caja')
+        }
       }
     } catch (err) {
       console.error('Error registrando movimiento:', err)
