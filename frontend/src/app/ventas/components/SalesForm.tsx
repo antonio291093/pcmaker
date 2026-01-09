@@ -49,7 +49,7 @@ export default function SalesForm() {
     return totalProductos + totalServicios
   }, [productosSeleccionados, serviciosSeleccionados])  
 
-  // 🔹 Manejador de cambios
+  //Manejador de cambios
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({
@@ -58,9 +58,61 @@ export default function SalesForm() {
     }))
   }
 
-  // 🔹 Eliminar un producto seleccionado
+  //Eliminar un producto seleccionado
   const eliminarProducto = (id: number) => {
     setProductosSeleccionados(prev => prev.filter(p => p.id !== id))
+  }
+
+  const totalProductos = useMemo(() => {
+    return productosSeleccionados.reduce((acc, p) => {
+      const precio = Number(p.precio) || 0
+      const cantidad = Number(p.cantidadSeleccionada) || 0
+      return acc + precio * cantidad
+    }, 0)
+  }, [productosSeleccionados])
+
+  const generarComisionVenta = async (
+    ventaId: number,
+    vendedorId: number,
+    montoVenta: number
+  ) => {
+    try {
+      //Obtener configuración
+      const respConfig = await fetch(
+        `${API_URL}/api/configuraciones/comision_ventas`,
+        { credentials: 'include' }
+      )
+
+      let tasa = 0.03 // default 3%
+
+      if (respConfig.ok) {
+        const data = await respConfig.json()
+        const parsed = parseFloat(data?.valor)
+        if (!isNaN(parsed)) tasa = parsed
+      }
+
+      //Calcular comisión SOLO sobre productos
+      const comision = montoVenta * tasa
+
+      if (comision <= 0) return
+
+      //Registrar comisión
+      await fetch(`${API_URL}/api/comisiones`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          usuario_id: vendedorId,
+          venta_id: ventaId,
+          mantenimiento_id: null,
+          monto: comision,
+          fecha_creacion: new Date().toISOString(),
+          equipo_id: null,
+        }),
+      })
+    } catch (err) {
+      console.error('Error generando comisión de venta:', err)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -114,7 +166,7 @@ export default function SalesForm() {
       const tieneProductos = productosSeleccionados.length > 0
       const tieneServicios = serviciosSeleccionados.length > 0
 
-      // 1️⃣ Registrar la venta
+      //Registrar la venta
       const ventaResp = await fetch(`${API_URL}/api/ventas`, {
         method: 'POST',
         credentials: 'include',
@@ -145,7 +197,16 @@ export default function SalesForm() {
       const ventaData = await ventaResp.json()
       const ventaId = ventaData.id || ventaData.venta_id
 
-      // 2️⃣ Registrar movimiento en caja
+      //Generar comisión SOLO si hay productos
+      if (productosSeleccionados.length > 0) {
+        await generarComisionVenta(
+          ventaId,
+          usuarioId,
+          totalProductos
+        )
+      }
+
+      //Registrar movimiento en caja
       const cajaResp = await fetch(`${API_URL}/api/caja/movimiento`, {
         method: 'POST',
         credentials: 'include',
@@ -206,7 +267,7 @@ export default function SalesForm() {
         timer: 3000
       })
 
-      // 🔹 Limpiar formulario
+      //Limpiar formulario
       setFormData({
         cliente: '',
         observaciones: '',

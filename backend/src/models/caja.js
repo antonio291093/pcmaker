@@ -92,16 +92,17 @@ async function existeCortePorFecha(usuario_id, fecha) {
   return rowCount > 0
 }
 
-async function obtenerCortePendiente(usuario_id) {
+async function obtenerCortePendiente(usuario_id, sucursal_id) {
   // 🔹 Último corte registrado
   const corteResult = await pool.query(
     `
     SELECT MAX(fecha) AS fecha
     FROM caja_cortes
     WHERE usuario_id = $1
+      AND sucursal_id = $2
       AND es_extra = false
     `,
-    [usuario_id]
+    [usuario_id, sucursal_id]
   )
 
   const fechaUltimoCorte = corteResult.rows[0].fecha
@@ -118,10 +119,11 @@ async function obtenerCortePendiente(usuario_id) {
     SELECT MIN(DATE(fecha)) AS fecha
     FROM caja_movimientos
     WHERE usuario_id = $1
-      AND DATE(fecha) > $2
+      AND sucursal_id = $2
+      AND DATE(fecha) > $3
       AND DATE(fecha) < CURRENT_DATE
     `,
-    [usuario_id, fechaUltimoCorte]
+    [usuario_id, sucursal_id, fechaUltimoCorte]
   )
 
   const fechaPendiente = movResult.rows[0].fecha

@@ -44,9 +44,14 @@ export default function CorteCajaSection() {
 
   const verificarCortePendiente = async () => {
     try {
-      const resp = await fetch(`${API_URL}/api/caja/corte-pendiente`, {
-        credentials: 'include'
-      })
+      if (!user?.sucursal_id) return
+
+      const resp = await fetch(
+        `${API_URL}/api/caja/corte-pendiente?sucursal_id=${user.sucursal_id}`,
+        {
+          credentials: 'include'
+        }
+      )
 
       if (!resp.ok) return
 

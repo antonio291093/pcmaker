@@ -5,9 +5,9 @@ const {
   eliminarComision,
   obtenerComisionPorEquipo,
   obtenerComisionesSemanaActualPorUsuario,
+  obtenerComisionPorVenta,
 } = require("../models/comisiones");
 
-// Crear comisión
 exports.crearComision = async (req, res) => {
   const {
     usuario_id,
@@ -19,12 +19,24 @@ exports.crearComision = async (req, res) => {
   } = req.body;
 
   try {
-    // Validar si ya existe una comisión para el equipo
-    const existente = await obtenerComisionPorEquipo(equipo_id);
-    if (existente)
-      return res
-        .status(409)
-        .json({ message: "Ya existe una comisión para este equipo" });
+    // 🔹 VALIDACIONES SEGÚN TIPO
+    if (equipo_id) {
+      const existente = await obtenerComisionPorEquipo(equipo_id);
+      if (existente) {
+        return res.status(409).json({
+          message: "Ya existe una comisión para este equipo",
+        });
+      }
+    }
+
+    if (venta_id) {
+      const existenteVenta = await obtenerComisionPorVenta(venta_id);
+      if (existenteVenta) {
+        return res.status(409).json({
+          message: "Ya existe una comisión para esta venta",
+        });
+      }
+    }
 
     const comisionCreada = await crearComision({
       usuario_id,
@@ -41,6 +53,7 @@ exports.crearComision = async (req, res) => {
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
+
 
 // Obtener todas las comisiones
 exports.obtenerComisiones = async (req, res) => {

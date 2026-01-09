@@ -13,9 +13,10 @@ interface Producto {
   tipo: string;
   descripcion?: string;
   especificacion?: string;
-  cantidad: number; // stock
+  cantidad: number;
   estado: string;
   precio?: number | null;
+  sku?: string; // 👈 AÑADIR
 }
 
 interface EquipoArmado {
@@ -48,6 +49,9 @@ export default function ModalSeleccionarProducto({
   const [seleccionados, setSeleccionados] = useState<ProductoSeleccionado[]>([]);
   const [loading, setLoading] = useState(true);
   const [sucursalId, setSucursalId] = useState<number | null>(null)
+  const [skuBusqueda, setSkuBusqueda] = useState('');
+  const [inventarioFiltrado, setInventarioFiltrado] = useState<Producto[]>([]);
+  const [equiposArmadosFiltrados, setEquiposArmadosFiltrados] = useState<EquipoArmado[]>([]);
   const { user, loading: userLoading } = useUser()
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -94,6 +98,8 @@ export default function ModalSeleccionarProducto({
 
         setInventario(inv);
         setEquiposArmados(eqArmados);
+        setInventarioFiltrado(inv);
+        setEquiposArmadosFiltrados(eqArmados);
       } catch (err) {
         console.error("Error cargando inventario/equipos:", err);
         Swal.fire("Error", "No se pudieron cargar los productos", "error");
@@ -102,6 +108,31 @@ export default function ModalSeleccionarProducto({
       }
     })();
   }, [sucursalId]);
+
+  useEffect(() => {
+    const valor = skuBusqueda.trim();
+
+    if (!valor) {
+      setInventarioFiltrado(inventario);
+      setEquiposArmadosFiltrados(equiposArmados);
+      return;
+    }
+
+    // 🔎 Filtra inventario por SKU
+    setInventarioFiltrado(
+      inventario.filter(item =>
+        item.sku?.toLowerCase() === valor.toLowerCase()
+      )
+    );
+
+    // 🔎 Filtra equipos armados por serie
+    setEquiposArmadosFiltrados(
+      equiposArmados.filter(eq =>
+        eq.etiqueta?.toLowerCase() === valor.toLowerCase()
+      )
+    );
+  }, [skuBusqueda, inventario, equiposArmados]);
+
 
   const obtenerIcono = (tipo: string, especificacion?: string) => {
     const texto = `${tipo} ${especificacion || ""}`.toLowerCase();
@@ -181,13 +212,27 @@ export default function ModalSeleccionarProducto({
           Seleccionar productos
         </h2>
 
+        <div className="relative mb-3 max-w-sm">
+          <input
+            type="text"
+            placeholder="Escanear o escribir SKU"
+            value={skuBusqueda}
+            onChange={(e) => setSkuBusqueda(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setSkuBusqueda('');
+            }}
+            className="w-full pl-3 pr-3 py-2 border border-gray-300 rounded-lg text-sm
+                      focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+
         {/* INVENTARIO */}
         <h3 className="text-sm font-bold text-gray-600 mt-2 mb-1">
           Inventario general
         </h3>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 overflow-y-auto pr-2 max-h-[35vh]">
-          {inventario.map((producto) => {
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 overflow-y-auto pr-2 max-h-[35vh]">          
+          {inventarioFiltrado.map((producto) => {
             const seleccionado = seleccionados.find((p) => p.id === producto.id);
             return (
               <motion.div
@@ -251,8 +296,8 @@ export default function ModalSeleccionarProducto({
           Equipos armados
         </h3>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 overflow-y-auto pr-2 max-h-[35vh]">
-          {equiposArmados.map((equipo) => {
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 overflow-y-auto pr-2 max-h-[35vh]">          
+          {equiposArmadosFiltrados.map((equipo) => {
             const seleccionado = seleccionados.find((p) => p.id === equipo.id);
             return (
               <motion.div

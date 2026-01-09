@@ -7,16 +7,20 @@ const {
   obtenerCortePendiente,
 } = require("../models/caja");
 
-// Obtener corte pendiente
 exports.obtenerCortePendiente = async (req, res) => {
   try {
-    const usuario_id = req.userId;
+    const usuario_id = req.userId
+    const { sucursal_id } = req.query
 
-    if (!usuario_id) {
+    if (!usuario_id || !sucursal_id) {
       return res.json({ requiere_corte: false })
     }
 
-    const resultado = await obtenerCortePendiente(usuario_id)
+    const resultado = await obtenerCortePendiente(
+      usuario_id,
+      sucursal_id
+    )
+
     res.json(resultado)
   } catch (error) {
     console.error('Error al obtener corte pendiente:', error)

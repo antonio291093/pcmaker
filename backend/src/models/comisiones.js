@@ -64,6 +64,12 @@ async function eliminarComision(id) {
   return rows[0];
 }
 
+async function obtenerComisionPorVenta(venta_id) {
+  const query = `SELECT * FROM comisiones WHERE venta_id = $1;`;
+  const { rows } = await pool.query(query, [venta_id]);
+  return rows[0];
+}
+
 // Obtener comisión por equipo
 async function obtenerComisionPorEquipo(equipo_id) {
   const query = `SELECT * FROM comisiones WHERE equipo_id = $1;`;
@@ -105,4 +111,5 @@ module.exports = {
   eliminarComision,
   obtenerComisionPorEquipo,
   obtenerComisionesSemanaActualPorUsuario,
+  obtenerComisionPorVenta,
 };
