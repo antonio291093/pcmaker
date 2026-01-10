@@ -8,6 +8,6 @@ const corteCajaMiddleware = require("../middlewares/corteCajaMiddleware.js");
 router.post("/", authMiddleware, corteCajaMiddleware, ventasController.crearVenta);
 
 // Obtener listado de ventas
-router.get("/", authMiddleware, ventasController.obtenerVentas);
+//router.get("/", authMiddleware, ventasController.obtenerVentas);
 
 module.exports = router;

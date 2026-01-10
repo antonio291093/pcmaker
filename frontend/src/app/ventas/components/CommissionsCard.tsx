@@ -1,7 +1,36 @@
 'use client'
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { useUser } from '@/context/UserContext'
 
-export default function CommissionCard() {
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
+export default function CommissionsCard() {
+  const { user, loading: userLoading } = useUser()
+
+  const [comisiones, setComisiones] = useState<any[]>([])
+  const [totalSemana, setTotalSemana] = useState<number>(0)
+
+  if (userLoading) return <p>Cargando comisiones...</p>
+  if (!user) return null
+
+  const usuarioId = user.id
+
+  useEffect(() => {
+    if (!usuarioId) return
+
+    fetch(`${API_URL}/api/comisiones/semana/${usuarioId}`, {
+      credentials: 'include'
+    })
+      .then(res => res.json())
+      .then(data => {
+        setComisiones(data.filter((x: any) => x.id !== null))
+
+        const totalRow = data.find((x: any) => x.total_semana !== null)
+        setTotalSemana(totalRow ? parseFloat(totalRow.total_semana) : 0)
+      })
+  }, [usuarioId])
+
   return (
     <motion.div
       initial={{ y: 30, opacity: 0 }}
@@ -9,33 +38,55 @@ export default function CommissionCard() {
       transition={{ type: "spring", stiffness: 70, delay: 0.2 }}
       className="bg-white rounded-xl shadow p-4 sm:p-6 w-full max-w-full"
     >
-      <h2 className="text-lg font-semibold mb-4 text-gray-700">Comisiones acumuladas</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <h2 className="text-lg font-semibold mb-4 text-gray-700">
+        Comisiones de ventas (semana)
+      </h2>
+
+      {/* === RESUMEN === */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <div className="p-4 bg-indigo-50 rounded-lg text-center">
-          <span className="text-sm text-gray-500">Total acumulado</span>
-          <div className="text-2xl font-bold text-indigo-700 mt-1">$3,250.00</div>
+          <span className="text-sm text-gray-500">Total semana</span>
+          <div className="text-2xl font-bold text-indigo-700 mt-1">
+            ${totalSemana.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+          </div>
         </div>
+
         <div className="p-4 bg-indigo-50 rounded-lg text-center">
-          <span className="text-sm text-gray-500">Equipos entregados</span>
-          <div className="text-2xl font-bold text-indigo-700 mt-1">14</div>
+          <span className="text-sm text-gray-500">Ventas comisionadas</span>
+          <div className="text-2xl font-bold text-indigo-700 mt-1">
+            {comisiones.length}
+          </div>
         </div>
       </div>
-      <motion.div
-        className="h-32 flex items-center justify-center mt-6"
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.6, duration: 0.4 }}
-      >
-        <svg width="80" height="80" viewBox="0 0 80 80">
-          <circle cx="40" cy="40" r="30" stroke="#6366f1" strokeWidth="10" fill="none" opacity={0.2}/>
-          <circle cx="40" cy="40" r="30" stroke="#6366f1" strokeWidth="10" fill="none"
-            strokeDasharray="188"
-            strokeDashoffset="94"
-            style={{transition: "stroke-dashoffset .8s cubic-bezier(.4,1,.2,1)"}}
-          />
-        </svg>
-      </motion.div>
-      <div className="text-center text-xs mt-2 text-gray-400">Gráfica de comisiones (ejemplo)</div>
+
+      {/* === DETALLE === */}
+      <div>
+        <h3 className="mb-2 text-gray-600 font-medium">
+          Detalle de ventas
+        </h3>
+
+        <ul className="divide-y divide-gray-200 text-gray-700">
+          {comisiones.length === 0 ? (
+            <li className="py-2 text-center text-gray-400">
+              No hay comisiones esta semana
+            </li>
+          ) : (
+            comisiones.map((c) => (
+              <li key={c.id} className="py-2 flex justify-between">
+                <span>
+                  {c.venta_id
+                    ? `Venta #${c.venta_id}`
+                    : "Sin referencia"}
+                </span>
+                <span>
+                  ${parseFloat(c.monto).toFixed(2)} |{" "}
+                  {new Date(c.fecha_creacion).toLocaleDateString("es-MX")}
+                </span>
+              </li>
+            ))
+          )}
+        </ul>
+      </div>
     </motion.div>
-  );
+  )
 }

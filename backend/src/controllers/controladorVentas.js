@@ -1,6 +1,5 @@
-const { registrarVenta, obtenerVentas } = require("../models/ventas");
+const { registrarVenta } = require("../models/ventas");
 
-// controllers/controladorVentas.js
 exports.crearVenta = async (req, res) => {
   try {
     const {
@@ -28,7 +27,7 @@ exports.crearVenta = async (req, res) => {
       });
     }
 
-    const resultado = await registrarVenta({
+    const { venta_id } = await registrarVenta({
       cliente,
       telefono,
       correo,
@@ -42,28 +41,14 @@ exports.crearVenta = async (req, res) => {
     });
 
     res.status(201).json({
-      message: resultado.message || "Venta registrada correctamente",
-      venta_id: resultado.ventas?.[0]?.id,
-      total: resultado.total,
-      ventas: resultado.ventas
+      message: "Venta registrada correctamente",
+      venta_id
     });
+
   } catch (error) {
     console.error("Error al registrar venta:", error);
     res.status(500).json({
-      message: "Error al registrar venta",
-      error: error.message
+      message: error.message || "Error al registrar venta"
     });
-  }
-};
-
-// Obtener listado de ventas
-exports.obtenerVentas = async (req, res) => {
-  try {
-    const sucursal_id = req.user?.sucursal_id || null;
-    const ventas = await obtenerVentas(sucursal_id);
-    res.json(ventas);
-  } catch (error) {
-    console.error("Error al obtener ventas:", error);
-    res.status(500).json({ message: "Error en el servidor" });
   }
 };

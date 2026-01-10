@@ -195,7 +195,7 @@ export default function SalesForm() {
       }
 
       const ventaData = await ventaResp.json()
-      const ventaId = ventaData.id || ventaData.venta_id
+      const ventaId = ventaData.venta_id;
 
       //Generar comisión SOLO si hay productos
       if (productosSeleccionados.length > 0) {

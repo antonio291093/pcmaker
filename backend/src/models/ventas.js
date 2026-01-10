@@ -13,52 +13,72 @@ async function registrarVenta({
   total
 }) {
   const client = await pool.connect();
+
   try {
     await client.query("BEGIN");
 
-    const ventasInsertadas = [];
-
-    // 1️⃣ Registrar productos (si hay)
-    for (const producto of productos) {
-      const query = `
-        INSERT INTO ventas (
-          cliente,
-          telefono,
-          correo,
-          metodo_pago,
-          producto_id,
-          equipo_id,
-          cantidad,
-          precio,
-          user_venta,
-          observaciones,
-          fecha_venta
-        )
-        VALUES ($1, $2, $3, $4, $5, NULL, $6, $7, $8, $9, NOW())
-        RETURNING *;
-      `;
-      const values = [
+    // 1️⃣ Insertar encabezado de venta
+    const ventaResult = await client.query(
+      `
+      INSERT INTO ventas (
+        cliente,
+        telefono,
+        correo,
+        metodo_pago,
+        observaciones,
+        user_venta,
+        sucursal_id,
+        total
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      RETURNING id;
+      `,
+      [
         cliente,
         telefono || null,
         correo || null,
-        metodo_pago || null,
-        producto.id,
-        producto.cantidad,
-        producto.precio_unitario,
+        metodo_pago,
+        observaciones || "",
         usuario_id,
-        observaciones || ""
-      ];
-      const { rows } = await client.query(query, values);
-      ventasInsertadas.push(rows[0]);
+        sucursal_id,
+        total
+      ]
+    );
+
+    const ventaId = ventaResult.rows[0].id;
+
+    // 2️⃣ Insertar productos en detalle
+    for (const producto of productos) {
+      await client.query(
+        `
+        INSERT INTO venta_detalle (
+          venta_id,
+          tipo,
+          producto_id,
+          cantidad,
+          precio_unitario,
+          subtotal
+        )
+        VALUES ($1,'producto',$2,$3,$4,$5)
+        `,
+        [
+          ventaId,
+          producto.id,
+          producto.cantidad,
+          producto.precio_unitario,
+          producto.cantidad * producto.precio_unitario
+        ]
+      );
     }
 
-    // 2️⃣ Registrar servicios (mantenimientos)
+    // 3️⃣ Insertar servicios en detalle
     for (const mantenimientoId of servicios) {
       const { rows } = await client.query(
         `
         SELECT
           cm.costo AS precio,
-          m.estado
+          m.estado,
+          m.equipo_id
         FROM mantenimientos m
         JOIN catalogo_mantenimiento cm
           ON cm.id = m.catalogo_id
@@ -67,43 +87,30 @@ async function registrarVenta({
         [mantenimientoId]
       );
 
-      if (rows.length === 0) {
+      if (!rows.length) {
         throw new Error(`Mantenimiento ${mantenimientoId} no existe`);
       }
 
-      const { precio, estado } = rows[0];
-      if (estado !== 'pendiente') {
+      const { precio, estado, equipo_id } = rows[0];
+
+      if (estado !== "pendiente") {
         throw new Error(`Mantenimiento ${mantenimientoId} ya fue cobrado`);
       }
 
       await client.query(
         `
-        INSERT INTO ventas (
-          cliente,
-          telefono,
-          correo,
-          metodo_pago,
-          producto_id,
+        INSERT INTO venta_detalle (
+          venta_id,
+          tipo,
           mantenimiento_id,
           equipo_id,
           cantidad,
-          precio,
-          user_venta,
-          observaciones,
-          fecha_venta
+          precio_unitario,
+          subtotal
         )
-        VALUES ($1, $2, $3, $4, NULL, $5, NULL, 1, $6, $7, $8, NOW())
+        VALUES ($1,'servicio',$2,$3,1,$4,$4)
         `,
-        [
-          cliente,
-          telefono || null,
-          correo || null,
-          metodo_pago || null,
-          mantenimientoId,
-          precio,
-          usuario_id,
-          observaciones || ''
-        ]
+        [ventaId, mantenimientoId, equipo_id, precio]
       );
 
       await client.query(
@@ -119,10 +126,10 @@ async function registrarVenta({
     await client.query("COMMIT");
 
     return {
-      message: "✅ Venta registrada correctamente",
-      ventas: ventasInsertadas,
+      venta_id: ventaId,
       total
     };
+
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("❌ Error en registrarVenta:", error);
@@ -132,21 +139,6 @@ async function registrarVenta({
   }
 }
 
-// 📋 Obtener todas las ventas
-async function obtenerVentas(sucursal_id) {
-  const query = `
-    SELECT v.*, u.nombre AS vendedor, i.descripcion AS producto_descripcion
-    FROM ventas v
-    LEFT JOIN usuarios u ON v.user_venta = u.id
-    LEFT JOIN inventario i ON v.producto_id = i.id
-    WHERE ($1::INTEGER IS NULL OR u.sucursal_id = $1)
-    ORDER BY v.fecha_venta DESC;
-  `;
-  const { rows } = await pool.query(query, [sucursal_id]);
-  return rows;
-}
-
 module.exports = {
-  registrarVenta,
-  obtenerVentas,
+  registrarVenta
 };
