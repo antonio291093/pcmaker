@@ -1,4 +1,4 @@
-const { registrarVenta } = require("../models/ventas");
+const { registrarVenta, obtenerReporteVentas } = require("../models/ventas");
 
 exports.crearVenta = async (req, res) => {
   try {
@@ -50,5 +50,23 @@ exports.crearVenta = async (req, res) => {
     res.status(500).json({
       message: error.message || "Error al registrar venta"
     });
+  }
+};
+
+exports.reporteVentas = async (req, res) => {
+  try {
+    const { from, to } = req.query;
+    const sucursal_id = req.user?.sucursal_id || null;
+
+    if (!from || !to) {
+      return res.status(400).json({ message: 'Fechas requeridas' });
+    }
+
+    const data = await obtenerReporteVentas({ from, to, sucursal_id });
+    res.json(data);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error al generar reporte' });
   }
 };

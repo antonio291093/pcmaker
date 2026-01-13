@@ -1,17 +1,41 @@
-const pool = require("../config/db");
+const pool = require('../config/db')
 
-// Registrar un movimiento (venta, gasto o ingreso)
-async function registrarMovimiento({ tipo, monto, descripcion, sucursal_id, usuario_id }) {
+// ==========================
+// MOVIMIENTOS
+// ==========================
+async function registrarMovimiento({
+  tipo,
+  monto,
+  descripcion,
+  sucursal_id,
+  usuario_id  
+}) {
   const query = `
-    INSERT INTO caja_movimientos (tipo, monto, descripcion, sucursal_id, usuario_id)
+    INSERT INTO caja_movimientos (
+      tipo,
+      monto,
+      descripcion,
+      sucursal_id,
+      usuario_id      
+    )
     VALUES ($1, $2, $3, $4, $5)
     RETURNING *;
-  `;
-  const values = [tipo, monto, descripcion, sucursal_id, usuario_id];
-  const { rows } = await pool.query(query, values);
-  return rows[0];
+  `
+  const values = [
+    tipo,
+    monto,
+    descripcion,
+    sucursal_id,
+    usuario_id    
+  ]
+
+  const { rows } = await pool.query(query, values)
+  return rows[0]
 }
 
+// ==========================
+// RESUMEN POR FECHA (CORTES)
+// ==========================
 async function obtenerResumenPorFecha(fecha, sucursal_id) {
   const query = `
     SELECT
@@ -26,124 +50,161 @@ async function obtenerResumenPorFecha(fecha, sucursal_id) {
   return rows[0]
 }
 
-// Registrar corte de caja
+// ==========================
+// DÍAS OPERATIVOS
+// ==========================
+async function abrirDiaOperativo(usuario_id, sucursal_id) {
+  await pool.query(
+    `
+    INSERT INTO caja_dias (usuario_id, sucursal_id, fecha)
+    VALUES ($1, $2, CURRENT_DATE)
+    ON CONFLICT (sucursal_id, fecha) DO NOTHING
+    `,
+    [usuario_id, sucursal_id]
+  )
+}
+
+async function obtenerDiaAbierto(sucursal_id, fecha) {
+  const { rowCount } = await pool.query(
+    `
+    SELECT 1
+    FROM caja_dias
+    WHERE sucursal_id = $1
+      AND fecha = $2
+      AND estado = 'abierto'
+    `,
+    [sucursal_id, fecha]
+  )
+
+  return rowCount > 0
+}
+
+async function cerrarDiaOperativo(sucursal_id, fecha) {
+  await pool.query(
+    `
+    UPDATE caja_dias
+    SET estado = 'cerrado'
+    WHERE sucursal_id = $1
+      AND fecha = $2
+    `,
+    [sucursal_id, fecha]
+  )
+}
+
+// ==========================
+// CORTES DE CAJA
+// ==========================
 async function crearCorteCaja({
   fecha,
-  total_ventas,
-  total_gastos,
-  total_ingresos,
-  balance_final,
   sucursal_id,
-  usuario_id
+  usuario_id,
+  total_ventas,
+  total_ingresos,
+  total_gastos,
+  balance_final,
+  total_efectivo,
+  total_transferencia,
+  total_terminal,
+  total_facturacion
 }) {
   const query = `
     INSERT INTO caja_cortes (
       fecha,
-      total_ventas,
-      total_gastos,
-      total_ingresos,
-      balance_final,
       sucursal_id,
-      usuario_id
+      usuario_id,
+      total_ventas,
+      total_ingresos,
+      total_gastos,
+      balance_final,
+      total_efectivo,
+      total_transferencia,
+      total_terminal,
+      total_facturacion,
+      es_extra,
+      hora_corte
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    VALUES (
+      $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,false,NOW()
+    )
     RETURNING *;
   `
 
   const values = [
     fecha,
-    total_ventas,
-    total_gastos,
-    total_ingresos,
-    balance_final,
     sucursal_id,
-    usuario_id
+    usuario_id,
+    total_ventas,
+    total_ingresos,
+    total_gastos,
+    balance_final,
+    total_efectivo,
+    total_transferencia,
+    total_terminal,
+    total_facturacion
   ]
 
   const { rows } = await pool.query(query, values)
   return rows[0]
 }
 
-
-// Obtener historial de cortes
+// ==========================
+// HISTORIAL
+// ==========================
 async function obtenerCortes(sucursal_id) {
   const query = `
-    SELECT * FROM caja_cortes
+    SELECT *
+    FROM caja_cortes
     WHERE ($1::INTEGER IS NULL OR sucursal_id = $1)
     ORDER BY fecha DESC;
-  `;
-  const { rows } = await pool.query(query, [sucursal_id]);
-  return rows;
+  `
+  const { rows } = await pool.query(query, [sucursal_id])
+  return rows
 }
 
-async function existeCortePorFecha(usuario_id, fecha) {
-  const { rowCount } = await pool.query(
+async function obtenerCortePendiente(sucursal_id) {
+  const result = await pool.query(
     `
-    SELECT 1
-    FROM caja_cortes
-    WHERE usuario_id = $1
-      AND fecha = $2
-      AND es_extra = false
+    SELECT d.fecha
+    FROM caja_dias d
+    WHERE d.sucursal_id = $1
+      AND d.estado = 'abierto'
+      AND d.fecha < CURRENT_DATE
+      AND EXISTS (
+        SELECT 1
+        FROM caja_movimientos m
+        WHERE DATE(m.fecha) = d.fecha
+          AND m.sucursal_id = d.sucursal_id
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM caja_cortes c
+        WHERE c.fecha = d.fecha
+          AND c.sucursal_id = d.sucursal_id
+      )
+    ORDER BY d.fecha ASC
     LIMIT 1
     `,
-    [usuario_id, fecha]
+    [sucursal_id]
   )
 
-  return rowCount > 0
-}
-
-async function obtenerCortePendiente(usuario_id, sucursal_id) {
-  // 🔹 Último corte registrado
-  const corteResult = await pool.query(
-    `
-    SELECT MAX(fecha) AS fecha
-    FROM caja_cortes
-    WHERE usuario_id = $1
-      AND sucursal_id = $2
-      AND es_extra = false
-    `,
-    [usuario_id, sucursal_id]
-  )
-
-  const fechaUltimoCorte = corteResult.rows[0].fecha
-
-  // Nunca ha hecho cortes → no bloquear
-  if (!fechaUltimoCorte) {
-    return { requiere_corte: false }
-  }
-
-  // 🔹 PRIMER movimiento DESPUÉS del último corte
-  // 🔥 SOLO días anteriores a hoy
-  const movResult = await pool.query(
-    `
-    SELECT MIN(DATE(fecha)) AS fecha
-    FROM caja_movimientos
-    WHERE usuario_id = $1
-      AND sucursal_id = $2
-      AND DATE(fecha) > $3
-      AND DATE(fecha) < CURRENT_DATE
-    `,
-    [usuario_id, sucursal_id, fechaUltimoCorte]
-  )
-
-  const fechaPendiente = movResult.rows[0].fecha
-
-  // No hay movimientos pendientes → todo cerrado
-  if (!fechaPendiente) {
+  if (result.rowCount === 0) {
     return { requiere_corte: false }
   }
 
   return {
     requiere_corte: true,
-    fecha_pendiente: fechaPendiente
+    fecha_pendiente: result.rows[0].fecha
   }
 }
+
 
 module.exports = {
   registrarMovimiento,
   obtenerResumenPorFecha,
+  abrirDiaOperativo,
+  obtenerDiaAbierto,
+  cerrarDiaOperativo,
   crearCorteCaja,
   obtenerCortes,
-  existeCortePorFecha,
-  obtenerCortePendiente,
-};
+  obtenerCortePendiente
+}

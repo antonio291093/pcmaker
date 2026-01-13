@@ -25,32 +25,37 @@ export default function CorteCajaSection() {
   const [tipoMovimiento, setTipoMovimiento] = useState('gasto')
   const [monto, setMonto] = useState('')
   const [descripcion, setDescripcion] = useState('')  
-  const balance = ventas + ingresos - gastos
+  const balance = ventas + ingresos - gastos    
   const [fechaCortePendiente, setFechaCortePendiente] = useState<string | null>(null)
   const { user, loading: userLoading } = useUser()
+
+  const formatDate = (fecha:any) => {
+    if (!fecha) return ''
+    return new Date(fecha).toLocaleDateString('es-MX', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric'
+    })
+  }
 
   if (userLoading) return <p>Cargando corte de caja...</p>
   if (!user) return null  
   
   useEffect(() => {
-    if (!user) return
-
+    if (!user) return    
     setUsuarioId(user.id)
     setSucursalId(user.sucursal_id)    
     obtenerResumen(user.sucursal_id)
-    obtenerCortes(user.sucursal_id)
-    verificarCortePendiente()
+    obtenerCortes(user.sucursal_id)    
+    verificarCortePendiente(user.sucursal_id)
+    abrirDia(user.sucursal_id)
   }, [user])
 
-  const verificarCortePendiente = async () => {
-    try {
-      if (!user?.sucursal_id) return
-
+  const verificarCortePendiente = async (sucursal_id: number) => {
+    try {      
       const resp = await fetch(
-        `${API_URL}/api/caja/corte-pendiente?sucursal_id=${user.sucursal_id}`,
-        {
-          credentials: 'include'
-        }
+        `${API_URL}/api/caja/corte-pendiente?sucursal_id=${sucursal_id}`,
+        { credentials: 'include' }
       )
 
       if (!resp.ok) return
@@ -59,7 +64,6 @@ export default function CorteCajaSection() {
 
       if (data.requiere_corte && data.fecha_pendiente) {
         setFechaCortePendiente(data.fecha_pendiente)
-
         Swal.fire({
           icon: 'warning',
           title: 'Corte pendiente',
@@ -68,12 +72,27 @@ export default function CorteCajaSection() {
           ).toLocaleDateString()}`,
           confirmButtonColor: '#16A34A'
         })
+      } else {
+        setFechaCortePendiente(null)
       }
     } catch (err) {
-      console.error(err)
+      console.error('Error verificando corte pendiente:', err)
     }
   }
 
+  const abrirDia = async (sucursal_id: number) => {
+    try {
+      await fetch(`${API_URL}/api/caja/abrir-dia`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sucursal_id })
+      })
+    } catch (err) {
+      console.error('Error al abrir día operativo', err)
+    }
+  }
+  
   const obtenerResumen = async (sucursal_id: number | null) => {
     try {
       const fecha = new Date().toISOString().split('T')[0] // YYYY-MM-DD
@@ -117,13 +136,13 @@ export default function CorteCajaSection() {
           tipo: tipoMovimiento,
           monto: parseFloat(monto),
           descripcion,
-          sucursal_id: sucursalId,
-          usuario_id: usuarioId
+          sucursal_id: sucursalId
         })
       })
 
-      const data = await resp.json() // 👈 CLAVE
+      const data = await resp.json()
 
+      // 🟢 ÉXITO
       if (resp.ok) {
         Swal.fire({
           icon: 'success',
@@ -131,90 +150,108 @@ export default function CorteCajaSection() {
           text: 'El movimiento fue guardado correctamente.',
           confirmButtonColor: '#4F46E5'
         })
+
         setMonto('')
         setDescripcion('')
         obtenerResumen(sucursalId)
         obtenerCortes(sucursalId)
-      } else {
-        // 👉 AQUÍ YA SABEMOS QUÉ PASÓ
+        return
+      }
+
+      // 🔒 BLOQUEO POR DÍA PENDIENTE
+      if (resp.status === 423) {
         Swal.fire({
           icon: 'warning',
-          title: 'Acción bloqueada',
-          text: data.message || 'No se pudo registrar el movimiento.',
-          confirmButtonColor: '#4F46E5'
+          title: 'Día pendiente por cerrar',
+          text: data.fecha_pendiente
+            ? `Debes cerrar el día ${formatDate(data.fecha_pendiente)} antes de continuar.`
+            : data.message || 'Debes cerrar el día anterior antes de continuar.',
+          confirmButtonColor: '#16A34A'
         })
-
-        // Opcional: si quieres reaccionar al bloqueo
-        if (data.requiere_corte) {
-          // aquí luego podemos abrir modal de corte
-          console.log('Debe realizar corte de caja')
-        }
+        return
       }
+
+      // 🔴 OTRO ERROR CONTROLADO
+      Swal.fire({
+        icon: 'error',
+        title: 'No se pudo registrar',
+        text: data.message || 'Ocurrió un error al registrar el movimiento.',
+        confirmButtonColor: '#DC2626'
+      })
     } catch (err) {
       console.error('Error registrando movimiento:', err)
       Swal.fire({
         icon: 'error',
         title: 'Error inesperado',
         text: 'No se pudo registrar el movimiento.',
-        confirmButtonColor: '#4F46E5'
+        confirmButtonColor: '#DC2626'
       })
     }
   }
 
-  const generarCorte = async () => {    
+  const generarCorte = async () => {
     const confirm = await Swal.fire({
       title: '¿Generar corte de caja?',
       text: fechaCortePendiente
-        ? `Se generará el corte del día ${new Date(fechaCortePendiente).toLocaleDateString()}`
-        : 'Esto cerrará el balance del día actual.',
+        ? `Se cerrará el día ${formatDate(fechaCortePendiente)}.`
+        : 'Se cerrará el día operativo correspondiente.',
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: '#16A34A',
       cancelButtonColor: '#DC2626',
-      confirmButtonText: 'Sí, generar corte'
+      confirmButtonText: 'Sí, cerrar día'
     })
 
     if (!confirm.isConfirmed) return
 
     try {
-      const resp = await fetch(`${API_URL}/api/caja/corte?sucursal_id=${sucursalId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          fecha: fechaCortePendiente // 👈 ESTA ES LA CLAVE
-        })
-      })
+      
+      const resp = await fetch(
+        `${API_URL}/api/caja/corte?sucursal_id=${sucursalId}`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            fecha: fechaCortePendiente
+          })
+        }
+      )
 
       const data = await resp.json()
 
+      // 🟢 ÉXITO
       if (resp.ok) {
         Swal.fire({
           icon: 'success',
-          title: 'Corte generado',
-          text: 'El corte de caja se generó correctamente.',
+          title: 'Corte realizado',
+          text: `Se cerró el día ${formatDate(data.fecha)}${
+            data.sin_movimientos ? ' (sin movimientos)' : ''
+          }`,
           confirmButtonColor: '#16A34A'
         })
-
-        setFechaCortePendiente(null)
+        
+        obtenerResumen(sucursalId)
         obtenerCortes(sucursalId)
-      } else {
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: data.message || 'No se pudo generar el corte.',
-          confirmButtonColor: '#4F46E5'
-        })
+        return
       }
+
+      // 🔴 ERROR CONTROLADO
+      Swal.fire({
+        icon: 'error',
+        title: 'No se pudo cerrar el día',
+        text: data.message || 'Ocurrió un error al generar el corte.',
+        confirmButtonColor: '#DC2626'
+      })
     } catch (err) {
-      console.error('Error generando corte de caja:', err)
+      console.error('Error generando corte:', err)
       Swal.fire({
         icon: 'error',
         title: 'Error inesperado',
-        text: 'Hubo un problema al generar el corte.',
-        confirmButtonColor: '#4F46E5'
+        text: 'Hubo un problema al cerrar el día.',
+        confirmButtonColor: '#DC2626'
       })
     }
   }

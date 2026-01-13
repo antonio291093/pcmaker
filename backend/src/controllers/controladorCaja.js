@@ -1,41 +1,56 @@
 const {
   registrarMovimiento,
-  obtenerResumenPorFecha,  
+  obtenerResumenPorFecha,
   crearCorteCaja,
   obtenerCortes,
-  existeCortePorFecha,  
-  obtenerCortePendiente,
-} = require("../models/caja");
+  abrirDiaOperativo,
+  obtenerDiaAbierto,
+  cerrarDiaOperativo,
+  obtenerCortePendiente
+} = require('../models/caja')
 
-exports.obtenerCortePendiente = async (req, res) => {
+const { obtenerTotalesPorMetodo } = require('../models/ventas')
+
+// ==========================
+// ABRIR DÍA OPERATIVO
+// ==========================
+exports.abrirDia = async (req, res) => {
   try {
     const usuario_id = req.userId
-    const { sucursal_id } = req.query
+    const { sucursal_id } = req.body
 
     if (!usuario_id || !sucursal_id) {
-      return res.json({ requiere_corte: false })
+      return res.status(400).json({ message: 'Datos incompletos' })
     }
 
-    const resultado = await obtenerCortePendiente(
-      usuario_id,
-      sucursal_id
-    )
+    await abrirDiaOperativo(usuario_id, sucursal_id)
 
-    res.json(resultado)
+    res.json({ message: 'Día operativo activo' })
   } catch (error) {
-    console.error('Error al obtener corte pendiente:', error)
+    console.error('Error al abrir día:', error)
     res.status(500).json({ message: 'Error en el servidor' })
   }
 }
 
-// Registrar un movimiento (venta, gasto o ingreso)
+// ==========================
+// REGISTRAR MOVIMIENTO
+// ==========================
 exports.crearMovimiento = async (req, res) => {
   try {
-    const { tipo, monto, descripcion, sucursal_id } = req.body;
-    const usuario_id = req.userId || null;
+    const {
+      tipo,
+      monto,
+      descripcion,
+      sucursal_id,
+      metodo_pago
+    } = req.body
 
-    if (!tipo || !monto) {
-      return res.status(400).json({ message: "Tipo y monto son requeridos" });
+    const usuario_id = req.userId || null
+
+    if (!tipo || !monto || !sucursal_id) {
+      return res.status(400).json({
+        message: 'Tipo, monto y sucursal son obligatorios'
+      })
     }
 
     const movimiento = await registrarMovimiento({
@@ -43,113 +58,132 @@ exports.crearMovimiento = async (req, res) => {
       monto,
       descripcion,
       sucursal_id,
-      usuario_id,
-    });
+      usuario_id      
+    })
 
-    res.status(201).json(movimiento);
+    res.status(201).json(movimiento)
   } catch (error) {
-    console.error("Error al registrar movimiento:", error);
-    res.status(500).json({ message: "Error en el servidor" });
+    console.error('Error al registrar movimiento:', error)
+    res.status(500).json({ message: 'Error en el servidor' })
   }
-};
+}
 
+// ==========================
+// RESUMEN POR FECHA
+// ==========================
 exports.obtenerResumenPorFecha = async (req, res) => {
   try {
     const { sucursal_id, fecha } = req.query
 
-    if (!sucursal_id) {
+    if (!sucursal_id || !fecha) {
       return res.status(400).json({
-        message: 'La sucursal es obligatoria'
+        message: 'Sucursal y fecha son obligatorias'
       })
     }
 
-    if (!fecha) {
-      return res.status(400).json({
-        message: 'La fecha es obligatoria'
-      })
-    }
+    const resumen = await obtenerResumenPorFecha(
+      fecha,
+      Number(sucursal_id)
+    )
 
-    const resumen = await obtenerResumenPorFecha(fecha, Number(sucursal_id))
     res.json(resumen)
   } catch (error) {
-    console.error('Error al obtener resumen por fecha:', error)
+    console.error('Error al obtener resumen:', error)
     res.status(500).json({ message: 'Error en el servidor' })
   }
 }
 
-// Generar corte de caja (guardar totales)
+// ==========================
+// GENERAR CORTE DE CAJA
+// (CON O SIN MOVIMIENTOS)
+// ==========================
 exports.generarCorte = async (req, res) => {
-  try {    
-    const { sucursal_id} = req.query
-    const usuario_id = req.userId || null; 
+  try {
+    const usuario_id = req.userId
+    const sucursal_id = req.body?.sucursal_id || req.query?.sucursal_id
+    const fecha = req.body?.fecha || new Date().toISOString().split('T')[0]    
 
-    // 🔹 Fecha del corte (pendiente o hoy)
-    const fechaCorte = req.body?.fecha || new Date().toISOString().split('T')[0]
+    if (!usuario_id || !sucursal_id) {
+      return res.status(400).json({
+        message: 'Datos incompletos'
+      })
+    }
+    
+    const diaAbierto = await obtenerDiaAbierto(
+      sucursal_id,
+      fecha
+    )
 
-    // 🔹 Validar si ya existe corte para ESA fecha
-    const yaExiste = await existeCortePorFecha(usuario_id, fechaCorte)
-
-    if (yaExiste) {
+    if (!diaAbierto) {
       return res.status(409).json({
-        message: `Ya existe un corte de caja para la fecha ${fechaCorte}`
+        message: 'El día ya fue cerrado o no existe'
       })
     }
 
-    // 🔹 Obtener resumen PARA ESA FECHA
-    const resumen = await obtenerResumenPorFecha(fechaCorte, sucursal_id)
+    const resumenCaja = await obtenerResumenPorFecha(fecha, sucursal_id)
+    const resumenVentas = await obtenerTotalesPorMetodo(fecha, sucursal_id)
 
-    const balance_final =
-      parseFloat(resumen.total_ventas) +
-      parseFloat(resumen.total_ingresos) -
-      parseFloat(resumen.total_gastos)
+    const total_ingresos =
+      Number(resumenCaja.total_ingresos) +
+      Number(resumenVentas.total_ventas)
 
-    // 🔹 Crear corte PARA ESA FECHA
+    const total_gastos = Number(resumenCaja.total_gastos)
+
+    const balance_final = total_ingresos - total_gastos
+
     const corte = await crearCorteCaja({
-      fecha: fechaCorte,
-      total_ventas: resumen.total_ventas,
-      total_gastos: resumen.total_gastos,
-      total_ingresos: resumen.total_ingresos,
-      balance_final,
+      fecha,
       sucursal_id,
-      usuario_id
+      usuario_id,
+      total_ventas: resumenVentas.total_ventas,
+      total_ingresos,
+      total_gastos,
+      balance_final,
+      total_efectivo: resumenVentas.total_efectivo,
+      total_transferencia: resumenVentas.total_transferencia,
+      total_terminal: resumenVentas.total_terminal,
+      total_facturacion: resumenVentas.total_facturacion
     })
+    
+    await cerrarDiaOperativo(sucursal_id, fecha)
 
-    res.status(201).json(corte)
+    res.status(201).json({
+      message: 'Corte de caja realizado correctamente',
+      corte
+    })
   } catch (error) {
-    console.error('Error al generar corte de caja:', error)
+    console.error('Error al generar corte:', error)
     res.status(500).json({ message: 'Error en el servidor' })
   }
 }
 
-
-// Obtener historial de cortes
+// ==========================
+// HISTORIAL DE CORTES
+// ==========================
 exports.obtenerCortes = async (req, res) => {
   try {
-    const { sucursal_id} = req.query
-    const cortes = await obtenerCortes(sucursal_id);
-    res.json(cortes);
+    const { sucursal_id } = req.query
+    const cortes = await obtenerCortes(sucursal_id)
+    res.json(cortes)
   } catch (error) {
-    console.error("Error al obtener cortes:", error);
-    res.status(500).json({ message: "Error en el servidor" });
+    console.error('Error al obtener cortes:', error)
+    res.status(500).json({ message: 'Error en el servidor' })
   }
-};
+}
 
-// Obtener estado de caja (si requiere corte)
-exports.estadoCaja = async (req, res) => {
+exports.obtenerCortePendiente = async (req, res) => {
   try {
-    const user = req.user
-    
-    if (!user || user.rol !== 'ventas') {
+    const { sucursal_id } = req.query
+
+    if (!sucursal_id) {
       return res.json({ requiere_corte: false })
     }
+    
+    const resultado = await obtenerCortePendiente(sucursal_id)
 
-    const yaHizoCorte = await existeCortePorFecha(user.id)
-
-    res.json({
-      requiere_corte: !yaHizoCorte
-    })
+    res.json(resultado)
   } catch (error) {
-    console.error("Error en estadoCaja:", error)
-    res.status(500).json({ message: "Error en el servidor" })
+    console.error('Error al obtener corte pendiente:', error)
+    res.status(500).json({ message: 'Error en el servidor' })
   }
 }

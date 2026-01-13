@@ -139,6 +139,79 @@ async function registrarVenta({
   }
 }
 
+async function obtenerReporteVentas({ from, to, sucursal_id }) {
+  const detalleQuery = `
+    SELECT
+      v.id AS venta_id,
+      v.cliente,
+      v.metodo_pago,
+      v.fecha_venta::date AS fecha_venta,
+      COALESCE(i.especificacion, cm.descripcion) AS concepto,
+      d.subtotal
+    FROM ventas v
+    JOIN venta_detalle d ON d.venta_id = v.id
+    LEFT JOIN inventario i ON i.id = d.producto_id
+    LEFT JOIN mantenimientos m ON m.id = d.mantenimiento_id
+    LEFT JOIN catalogo_mantenimiento cm ON cm.id = m.catalogo_id
+    WHERE v.fecha_venta::date BETWEEN $1 AND $2
+      AND ($3::INTEGER IS NULL OR v.sucursal_id = $3)
+    ORDER BY v.fecha_venta DESC;
+  `;
+
+  const totalesQuery = `
+    SELECT
+      metodo_pago,
+      SUM(total) AS total
+    FROM ventas
+    WHERE fecha_venta::date BETWEEN $1 AND $2
+      AND ($3::INTEGER IS NULL OR sucursal_id = $3)
+    GROUP BY metodo_pago;
+  `;
+
+  const [detalle, totalesRaw] = await Promise.all([
+    pool.query(detalleQuery, [from, to, sucursal_id]),
+    pool.query(totalesQuery, [from, to, sucursal_id])
+  ]);
+
+  const totales = {
+    efectivo: 0,
+    transferencia: 0,
+    terminal: 0,
+    facturacion: 0,
+    total: 0
+  };
+
+  totalesRaw.rows.forEach(r => {
+    totales[r.metodo_pago] = Number(r.total);
+    totales.total += Number(r.total);
+  });
+
+  return {
+    detalle: detalle.rows,
+    totales
+  };
+}
+
+async function obtenerTotalesPorMetodo(fecha, sucursal_id) {
+  const query = `
+    SELECT
+      COALESCE(SUM(total), 0) AS total_ventas,
+
+      COALESCE(SUM(CASE WHEN metodo_pago = 'efectivo' THEN total ELSE 0 END), 0) AS total_efectivo,
+      COALESCE(SUM(CASE WHEN metodo_pago = 'transferencia' THEN total ELSE 0 END), 0) AS total_transferencia,
+      COALESCE(SUM(CASE WHEN metodo_pago = 'terminal' THEN total ELSE 0 END), 0) AS total_terminal,
+      COALESCE(SUM(CASE WHEN metodo_pago = 'facturacion' THEN total ELSE 0 END), 0) AS total_facturacion
+    FROM ventas
+    WHERE DATE(fecha_venta) = $1
+      AND sucursal_id = $2
+  `
+
+  const { rows } = await pool.query(query, [fecha, sucursal_id])
+  return rows[0]
+}
+
 module.exports = {
-  registrarVenta
+  registrarVenta,
+  obtenerReporteVentas,
+  obtenerTotalesPorMetodo
 };

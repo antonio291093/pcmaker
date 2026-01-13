@@ -35,6 +35,17 @@ export default function SalesForm() {
   const [serviciosSeleccionados, setServiciosSeleccionados] = useState<any[]>([])
   const [mostrarModalServicios, setMostrarModalServicios] = useState(false)
 
+  useEffect(() => {
+    if (!user?.sucursal_id) return
+
+    fetch(`${API_URL}/api/caja/abrir-dia`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sucursal_id: user.sucursal_id })
+    })
+  }, [user])
+
   const total = useMemo(() => {
     const totalProductos = productosSeleccionados.reduce((acc, p) => {
       const precio = Number(p.precio) || 0

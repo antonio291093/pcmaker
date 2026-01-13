@@ -1,26 +1,54 @@
-const express = require("express");
-const router = express.Router();
-const cajaController = require("../controllers/controladorCaja");
-const authMiddleware = require("../middlewares/authMiddleware");
-const corteCajaMiddleware = require("../middlewares/corteCajaMiddleware");
+const express = require('express')
+const router = express.Router()
+const cajaController = require('../controllers/controladorCaja')
+const authMiddleware = require('../middlewares/authMiddleware')
+const corteCajaMiddleware = require('../middlewares/corteCajaMiddleware')
 
-// Registrar movimiento (venta, gasto o ingreso)
-router.post("/movimiento", authMiddleware, corteCajaMiddleware, cajaController.crearMovimiento);
-
-// Obtener resumen del día
-router.get("/resumen", authMiddleware, cajaController.obtenerResumenPorFecha);
-
-// Generar corte de caja
-router.post("/corte", authMiddleware, cajaController.generarCorte);
-
-// Obtener historial de cortes
-router.get("/cortes", authMiddleware, cajaController.obtenerCortes);
-
-router.get(
-  "/estado",
+// ==========================
+// ABRIR DÍA OPERATIVO
+// ==========================
+router.post(
+  '/abrir-dia',
   authMiddleware,
-  cajaController.estadoCaja
-);
+  cajaController.abrirDia
+)
+
+// ==========================
+// REGISTRAR MOVIMIENTO
+// ==========================
+router.post(
+  '/movimiento',
+  authMiddleware,
+  corteCajaMiddleware,
+  cajaController.crearMovimiento
+)
+
+// ==========================
+// RESUMEN DEL DÍA
+// ==========================
+router.get(
+  '/resumen',
+  authMiddleware,
+  cajaController.obtenerResumenPorFecha
+)
+
+// ==========================
+// GENERAR CORTE DE CAJA
+// ==========================
+router.post(
+  '/corte',
+  authMiddleware,
+  cajaController.generarCorte
+)
+
+// ==========================
+// HISTORIAL DE CORTES
+// ==========================
+router.get(
+  '/cortes',
+  authMiddleware,
+  cajaController.obtenerCortes
+)
 
 router.get(
   '/corte-pendiente',
@@ -28,4 +56,4 @@ router.get(
   cajaController.obtenerCortePendiente
 )
 
-module.exports = router;
+module.exports = router
