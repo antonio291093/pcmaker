@@ -29,14 +29,17 @@ export default function CorteCajaSection() {
   const [fechaCortePendiente, setFechaCortePendiente] = useState<string | null>(null)
   const { user, loading: userLoading } = useUser()
 
-  const formatDate = (fecha:any) => {
-    if (!fecha) return ''
-    return new Date(fecha).toLocaleDateString('es-MX', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric'
-    })
+  const formatDate = (fechaISO: string) => {
+    const [year, month, day] = fechaISO.split('-')
+    return `${day} de ${meses[Number(month) - 1]} de ${year}`
   }
+
+  const meses = [
+    'enero', 'febrero', 'marzo', 'abril',
+    'mayo', 'junio', 'julio', 'agosto',
+    'septiembre', 'octubre', 'noviembre', 'diciembre'
+  ]
+
 
   if (userLoading) return <p>Cargando corte de caja...</p>
   if (!user) return null  
@@ -62,14 +65,14 @@ export default function CorteCajaSection() {
 
       const data = await resp.json()
 
-      if (data.requiere_corte && data.fecha_pendiente) {        
+      if (data.requiere_corte && data.fecha_pendiente) {
+        // Normalizar a YYYY-MM-DD
+        const fechaISO = String(data.fecha_pendiente).split('T')[0]
 
-        // Normalizar fecha (soporta DATE y TIMESTAMP)
-        const fechaStr = String(data.fecha_pendiente).split('T')[0]
-        const [year, month, day] = fechaStr.split('-')
+        setFechaCortePendiente(fechaISO)
+
+        const [year, month, day] = fechaISO.split('-')
         const fechaFormateada = `${day}/${month}/${year}`
-
-        setFechaCortePendiente(fechaFormateada)
 
         Swal.fire({
           icon: 'warning',
