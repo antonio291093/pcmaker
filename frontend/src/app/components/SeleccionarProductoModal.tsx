@@ -27,6 +27,7 @@ interface EquipoArmado {
   cantidad: number;
   estado: string;
   precio?: number | null;
+  serie? : string;
   memorias_ram: string[];
   almacenamientos: string[];
 }
@@ -128,7 +129,7 @@ export default function ModalSeleccionarProducto({
     // 🔎 Filtra equipos armados por serie
     setEquiposArmadosFiltrados(
       equiposArmados.filter(eq =>
-        eq.etiqueta?.toLowerCase() === valor.toLowerCase()
+        eq.serie?.toLowerCase() === valor.toLowerCase()
       )
     );
   }, [skuBusqueda, inventario, equiposArmados]);
