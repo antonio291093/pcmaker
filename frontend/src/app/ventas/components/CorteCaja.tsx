@@ -52,33 +52,36 @@ export default function CorteCajaSection() {
   }, [user])
 
   const verificarCortePendiente = async (sucursal_id: number) => {
-    try {      
-      const resp = await fetch(
-        `${API_URL}/api/caja/corte-pendiente?sucursal_id=${sucursal_id}`,
-        { credentials: 'include' }
-      )
+  try {
+    const resp = await fetch(
+      `${API_URL}/api/caja/corte-pendiente?sucursal_id=${sucursal_id}`,
+      { credentials: 'include' }
+    )
 
-      if (!resp.ok) return
+    if (!resp.ok) return
 
-      const data = await resp.json()
+    const data = await resp.json()
 
-      if (data.requiere_corte && data.fecha_pendiente) {
-        setFechaCortePendiente(data.fecha_pendiente)
-        Swal.fire({
-          icon: 'warning',
-          title: 'Corte pendiente',
-          text: `Tienes un corte pendiente del día ${new Date(
-            data.fecha_pendiente
-          ).toLocaleDateString()}`,
-          confirmButtonColor: '#16A34A'
-        })
-      } else {
-        setFechaCortePendiente(null)
-      }
-    } catch (err) {
-      console.error('Error verificando corte pendiente:', err)
+    if (data.requiere_corte && data.fecha_pendiente) {
+      setFechaCortePendiente(data.fecha_pendiente)
+
+      // Formatear fecha YYYY-MM-DD sin usar Date (evita desfase de zona horaria)
+      const [year, month, day] = data.fecha_pendiente.split('-')
+      const fechaFormateada = `${day}/${month}/${year}`
+
+      Swal.fire({
+        icon: 'warning',
+        title: 'Corte pendiente',
+        text: `Tienes un corte pendiente del día ${fechaFormateada}`,
+        confirmButtonColor: '#16A34A'
+      })
+    } else {
+      setFechaCortePendiente(null)
     }
+  } catch (err) {
+    console.error('Error verificando corte pendiente:', err)
   }
+}
 
   const abrirDia = async (sucursal_id: number) => {
     try {
