@@ -57,11 +57,24 @@ async function actualizarEquipoArmado(id, data) {
   const { nombre, procesador, precio, memorias_ram_ids, almacenamientos_ids } = data;
 
   console.log("🧠 [INICIO ACTUALIZAR EQUIPO ARMADO]");
-  console.log("📦 ID del equipo:", id);
+  console.log("📦 ID de inventario:", id);
   console.log("📩 Datos recibidos:", data);
 
   try {
     await pool.query("BEGIN");
+
+    const { rows } = await pool.query(
+      `SELECT equipo_id FROM inventario WHERE id = $1`,
+      [id]
+    );
+
+    if (!rows.length || !rows[0].equipo_id) {
+      throw new Error("No se encontró equipo_id para el inventario proporcionado");
+    }
+
+    const equipoId = rows[0].equipo_id;
+
+    console.log("🧩 equipo_id resuelto:", equipoId);
 
     // Obtener relaciones actuales
     const { rows: actuales } = await pool.query(
@@ -74,7 +87,7 @@ async function actualizarEquipoArmado(id, data) {
       LEFT JOIN equipos_almacenamiento ea ON e.id = ea.equipo_id
       WHERE e.id = $1
     `,
-      [id]
+      [equipoId]
     );
 
     const ramsActuales = actuales.map(r => r.memoria_ram_id).filter(Boolean);
@@ -110,12 +123,12 @@ async function actualizarEquipoArmado(id, data) {
       }
 
       // Limpiar e insertar nuevas RAM
-      await pool.query(`DELETE FROM equipos_ram WHERE equipo_id = $1`, [id]);
+      await pool.query(`DELETE FROM equipos_ram WHERE equipo_id = $1`, [equipoId]);
       for (const ramId of memorias_ram_ids) {
         console.log(`➕ Insertando RAM ID ${ramId} en equipos_ram`);
         await pool.query(
           `INSERT INTO equipos_ram (equipo_id, memoria_ram_id) VALUES ($1, $2)`,
-          [id, ramId]
+          [equipoId, ramId]
         );
       }
     } else {
@@ -149,12 +162,12 @@ async function actualizarEquipoArmado(id, data) {
       }
 
       // Limpiar e insertar nuevos almacenamientos
-      await pool.query(`DELETE FROM equipos_almacenamiento WHERE equipo_id = $1`, [id]);
+      await pool.query(`DELETE FROM equipos_almacenamiento WHERE equipo_id = $1`, [equipoId]);
       for (const alId of almacenamientos_ids) {
         console.log(`➕ Insertando almacenamiento ID ${alId} en equipos_almacenamiento`);
         await pool.query(
           `INSERT INTO equipos_almacenamiento (equipo_id, almacenamiento_id) VALUES ($1, $2)`,
-          [id, alId]
+          [equipoId, alId]
         );
       }
     } else {
@@ -165,11 +178,11 @@ async function actualizarEquipoArmado(id, data) {
     console.log("✏️ Actualizando datos básicos del equipo...");
     await pool.query(
       `UPDATE equipos SET nombre = $1, procesador = $2 WHERE id = $3`,
-      [nombre, procesador, id]
+      [nombre, procesador, equipoId]
     );
 
     console.log("💰 Actualizando precio del inventario del equipo...");
-    await pool.query(`UPDATE inventario SET precio = $1 WHERE equipo_id = $2`, [precio, id]);
+    await pool.query(`UPDATE inventario SET precio = $1 WHERE equipo_id = $2`, [precio, equipoId]);
 
     await pool.query("COMMIT");
     console.log("✅ [COMMIT] Equipo armado actualizado correctamente");
