@@ -62,13 +62,14 @@ export default function CorteCajaSection() {
 
       const data = await resp.json()
 
-      if (data.requiere_corte && data.fecha_pendiente) {
-        setFechaCortePendiente(data.fecha_pendiente)
+      if (data.requiere_corte && data.fecha_pendiente) {        
 
         // Normalizar fecha (soporta DATE y TIMESTAMP)
         const fechaStr = String(data.fecha_pendiente).split('T')[0]
         const [year, month, day] = fechaStr.split('-')
         const fechaFormateada = `${day}/${month}/${year}`
+
+        setFechaCortePendiente(fechaFormateada)
 
         Swal.fire({
           icon: 'warning',
