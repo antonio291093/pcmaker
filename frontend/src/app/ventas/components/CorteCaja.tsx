@@ -29,8 +29,18 @@ export default function CorteCajaSection() {
   const [fechaCortePendiente, setFechaCortePendiente] = useState<string | null>(null)
   const { user, loading: userLoading } = useUser()
 
-  const formatDate = (fechaISO: string) => {
-    const [year, month, day] = fechaISO.split('-')
+  const formatDate = (fechaISO?: string | null) => {
+    if (!fechaISO || typeof fechaISO !== 'string') {
+      return 'fecha no disponible'
+    }
+
+    const safeDate = fechaISO.split('T')[0] // por si viene con hora
+    const [year, month, day] = safeDate.split('-')
+
+    if (!year || !month || !day) {
+      return 'fecha inválida'
+    }
+
     return `${day} de ${meses[Number(month) - 1]} de ${year}`
   }
 
@@ -39,7 +49,6 @@ export default function CorteCajaSection() {
     'mayo', 'junio', 'julio', 'agosto',
     'septiembre', 'octubre', 'noviembre', 'diciembre'
   ]
-
 
   if (userLoading) return <p>Cargando corte de caja...</p>
   if (!user) return null  
@@ -212,8 +221,7 @@ export default function CorteCajaSection() {
 
     if (!confirm.isConfirmed) return
 
-    try {
-      
+    try {      
       const resp = await fetch(
         `${API_URL}/api/caja/corte?sucursal_id=${sucursalId}`,
         {
@@ -235,7 +243,7 @@ export default function CorteCajaSection() {
         Swal.fire({
           icon: 'success',
           title: 'Corte realizado',
-          text: `Se cerró el día ${formatDate(data.fecha)}${
+          text: `Se cerró el día ${formatDate(data.corte?.fecha)}${
             data.sin_movimientos ? ' (sin movimientos)' : ''
           }`,
           confirmButtonColor: '#16A34A'
