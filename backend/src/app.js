@@ -54,6 +54,7 @@ const configuracion = require("./routes/configuracionesRutas");
 const cajaRoutes = require("./routes/cajaRutas");
 const ventasRoutes = require("./routes/ventasRutas");
 const pedidosRoutes = require("./routes/pedidoRoutes");
+const garantiasRoutes = require('./routes/garantiaRutas')
 
 // Usa las rutas
 app.use("/api/usuarios", usuariosRoutes);
@@ -72,6 +73,6 @@ app.use("/api/configuraciones", configuracion)
 app.use("/api/caja", cajaRoutes);
 app.use("/api/ventas", ventasRoutes);
 app.use('/api/pedidos', pedidosRoutes);
-
+app.use('/api', garantiasRoutes)
 
 module.exports = { app, pool };

@@ -6,6 +6,7 @@ import { FaDownload } from 'react-icons/fa'
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 type VentaRow = {
+  detalle_id: number
   venta_id: number
   cliente: string
   metodo_pago: string
@@ -54,6 +55,15 @@ export default function ReportsHistory() {
   const [ventas, setVentas] = useState<VentaRow[]>([])
   const [totales, setTotales] = useState<Totales | null>(null)
   const [loading, setLoading] = useState(false)
+  const ventasRenderizadas = new Set<number>()
+
+  const formatFecha = (fecha: string) => {
+    return new Date(fecha).toLocaleDateString('es-MX', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    })
+  }
 
   const fetchReport = async () => {
     try {
@@ -87,6 +97,20 @@ export default function ReportsHistory() {
   useEffect(() => {
     fetchReport()
   }, [])
+
+  const descargarGarantia = async (ventaId: number) => {
+    const resp = await fetch(
+      `${API_URL}/api/garantia/${ventaId}`,
+      { credentials: 'include' }
+    )
+
+    if (!resp.ok) return
+
+    const blob = await resp.blob()
+    const url = window.URL.createObjectURL(blob)
+    window.open(url)
+  }
+
 
   return (
     <motion.div
@@ -125,27 +149,42 @@ export default function ReportsHistory() {
               <th className='p-2 text-left text-gray-500'>Concepto</th>
               <th className='p-2 text-left text-gray-500'>Pago</th>
               <th className='p-2 text-right text-gray-500'>Monto</th>
+              <th className='p-2 text-center text-gray-500'>Garantía</th>
             </tr>
           </thead>
           <tbody>
-            {ventas.map(v => (
-              <tr key={`${v.venta_id}-${v.concepto}`} className='border-b hover:bg-gray-50'>
-                <td className='p-2'>{v.fecha_venta}</td>
-                <td className='p-2'>{v.cliente}</td>
-                <td className='p-2 flex items-center gap-1'>
-                  <span>{v.concepto}</span>
-                  <span title='Servicio'>🛠️</span>
-                </td>
-                <td className='p-2'>
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${metodoColors[v.metodo_pago] || ''}`}>
-                    {v.metodo_pago}
-                  </span>
-                </td>
-                <td className="p-2 text-right">
-                  ${Number(v.subtotal || 0).toFixed(2)}
-                </td>
-              </tr>
-            ))}
+            {ventas.map(v => {
+              const mostrarBoton = !ventasRenderizadas.has(v.venta_id)
+              ventasRenderizadas.add(v.venta_id)
+
+              return (
+                <tr key={v.detalle_id} className='border-b hover:bg-gray-50'>
+                  <td className='p-2'>{formatFecha(v.fecha_venta)}</td>
+                  <td className='p-2'>{v.cliente}</td>
+                  <td className='p-2'>{v.concepto}</td>
+                  <td className='p-2'>
+                    <span className={`px-2 py-1 rounded text-xs ${metodoColors[v.metodo_pago]}`}>
+                      {v.metodo_pago}
+                    </span>
+                  </td>
+                  <td className='p-2 text-right'>
+                    ${Number(v.subtotal).toFixed(2)}
+                  </td>
+                  <td className='p-2 text-center'>
+                    {mostrarBoton && (
+                      <button
+                        onClick={() => descargarGarantia(v.venta_id)}
+                        className='inline-flex items-center gap-1 px-3 py-1 bg-indigo-400 text-white rounded-md text-xs hover:bg-indigo-600 transition'
+                      >
+                        <FaDownload className='text-xs' />
+                        Garantía
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
+
             {!loading && ventas.length === 0 && (
               <tr><td colSpan={5} className='p-4 text-center text-gray-400'>Sin resultados</td></tr>
             )}

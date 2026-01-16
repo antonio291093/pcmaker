@@ -34,6 +34,7 @@ interface EquipoArmado {
 
 interface ProductoSeleccionado extends Producto {
   cantidadSeleccionada: number;
+  es_equipo: boolean; 
 }
 
 interface ModalSeleccionarProductoProps {
@@ -151,7 +152,7 @@ export default function ModalSeleccionarProducto({
     return <FaQuestionCircle className="text-gray-400 text-3xl" />;
   };
 
-  const toggleSeleccion = (producto: Producto) => {
+  const toggleSeleccion = (producto: ProductoSeleccionado) => {
     if (producto.cantidad <= 0) {
       Swal.fire({
         icon: "error",
@@ -248,6 +249,8 @@ export default function ModalSeleccionarProducto({
                     cantidad: producto.cantidad,
                     estado: producto.estado,
                     precio: producto.precio,
+                    cantidadSeleccionada: 1,
+                    es_equipo: false,
                   })
                 }
                 className={`cursor-pointer p-4 rounded-lg border transition-all flex flex-col items-start shadow-sm ${
@@ -313,6 +316,8 @@ export default function ModalSeleccionarProducto({
                     cantidad: equipo.cantidad,
                     estado: equipo.estado,
                     precio: equipo.precio,
+                    cantidadSeleccionada: 1,
+                    es_equipo: true,
                   })
                 }
                 className={`cursor-pointer p-4 rounded-lg border transition-all flex flex-col items-start shadow-sm ${

@@ -142,6 +142,7 @@ async function registrarVenta({
 async function obtenerReporteVentas({ from, to, sucursal_id }) {
   const detalleQuery = `
     SELECT
+      d.id AS detalle_id,
       v.id AS venta_id,
       v.cliente,
       v.metodo_pago,

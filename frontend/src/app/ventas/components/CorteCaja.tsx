@@ -272,11 +272,17 @@ export default function CorteCajaSection() {
     }
   }
 
-  // 🔹 Obtener historial de cortes
   const obtenerCortes = async (sucursal_id: number | null) => {
+    if (!sucursal_id) return
+
     try {
-      const resp = await fetch(`${API_URL}/api/caja/cortes`, { credentials: 'include' })
+      const resp = await fetch(
+        `${API_URL}/api/caja/cortes?sucursal_id=${sucursal_id}`,
+        { credentials: 'include' }
+      )
+
       if (!resp.ok) return
+
       const data = await resp.json()
       setMovimientos(data)
     } catch (err) {

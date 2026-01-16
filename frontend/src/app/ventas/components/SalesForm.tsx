@@ -19,6 +19,11 @@ export default function SalesForm() {
   })
 
   const [productosSeleccionados, setProductosSeleccionados] = useState<any[]>([])
+
+  const equiposVendidos = productosSeleccionados.filter(
+    (p) => p.es_equipo === true
+  )
+
   const [mostrarModal, setMostrarModal] = useState(false)  
   const [loading, setLoading] = useState(false)
   const { user, loading: userLoading } = useUser()
@@ -208,6 +213,10 @@ export default function SalesForm() {
       const ventaData = await ventaResp.json()
       const ventaId = ventaData.venta_id;
 
+      if (equiposVendidos.length > 0) {
+        await generarGarantia(ventaData.venta_id, equiposVendidos)
+      }
+
       //Generar comisión SOLO si hay productos
       if (productosSeleccionados.length > 0) {
         await generarComisionVenta(
@@ -300,6 +309,44 @@ export default function SalesForm() {
       setLoading(false)
     }
   }
+
+  const generarGarantia = async (ventaId: number, equipos: any[]) => {
+    try {
+      const resp = await fetch(`${API_URL}/api/garantia`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          venta_id: ventaId,
+          cliente: formData.cliente,
+          total: equipos.reduce(
+            (acc, e) => acc + e.precio * e.cantidadSeleccionada,
+            0
+          ),
+          equipos: equipos.map((e) => ({
+            cantidad: e.cantidadSeleccionada,
+            descripcion: e.descripcion,
+            procesador: e.especificacion,
+            ram: e.memorias_ram?.join(', ') || '',
+            disco: e.almacenamientos?.join(', ') || '',
+            precio: e.precio,
+          })),
+        }),
+      })
+
+      if (!resp.ok) return
+
+      const blob = await resp.blob()
+      const url = window.URL.createObjectURL(blob)
+      window.open(url)
+
+    } catch (err) {
+      console.error('Error al generar garantía', err)
+    }
+  }
+
 
   // ==============================
   //           RENDER
