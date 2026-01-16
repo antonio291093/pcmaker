@@ -2,16 +2,21 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { FaDownload } from 'react-icons/fa'
+import { exportVentasExcel } from '@/utils/exportVentasExcel'
+import { exportCaptura } from '@/utils/exportCaptura'
+import { useRef } from 'react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 type VentaRow = {
   detalle_id: number
   venta_id: number
+  cantidad: number
   cliente: string
   metodo_pago: string
   fecha_venta: string
-  concepto: string
+  descripcion: string
+  especificaciones: string | null
   subtotal: number
 }
 
@@ -56,13 +61,12 @@ export default function ReportsHistory() {
   const [totales, setTotales] = useState<Totales | null>(null)
   const [loading, setLoading] = useState(false)
   const ventasRenderizadas = new Set<number>()
-
+  const capturaRef = useRef<HTMLDivElement>(null)
   const formatFecha = (fecha: string) => {
     const soloFecha = fecha.split('T')[0].split(' ')[0]
     const [year, month, day] = soloFecha.split('-')
     return `${day}/${month}/${year}`
   }
-
   const fetchReport = async () => {
     try {
       setLoading(true)
@@ -109,6 +113,14 @@ export default function ReportsHistory() {
     window.open(url)
   }
 
+  const exportarImagen = async () => {
+    if (!capturaRef.current) return
+
+    await exportCaptura(
+      capturaRef.current,
+      `reporte_ventas_${from}_${to}.png`
+    )
+  }
 
   return (
     <motion.div
@@ -119,9 +131,22 @@ export default function ReportsHistory() {
     >
       <div className='flex justify-between items-center mb-4'>
         <h2 className='text-lg font-semibold text-gray-700'>Historial de ventas</h2>
-        <button className='flex items-center gap-2 text-sm text-indigo-600 hover:underline'>
-          <FaDownload className="text-lg text-indigo-600" /> Exportar
+        <button
+          onClick={() => exportVentasExcel(ventas)}
+          className='flex items-center gap-2 text-sm text-indigo-600 hover:underline'
+        >
+          <FaDownload className="text-lg text-indigo-600" />
+          Exportar Excel
         </button>
+
+        <button
+          onClick={exportarImagen}
+          className='flex items-center gap-2 text-sm text-indigo-600 hover:underline'
+        >
+          <FaDownload className="text-lg text-indigo-600" />
+          Exportar imagen
+        </button>
+
       </div>
 
       {/* Filtros */}
@@ -137,70 +162,81 @@ export default function ReportsHistory() {
         <button onClick={fetchReport} className='self-end bg-indigo-600 text-white px-4 py-2 rounded text-sm'>Filtrar</button>
       </div>
 
-      {/* Tabla */}
-      <div className='overflow-auto max-h-[420px]'>
-        <table className='w-full table-auto text-sm'>
-          <thead className='sticky top-0 bg-gray-50'>
-            <tr>
-              <th className='p-2 text-left text-gray-500'>Fecha</th>
-              <th className='p-2 text-left text-gray-500'>Cliente</th>
-              <th className='p-2 text-left text-gray-500'>Concepto</th>
-              <th className='p-2 text-left text-gray-500'>Pago</th>
-              <th className='p-2 text-right text-gray-500'>Monto</th>
-              <th className='p-2 text-center text-gray-500'>Garantía</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ventas.map(v => {
-              const mostrarBoton = !ventasRenderizadas.has(v.venta_id)
-              ventasRenderizadas.add(v.venta_id)
+      <div ref={capturaRef}>
+        {/* Tabla */}
+        <div className='overflow-auto max-h-[420px]'>
+          <table className='w-full table-auto text-sm'>
+            <thead className='sticky top-0 bg-gray-50'>
+              <tr>
+                <th className='p-2 text-left text-gray-500'>Fecha</th>
+                <th className='p-2 text-left text-gray-500'>Cantidad</th>
+                <th className='p-2 text-left text-gray-500'>Equipo</th>
+                <th className='p-2 text-left text-gray-500'>Especificaciones</th>
+                <th className='p-2 text-left text-gray-500'>Cliente</th>              
+                <th className='p-2 text-left text-gray-500'>Pago</th>
+                <th className='p-2 text-right text-gray-500'>Monto</th>                                          
+                <th className='p-2 text-center text-gray-500'>Garantía</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ventas.map(v => {
+                const mostrarBoton = !ventasRenderizadas.has(v.venta_id)
+                ventasRenderizadas.add(v.venta_id)
 
-              return (
-                <tr key={v.detalle_id} className='border-b hover:bg-gray-50'>
-                  <td className='p-2'>{formatFecha(v.fecha_venta)}</td>
-                  <td className='p-2'>{v.cliente}</td>
-                  <td className='p-2'>{v.concepto}</td>
-                  <td className='p-2'>
-                    <span className={`px-2 py-1 rounded text-xs ${metodoColors[v.metodo_pago]}`}>
-                      {v.metodo_pago}
-                    </span>
+                return (
+                  <tr key={v.detalle_id} className='border-b hover:bg-gray-50'>
+                    <td className='p-2'>{formatFecha(v.fecha_venta)}</td>
+                    <td className='p-2'>{v.cantidad}</td>
+                    <td className='p-2 font-medium'>
+                    {v.descripcion}
                   </td>
-                  <td className='p-2 text-right'>
-                    ${Number(v.subtotal).toFixed(2)}
-                  </td>
-                  <td className='p-2 text-center'>
-                    {mostrarBoton && (
-                      <button
-                        onClick={() => descargarGarantia(v.venta_id)}
-                        className='inline-flex items-center gap-1 px-3 py-1 bg-indigo-400 text-white rounded-md text-xs hover:bg-indigo-600 transition'
-                      >
-                        <FaDownload className='text-xs' />
-                        Garantía
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              )
-            })}
 
-            {!loading && ventas.length === 0 && (
-              <tr><td colSpan={5} className='p-4 text-center text-gray-400'>Sin resultados</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                  <td className='p-2 text-xs text-gray-600'>
+                    {v.especificaciones || '—'}
+                  </td>
+                    <td className='p-2'>{v.cliente}</td>                  
+                    <td className='p-2'>
+                      <span className={`px-2 py-1 rounded text-xs ${metodoColors[v.metodo_pago]}`}>
+                        {v.metodo_pago}
+                      </span>
+                    </td>
+                    <td className='p-2 text-right'>
+                      ${Number(v.subtotal).toFixed(2)}
+                    </td>
+                    <td className='p-2 text-center'>
+                      {mostrarBoton && (
+                        <button
+                          onClick={() => descargarGarantia(v.venta_id)}
+                          className='inline-flex items-center gap-1 px-3 py-1 bg-indigo-400 text-white rounded-md text-xs hover:bg-indigo-600 transition'
+                        >
+                          <FaDownload className='text-xs' />
+                          Garantía
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
 
-      {/* Totales sticky */}
-      {totales && (
-        <div className='grid grid-cols-2 md:grid-cols-5 gap-4 mt-6 sticky bottom-0 bg-white pt-4'>
-          {Object.entries(totales).map(([k, v]) => (
-            <div key={k} className='bg-gray-50 rounded-xl p-4 shadow-sm'>
-              <p className='text-xs text-gray-500 uppercase'>{k}</p>
-              <p className='text-lg font-semibold text-gray-700'>${v.toFixed(2)}</p>
-            </div>
-          ))}
+              {!loading && ventas.length === 0 && (
+                <tr><td colSpan={5} className='p-4 text-center text-gray-400'>Sin resultados</td></tr>
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
+
+        {/* Totales sticky */}
+        {totales && (
+          <div className='grid grid-cols-2 md:grid-cols-5 gap-4 mt-6 sticky bottom-0 bg-white pt-4'>
+            {Object.entries(totales).map(([k, v]) => (
+              <div key={k} className='bg-gray-50 rounded-xl p-4 shadow-sm'>
+                <p className='text-xs text-gray-500 uppercase'>{k}</p>
+                <p className='text-lg font-semibold text-gray-700'>${v.toFixed(2)}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </motion.div>
   )
 }
