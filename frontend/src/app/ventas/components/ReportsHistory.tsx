@@ -58,7 +58,8 @@ export default function ReportsHistory() {
   const ventasRenderizadas = new Set<number>()
 
   const formatFecha = (fecha: string) => {
-    const [year, month, day] = fecha.split('-')
+    const soloFecha = fecha.split('T')[0].split(' ')[0]
+    const [year, month, day] = soloFecha.split('-')
     return `${day}/${month}/${year}`
   }
 
