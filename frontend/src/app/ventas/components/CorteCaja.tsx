@@ -29,6 +29,12 @@ export default function CorteCajaSection() {
   const [fechaCortePendiente, setFechaCortePendiente] = useState<string | null>(null)
   const { user, loading: userLoading } = useUser()
 
+  const formatFecha = (fecha: string) => {
+    const soloFecha = fecha.split('T')[0].split(' ')[0]
+    const [year, month, day] = soloFecha.split('-')
+    return `${day}/${month}/${year}`
+  }
+
   const formatDate = (fechaISO?: string | null) => {
     if (!fechaISO || typeof fechaISO !== 'string') {
       return 'fecha no disponible'
@@ -392,8 +398,8 @@ export default function CorteCajaSection() {
                 </tr>
               )}
               {movimientos.map((m, i) => (
-                <tr key={i} className="border-t hover:bg-gray-50">
-                  <td className="py-2 px-4">{new Date(m.fecha).toLocaleDateString()}</td>
+                <tr key={i} className="border-t hover:bg-gray-50">                  
+                  <td className='py-2 px-4'>{formatFecha(m.fecha_venta)}</td>
                   <td className="py-2 px-4 text-green-700">${m.total_ventas}</td>
                   <td className="py-2 px-4 text-red-700">${m.total_gastos}</td>
                   <td className="py-2 px-4 text-blue-700">${m.total_ingresos}</td>
