@@ -58,11 +58,8 @@ export default function ReportsHistory() {
   const ventasRenderizadas = new Set<number>()
 
   const formatFecha = (fecha: string) => {
-    return new Date(fecha).toLocaleDateString('es-MX', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    })
+    const [year, month, day] = fecha.split('-')
+    return `${day}/${month}/${year}`
   }
 
   const fetchReport = async () => {
