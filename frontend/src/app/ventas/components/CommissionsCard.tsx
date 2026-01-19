@@ -24,10 +24,16 @@ export default function CommissionsCard() {
     })
       .then(res => res.json())
       .then(data => {
-        setComisiones(data.filter((x: any) => x.id !== null))
+        const comisionesValidas = data.filter((x: any) => x.id !== null)
 
-        const totalRow = data.find((x: any) => x.total_semana !== null)
-        setTotalSemana(totalRow ? parseFloat(totalRow.total_semana) : 0)
+        setComisiones(comisionesValidas)
+
+        const total = comisionesValidas.reduce(
+          (acc: number, c: any) => acc + Number(c.monto),
+          0
+        )
+
+        setTotalSemana(total)
       })
   }, [usuarioId])
 
@@ -72,18 +78,50 @@ export default function CommissionsCard() {
             </li>
           ) : (
             comisiones.map((c) => (
-              <li key={c.id} className="py-2 flex justify-between">
-                <span>
-                  {c.venta_id
-                    ? `Venta #${c.venta_id}`
-                    : "Sin referencia"}
-                </span>
-                <span>
-                  ${parseFloat(c.monto).toFixed(2)} |{" "}
-                  {new Date(c.fecha_creacion).toLocaleDateString("es-MX")}
-                </span>
+              <li key={c.id} className="py-3 border-b">
+                <div className="flex justify-between">
+                  <span className="font-medium">
+                    {c.tipo === "venta" && `Venta #${c.venta.id}`}
+                    {c.tipo === "armado" && `Armado de equipo`}
+                    {c.tipo === "mantenimiento" && `Mantenimiento`}
+                  </span>
+
+                  <span className="text-sm">
+                    ${Number(c.monto).toFixed(2)} |{" "}
+                    {new Date(c.fecha_creacion).toLocaleDateString("es-MX")}
+                  </span>
+                </div>
+
+                {/* 🔵 DETALLE DE VENTA */}
+                {c.tipo === "venta" && (
+                  <ul className="ml-4 mt-1 text-sm text-gray-600">
+                    {c.venta.items.map((item: any, idx: any) => (
+                      <li key={idx}>
+                        • {item.nombre} (${item.precio})
+                      </li>
+                    ))}
+                    <li className="font-semibold">
+                      Total venta: ${c.venta.total_venta}
+                    </li>
+                  </ul>
+                )}
+
+                {/* 🟢 ARMADO */}
+                {c.tipo === "armado" && c.equipo && (
+                  <p className="ml-4 text-sm text-gray-600">
+                    Equipo: {c.equipo.nombre} (${c.equipo.precio})
+                  </p>
+                )}
+
+                {/* 🟣 MANTENIMIENTO */}
+                {c.tipo === "mantenimiento" && c.mantenimiento && (
+                  <p className="ml-4 text-sm text-gray-600">
+                    {c.mantenimiento.descripcion}
+                  </p>
+                )}
               </li>
             ))
+
           )}
         </ul>
       </div>

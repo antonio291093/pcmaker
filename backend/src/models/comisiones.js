@@ -79,26 +79,89 @@ async function obtenerComisionPorEquipo(equipo_id) {
 
 async function obtenerComisionesSemanaActualPorUsuario(usuario_id) {
   const query = `
-    SELECT *, NULL AS total_semana
-    FROM comisiones
-    WHERE usuario_id = $1
-    AND fecha_creacion >= date_trunc('week', now())
-    AND fecha_creacion < date_trunc('week', now()) + interval '1 week'
-    UNION ALL
-    SELECT 
-    NULL AS id,
-    NULL AS usuario_id,
-    NULL AS venta_id,
-    NULL AS mantenimiento_id,
-    SUM(monto) AS monto, -- suma todos los montos de la semana
-    NULL AS fecha_creacion,  
-    NULL AS equipo_id,  
-    SUM(monto) AS total_semana
-    FROM comisiones
-    WHERE usuario_id = $1
-    AND fecha_creacion >= date_trunc('week', now())
-    AND fecha_creacion < date_trunc('week', now()) + interval '1 week'
-    ORDER BY fecha_creacion ASC;
+    WITH comisiones_semana AS (
+  SELECT
+    c.id,
+    c.usuario_id,
+    c.venta_id,
+    c.equipo_id,
+    c.mantenimiento_id,
+    c.monto,
+    c.fecha_creacion,
+    CASE
+      WHEN c.venta_id IS NOT NULL THEN 'venta'
+      WHEN c.equipo_id IS NOT NULL THEN 'armado'
+      WHEN c.mantenimiento_id IS NOT NULL THEN 'mantenimiento'
+    END AS tipo
+  FROM comisiones c
+  WHERE c.usuario_id = $1
+    AND c.fecha_creacion >= date_trunc('week', now())
+    AND c.fecha_creacion < date_trunc('week', now()) + interval '1 week'
+)
+
+SELECT
+  cs.id,
+  cs.tipo,
+  cs.monto,
+  cs.fecha_creacion,
+
+  -- 🔵 VENTA
+  CASE WHEN cs.tipo = 'venta' THEN json_build_object(
+    'id', v.id,
+    'total_venta', COALESCE(SUM(i.precio), 0),
+    'items', COALESCE(
+      json_agg(
+        json_build_object(
+          'nombre', eqv.nombre,
+          'precio', i.precio
+        )
+      ) FILTER (WHERE i.id IS NOT NULL),
+      '[]'::json
+    )
+  ) END AS venta,
+
+  -- 🟢 ARMADO
+  CASE WHEN cs.tipo = 'armado' THEN json_build_object(
+    'equipo_id', eq.id,
+    'nombre', eq.nombre,
+    'precio', inv_armado.precio
+  ) END AS equipo,
+
+  -- 🟣 MANTENIMIENTO (CORRECTO)
+  CASE WHEN cs.tipo = 'mantenimiento' THEN json_build_object(
+    'id', m.id,
+    'descripcion', cm.descripcion
+  ) END AS mantenimiento
+
+FROM comisiones_semana cs
+
+-- 🔹 VENTAS
+LEFT JOIN ventas v ON v.id = cs.venta_id
+LEFT JOIN venta_detalle vd ON vd.venta_id = v.id
+LEFT JOIN inventario i ON i.id = vd.producto_id
+LEFT JOIN equipos eqv ON eqv.id = i.equipo_id
+
+-- 🔹 ARMADO
+LEFT JOIN equipos eq ON eq.id = cs.equipo_id
+LEFT JOIN inventario inv_armado ON inv_armado.equipo_id = eq.id
+
+-- 🔹 MANTENIMIENTO (CLAVE)
+LEFT JOIN mantenimientos m ON m.id = cs.mantenimiento_id
+LEFT JOIN catalogo_mantenimiento cm ON cm.id = m.catalogo_id
+
+GROUP BY
+  cs.id,
+  cs.tipo,
+  cs.monto,
+  cs.fecha_creacion,
+  v.id,
+  eq.id,
+  inv_armado.precio,
+  m.id,
+  cm.descripcion
+
+ORDER BY cs.fecha_creacion ASC;
+
   `;
   const { rows } = await pool.query(query, [usuario_id]);
   return rows;
