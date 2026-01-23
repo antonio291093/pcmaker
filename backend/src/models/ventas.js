@@ -107,7 +107,7 @@ async function registrarVenta({
           precio_unitario,
           subtotal
         )
-        VALUES ($1,'servicio',$2,NULL,1,$4,$4)
+        VALUES ($1,'servicio',$2,NULL,1,$3,$3)
         `,
         [ventaId, mantenimientoId, precio]
       );
