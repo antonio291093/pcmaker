@@ -77,8 +77,7 @@ async function registrarVenta({
         `
         SELECT
           cm.costo AS precio,
-          m.estado,
-          m.equipo_id
+          m.estado          
         FROM mantenimientos m
         JOIN catalogo_mantenimiento cm
           ON cm.id = m.catalogo_id
@@ -91,7 +90,7 @@ async function registrarVenta({
         throw new Error(`Mantenimiento ${mantenimientoId} no existe`);
       }
 
-      const { precio, estado, equipo_id } = rows[0];
+      const { precio, estado } = rows[0];
 
       if (estado !== "pendiente") {
         throw new Error(`Mantenimiento ${mantenimientoId} ya fue cobrado`);
@@ -108,9 +107,9 @@ async function registrarVenta({
           precio_unitario,
           subtotal
         )
-        VALUES ($1,'servicio',$2,$3,1,$4,$4)
+        VALUES ($1,'servicio',$2,NULL,1,$4,$4)
         `,
-        [ventaId, mantenimientoId, equipo_id, precio]
+        [ventaId, mantenimientoId, precio]
       );
 
       await client.query(
