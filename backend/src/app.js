@@ -53,7 +53,7 @@ const historial = require("./routes/historialRutas");
 const configuracion = require("./routes/configuracionesRutas");
 const cajaRoutes = require("./routes/cajaRutas");
 const ventasRoutes = require("./routes/ventasRutas");
-const pedidosRoutes = require("./routes/pedidoRoutes");
+const pedidosRoutes = require("./routes/pedidoRutas");
 const garantiasRoutes = require('./routes/garantiaRutas')
 
 // Usa las rutas

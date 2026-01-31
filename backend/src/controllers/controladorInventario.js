@@ -14,7 +14,70 @@ const {
   actualizarEquipoArmado,
   obtenerMemoriasRamDisponibles,
   obtenerAlmacenamientosDisponibles,
+  insertarInventarioRecepcionDirecta,
+  obtenerInventarioRecepcionDirecta,
 } = require("../models/inventario");
+
+exports.obtenerInventarioRecepcionDirecta = async (req, res) => {
+  try {
+    const inventario = await obtenerInventarioRecepcionDirecta();
+
+    res.json(inventario);
+  } catch (error) {
+    console.error("Error al obtener inventario de recepción directa:", error);
+    res.status(500).json({
+      message: "Error al obtener inventario de recepción directa"
+    });
+  }
+};
+
+exports.registrarRecepcionDirecta = async (req, res) => {
+  try {
+    const {
+      sucursal_id,
+      cantidad,
+      precio,
+
+      modelo,
+      procesador,
+      ram_gb,
+      ram_tipo,
+      almacenamiento_gb,
+      almacenamiento_tipo,
+      observaciones
+    } = req.body;
+
+    if (!modelo || !procesador) {
+      return res.status(400).json({
+        message: "Modelo y procesador son obligatorios"
+      });
+    }
+
+    const nuevo = await insertarInventarioRecepcionDirecta({
+      sucursal_id,
+      cantidad,
+      precio,
+
+      modelo,
+      procesador,
+      ram_gb,
+      ram_tipo,
+      almacenamiento_gb,
+      almacenamiento_tipo,
+      observaciones
+    });
+
+    res.status(201).json({
+      success: true,
+      data: nuevo
+    });
+  } catch (error) {
+    console.error("Error en recepción directa:", error);
+    res.status(500).json({
+      message: "Error al registrar recepción directa"
+    });
+  }
+};
 
 exports.actualizarEquipoArmado = async (req, res) => {
   const { id } = req.params;

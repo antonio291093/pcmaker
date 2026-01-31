@@ -18,6 +18,7 @@ const navItems = [
   { label: 'Reportes', icon: <FaFileAlt />, path: 'reportes' },  
   { label: 'Configuración', icon: <FaCog />, path: 'configuracion' },
   { label: 'Recibir lote', icon: <FaTruck />, path: 'lote' },
+  { label: 'Recepción directa', icon: <FaTruck />, path: 'recepcion' },
   { label: 'Cerrar sesión', icon: <FaSignOutAlt />, path: 'logout' }
 ]
 
@@ -62,10 +63,13 @@ export default function Sidebar({ active, setActive }: SidebarProps) {
         animate={{ x: isDesktop ? 0 : open ? 0 : -140 }} // fijo en escritorio, animado en móvil
         transition={{ type: 'spring', stiffness: 80, delay: 0.15 }}
         className={`
+          sidebar-scroll
           fixed top-0 left-0 z-30 h-full w-20 bg-white
           border-r border-gray-200 shadow-sm py-4 px-4
           flex flex-col
           overflow-y-auto
+          overflow-x-hidden
+          w-24
           ${open ? 'block' : 'hidden'}  // móvil
           lg:flex                       // escritorio siempre visible
         `}

@@ -345,7 +345,7 @@ export default function CorteCajaSection() {
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <select
-            className="border rounded-lg px-3 py-2"
+            className="border rounded-lg px-3 py-2 input-minimal"
             value={tipoMovimiento}
             onChange={e => setTipoMovimiento(e.target.value)}
           >
@@ -356,14 +356,14 @@ export default function CorteCajaSection() {
           <input
             type="number"
             placeholder="Monto"
-            className="border rounded-lg px-3 py-2"
+            className="border rounded-lg px-3 py-2 input-minimal"
             value={monto}
             onChange={e => setMonto(e.target.value)}
           />
           <input
             type="text"
             placeholder="Descripción"
-            className="border rounded-lg px-3 py-2"
+            className="border rounded-lg px-3 py-2 input-minimal"
             value={descripcion}
             onChange={e => setDescripcion(e.target.value)}
           />

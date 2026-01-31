@@ -5,40 +5,20 @@ const authMiddleware = require("../middlewares/authMiddleware"); // Middleware p
 
 router.get("/validar-stock", inventarioController.validarStockInventario);
 
-router.post(
-  "/descontar",
-  authMiddleware,
-  inventarioController.descontarStockInventario
-);
+router.post("/descontar", authMiddleware, inventarioController.descontarStockInventario);
 
-router.post(
-  "/aumentar",
-  authMiddleware,
-  inventarioController.aumentarStockInventario
-);
+router.post("/aumentar", authMiddleware, inventarioController.aumentarStockInventario);
 
 // Descontar stock desde venta
-router.post(
-  "/descontar-venta",
-  authMiddleware,
-  inventarioController.descontarStockVenta
-);
+router.post("/descontar-venta", authMiddleware, inventarioController.descontarStockVenta);
 
 // routes/inventario.js
-router.post(
-  "/registrar-equipo",
-  authMiddleware,
-  inventarioController.registrarEquipo
-);
+router.post("/registrar-equipo", authMiddleware, inventarioController.registrarEquipo);
 
 // Crear ítem inventario (protegida)
 router.post("/", authMiddleware, inventarioController.crearInventario);
 
-router.post(
-  "/general",
-  authMiddleware,
-  inventarioController.crearInventarioGeneral
-);
+router.post("/general", authMiddleware, inventarioController.crearInventarioGeneral);
 
 // Obtener todo inventario (protegida)
 router.get("/", authMiddleware, inventarioController.obtenerInventario);
@@ -47,21 +27,17 @@ router.get("/hardware/ram", authMiddleware, inventarioController.obtenerMemorias
 
 router.get("/hardware/almacenamiento", authMiddleware, inventarioController.obtenerAlmacenamientosDisponibles);
 
-router.get(
-  "/equipos-armados",
-  authMiddleware,
-  inventarioController.obtenerEquiposArmados
-);
+router.get("/equipos-armados", authMiddleware, inventarioController.obtenerEquiposArmados);
 
 // Actualizar ítem inventario (protegida)
 router.put("/:id", authMiddleware, inventarioController.actualizarInventario);
 
 // 👉 Ruta para actualizar un equipo armado
-router.put(
-  "/equipos-armados/:id",
-  authMiddleware,
-  inventarioController.actualizarEquipoArmado
-);
+router.put("/equipos-armados/:id", authMiddleware, inventarioController.actualizarEquipoArmado);
+
+router.post("/recepcion-directa", authMiddleware, inventarioController.registrarRecepcionDirecta);
+
+router.get("/recepcion-directa", authMiddleware,inventarioController.obtenerInventarioRecepcionDirecta);
 
 // Obtener ítem inventario por ID (protegida)
 router.get("/:id", authMiddleware, inventarioController.obtenerInventarioPorId);

@@ -1,6 +1,39 @@
 const pool = require("../config/db");
 const { generarBarcodeBase64 } = require('../utils/barcode');
 
+async function generarSkuYBarcode({ sucursal_id }) {
+  const fecha = new Date();
+
+  const yyyy = fecha.getFullYear();
+  const mm = String(fecha.getMonth() + 1).padStart(2, '0');
+  const dd = String(fecha.getDate()).padStart(2, '0');
+  const hh = String(fecha.getHours()).padStart(2, '0');
+  const mi = String(fecha.getMinutes()).padStart(2, '0');
+  const ss = String(fecha.getSeconds()).padStart(2, '0');
+
+  // 🔢 consecutivo por segundo y sucursal
+  const { rows } = await pool.query(
+    `
+    SELECT COUNT(*) FROM inventario
+    WHERE sku LIKE $1 AND sucursal_id = $2
+    `,
+    [`${yyyy}${mm}${dd}${hh}${mi}${ss}%`, sucursal_id]
+  );
+
+  const consecutivo = String(Number(rows[0].count) + 1).padStart(3, '0');
+
+  const skuFinal = `${yyyy}${mm}${dd}${hh}${mi}${ss}${consecutivo}`;
+
+  // 🧾 Barcode
+  const barcode = await generarBarcodeBase64(skuFinal);
+
+  return {
+    sku: skuFinal,
+    barcode,
+    es_codigo_generado: true
+  };
+}
+
 async function obtenerStockEquipo(equipoId) {
   const query = `
     SELECT cantidad
@@ -205,8 +238,8 @@ async function insertarEquipoEnInventario(
   disponibilidad = true
 ) {
   const query = `
-    INSERT INTO inventario (equipo_id, sucursal_id, tipo, cantidad, estado, disponibilidad, fecha_creacion, precio)
-    VALUES ($1, $2, 'Equipo Armado', 1, 'nuevo', $3, NOW(), $4)
+    INSERT INTO inventario (equipo_id, sucursal_id, tipo, cantidad, estado, disponibilidad, fecha_creacion, precio, origen)
+    VALUES ($1, $2, 'Equipo Armado', 1, 'nuevo', $3, NOW(), $4, 'tecnico')
     RETURNING *;
   `;
   const { rows } = await pool.query(query, [
@@ -216,6 +249,110 @@ async function insertarEquipoEnInventario(
     precio,
   ]);
   return rows[0];
+}
+
+async function insertarInventarioRecepcionDirecta({
+  sucursal_id,
+  cantidad,
+  precio = 0,
+
+  modelo,
+  procesador,
+  ram_gb,
+  ram_tipo,
+  almacenamiento_gb,
+  almacenamiento_tipo,
+  observaciones
+}) {
+  const client = await pool.connect();
+
+  try {
+    if (!sucursal_id) throw new Error("sucursal_id es obligatorio");
+
+    await client.query("BEGIN");
+
+    // 🧠 SKU + Barcode
+    const { sku, barcode, es_codigo_generado } =
+      await generarSkuYBarcode({ sucursal_id });
+
+    // 1️⃣ Inventario
+    const inventarioQuery = `
+      INSERT INTO inventario (
+        sucursal_id,
+        tipo,
+        cantidad,
+        estado,
+        disponibilidad,
+        fecha_creacion,
+        precio,
+        origen,
+        sku,
+        barcode,
+        es_codigo_generado
+      )
+      VALUES (
+        $1,
+        'Equipo',
+        $2,
+        'nuevo',
+        true,
+        NOW(),
+        $3,
+        'recepcion_directa',
+        $4,
+        $5,
+        $6
+      )
+      RETURNING *;
+    `;
+
+    const inventarioResult = await client.query(inventarioQuery, [
+      sucursal_id,
+      cantidad,
+      precio,
+      sku,
+      barcode,
+      es_codigo_generado
+    ]);
+
+    const inventario = inventarioResult.rows[0];
+
+    // 2️⃣ Especificaciones
+    const especificacionesQuery = `
+      INSERT INTO inventario_especificaciones (
+        inventario_id,
+        modelo,
+        procesador,
+        ram_gb,
+        ram_tipo,
+        almacenamiento_gb,
+        almacenamiento_tipo,
+        observaciones
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      RETURNING *;
+    `;
+
+    await client.query(especificacionesQuery, [
+      inventario.id,
+      modelo,
+      procesador,
+      ram_gb,
+      ram_tipo,
+      almacenamiento_gb,
+      almacenamiento_tipo,
+      observaciones || null
+    ]);
+
+    await client.query("COMMIT");
+
+    return inventario;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 /** ----------------------------------------------------
@@ -366,6 +503,7 @@ async function obtenerInventario(sucursalId = null) {
     LEFT JOIN catalogo_memoria_ram cm ON i.memoria_ram_id = cm.id
     LEFT JOIN catalogo_almacenamiento ca ON i.almacenamiento_id = ca.id
     WHERE i.equipo_id IS NULL
+    AND i.origen <> 'recepcion_directa'
   `;
 
   const values = [];
@@ -646,51 +784,37 @@ async function crearInventarioGeneral({
   sucursal_id,
   precio = 0,
 }) {
-  if (!tipo || !descripcion || !sucursal_id)
+  if (!tipo || !descripcion || !sucursal_id) {
     throw new Error("Faltan datos requeridos");
-
-  let skuFinal = sku;
-  let esGenerado = false;
-
-  // 🧠 1. Generar SKU numérico si no viene
-  if (!skuFinal) {
-    const fecha = new Date();
-
-    const yyyy = fecha.getFullYear();
-    const mm = String(fecha.getMonth() + 1).padStart(2, '0');
-    const dd = String(fecha.getDate()).padStart(2, '0');
-    const hh = String(fecha.getHours()).padStart(2, '0');
-    const mi = String(fecha.getMinutes()).padStart(2, '0');
-    const ss = String(fecha.getSeconds()).padStart(2, '0');
-
-    // 🔢 consecutivo por segundo y sucursal
-    const { rows } = await pool.query(
-      `
-      SELECT COUNT(*) FROM inventario
-      WHERE sku LIKE $1 AND sucursal_id = $2
-      `,
-      [`${yyyy}${mm}${dd}${hh}${mi}${ss}%`, sucursal_id]
-    );
-
-    const consecutivo = String(Number(rows[0].count) + 1).padStart(3, '0');
-
-    // ✅ SKU final (NUMÉRICO)
-    skuFinal = `${yyyy}${mm}${dd}${hh}${mi}${ss}${consecutivo}`;
-    esGenerado = true;
   }
 
-  // 🧾 2. Generar código de barras (imagen) usando el SKU
-  const barcode = await generarBarcodeBase64(skuFinal);
+  let skuFinal = sku;
+  let barcode = null;
+  let esGenerado = false;
 
-  // 🔎 3. Verificar duplicado (solo inventario general)
+  // 🧠 1. Generar SKU + barcode SOLO si no viene SKU
+  if (!skuFinal) {
+    const generado = await generarSkuYBarcode({ sucursal_id });
+    skuFinal = generado.sku;
+    barcode = generado.barcode;
+    esGenerado = generado.es_codigo_generado;
+  } else {
+    // 🧾 Si el SKU viene manual, igual generamos barcode
+    barcode = await generarBarcodeBase64(skuFinal);
+  }
+
+  // 🔎 2. Verificar duplicado (solo inventario general)
   const existe = await pool.query(
     `
     SELECT id FROM inventario
-    WHERE sku = $1 AND sucursal_id = $2 AND equipo_id IS NULL
+    WHERE sku = $1
+      AND sucursal_id = $2
+      AND equipo_id IS NULL
     `,
     [skuFinal, sucursal_id]
   );
 
+  // 🔁 3. Si existe, solo sumar cantidad
   if (existe.rows.length > 0) {
     await pool.query(
       `
@@ -709,11 +833,20 @@ async function crearInventarioGeneral({
     return rows[0];
   }
 
-  // 🧾 4. Insertar nuevo artículo
+  // 🆕 4. Insertar nuevo artículo
   const insertQuery = `
-    INSERT INTO inventario
-      (tipo, especificacion, cantidad, disponibilidad, estado,
-       sucursal_id, precio, sku, es_codigo_generado, barcode)
+    INSERT INTO inventario (
+      tipo,
+      especificacion,
+      cantidad,
+      disponibilidad,
+      estado,
+      sucursal_id,
+      precio,
+      sku,
+      es_codigo_generado,
+      barcode
+    )
     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
     RETURNING *;
   `;
@@ -735,6 +868,76 @@ async function crearInventarioGeneral({
   return rows[0];
 }
 
+async function obtenerInventarioRecepcionDirecta() {
+  const query = `
+    SELECT
+    i.id,
+
+    ie.modelo        AS nombre,
+    ie.procesador,
+
+    -- 🔑 campos reales
+    i.sku,
+    i.barcode,
+    TRUE             AS es_codigo_generado,
+
+    -- etiquetas visuales (si aún las usas)
+    i.sku            AS etiqueta,
+    i.sku            AS serie,
+
+    i.sucursal_id,
+    s.nombre         AS sucursal_nombre,
+
+    i.precio,
+    i.estado,
+    i.cantidad,
+    i.disponibilidad,
+
+      -- 🧠 RAM
+      COALESCE(
+        json_agg(
+          CONCAT(
+            ie.ram_tipo,
+            ' - ',
+            ie.ram_gb,
+            ' GB'
+          )
+        ) FILTER (WHERE ie.ram_gb IS NOT NULL),
+        '[]'
+      ) AS memorias_ram,
+
+      -- 💾 Almacenamiento
+      COALESCE(
+        json_agg(
+          CONCAT(
+            ie.almacenamiento_tipo,
+            ' ',
+            ie.almacenamiento_gb,
+            ' GB'
+          )
+        ) FILTER (WHERE ie.almacenamiento_gb IS NOT NULL),
+        '[]'
+      ) AS almacenamientos
+
+    FROM inventario i
+    JOIN inventario_especificaciones ie
+      ON ie.inventario_id = i.id
+    LEFT JOIN sucursales s
+      ON s.id = i.sucursal_id
+
+    WHERE i.origen = 'recepcion_directa'
+
+    GROUP BY
+      i.id,
+      ie.modelo,
+      ie.procesador,
+      s.nombre
+    ORDER BY i.id DESC;
+  `;
+
+  const { rows } = await pool.query(query);
+  return rows;
+}
 
 module.exports = {
   agregarOActualizarInventario,
@@ -754,4 +957,6 @@ module.exports = {
   obtenerMemoriasRamDisponibles,
   obtenerAlmacenamientosDisponibles,
   obtenerStockEquipo,
+  insertarInventarioRecepcionDirecta,
+  obtenerInventarioRecepcionDirecta,
 };

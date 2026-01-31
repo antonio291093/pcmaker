@@ -370,7 +370,7 @@ export default function SalesForm() {
           placeholder='Nombre cliente'
           value={formData.cliente}
           onChange={handleChange}
-          className='border rounded-md p-2 text-gray-600'          
+          className='border rounded-md p-2 text-gray-600 input-minimal'          
         />
 
         <input
@@ -378,7 +378,7 @@ export default function SalesForm() {
           name="telefono"          
           value={formData.telefono}
           onChange={handleChange}
-          className="border rounded-md p-2 text-gray-600"
+          className="border rounded-md p-2 text-gray-600 input-minimal"
           placeholder="Ej. 8441234567"
         />
 
@@ -387,7 +387,7 @@ export default function SalesForm() {
           name="correo"
           value={formData.correo}
           onChange={handleChange}
-          className="border rounded-md p-2 text-gray-600"
+          className="border rounded-md p-2 text-gray-600 input-minimal"
           placeholder="cliente@correo.com"
         />
 
@@ -491,7 +491,7 @@ export default function SalesForm() {
           value={formData.observaciones}
           onChange={handleChange}
           rows={3}
-          className='border rounded-md p-2 text-gray-600 resize-none'
+          className='border rounded-md p-2 text-gray-600 resize-none textarea-minimal'
         />
 
         <div>

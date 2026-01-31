@@ -167,7 +167,7 @@ export default function RecibirLote() {
           max={100}
           value={equipos}
           onChange={e => onChangeEquipos(Number(e.target.value))}
-          className="border rounded-md p-2 w-32"
+          className="border rounded-md p-2 w-32 input-minimal"
           disabled={loading}
         />
         <button

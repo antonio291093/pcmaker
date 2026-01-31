@@ -14,6 +14,7 @@ const navItems = [
   { label: "Revisar Equipos", icon: <FaFileAlt />, path: "especificaciones" },
   { label: "Comisiones", icon: <FaDollarSign />, path: "comisiones" },
   { label: 'Recibir lote', icon: <FaTruck />, path: 'lote' },
+  { label: 'Recepción directa', icon: <FaTruck />, path: 'recepcion' },
   { label: 'Cerrar sesión', icon: <FaSignOutAlt />, path: 'logout' }
 ];
 
@@ -58,12 +59,13 @@ export default function Sidebar({ active, setActive }: { active: string; setActi
         animate={{ x: isDesktop ? 0 : open ? 0 : -140 }}
         transition={{ type: "spring", stiffness: 80, delay: 0.15 }}
         className={`
+          sidebar-scroll
           fixed top-0 left-0 z-30 h-full bg-white
           border-r border-gray-200 shadow-sm py-4 px-4
           flex flex-col
-          overflow-y-hidden
+          overflow-y-auto
           overflow-x-hidden
-          w-25
+          w-24
           ${open ? 'block' : 'hidden'} lg:flex
         `}
         style={open && !isDesktop ? { boxShadow: "0 0 0 100vmax rgba(0,0,0,0.4)" } : {}}

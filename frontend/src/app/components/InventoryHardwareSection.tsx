@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import Swal from 'sweetalert2';
 import {
@@ -75,8 +75,24 @@ export default function InventoryHardwareSection() {
   const [skuBusqueda, setSkuBusqueda] = useState('');
   const [inventario, setInventario] = useState<InventarioItem[]>([]);
   const [equiposArmados, setEquiposArmados] = useState<EquipoArmado[]>([]);
-  const [inventarioFiltrado, setInventarioFiltrado] = useState<any[]>([]);
-  const [equiposArmadosFiltrados, setEquiposArmadosFiltrados] = useState<any[]>([]);
+  const [inventarioFiltrado, setInventarioFiltrado] = useState<any[]>([]);  
+  const [recepcionDirecta, setRecepcionDirecta] = useState<any[]>([]);
+  const [equiposFiltrados, setEquiposFiltrados] = useState<any[]>([]);
+
+  const normalizarRecepcionDirecta = useCallback((items: any[]) => {
+    return items.map(i => ({
+      ...i,
+      origen: 'recepcion_directa'
+    }));
+  }, []);
+
+  const equiposUnificados = useMemo(() => {
+    return [
+      ...equiposArmados.map(e => ({ ...e, origen: 'armado' })),
+      ...normalizarRecepcionDirecta(recepcionDirecta)
+    ];
+  }, [equiposArmados, recepcionDirecta]);
+
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
   useEffect(() => {
@@ -88,30 +104,7 @@ export default function InventoryHardwareSection() {
   }, [user, userLoading])
 
   if (userLoading) return null
-  if (!user) return null   
-
-  useEffect(() => {
-    const valor = skuBusqueda.trim();
-
-    // Sin búsqueda → todo visible
-    if (!valor) {
-      setInventarioFiltrado(inventario);
-      setEquiposArmadosFiltrados(equiposArmados);
-      return;
-    }
-
-    // Filtra inventario por SKU
-    setInventarioFiltrado(
-      inventario.filter(item => item.sku === valor)
-    );
-
-    // Filtra equipos armados por SERIE
-    setEquiposArmadosFiltrados(
-      equiposArmados.filter(eq => eq.serie === valor)
-    );
-
-  }, [skuBusqueda, inventario, equiposArmados]);
-
+  if (!user) return null     
 
   // Cargar sucursales al iniciar
   useEffect(() => {
@@ -148,14 +141,30 @@ export default function InventoryHardwareSection() {
       const resp = await fetch(`${API_URL}/api/inventario/equipos-armados?sucursal_id=${sucursalSeleccionada}`, { credentials: 'include' });
       if (!resp.ok) throw new Error('Error al obtener equipos armados');
       const data = await resp.json();
-      setEquiposArmados(data);
-      setEquiposArmadosFiltrados(data);
+      setEquiposArmados(data);      
     } catch (err) {
       console.error('Error cargando equipos armados:', err);
       Swal.fire('Error', 'No se pudieron cargar los equipos armados', 'error');
     }
   };
 
+  const cargarRecepcionDirecta = async () => {
+    try {
+      const resp = await fetch(
+        `${API_URL}/api/inventario/recepcion-directa?sucursal_id=${sucursalSeleccionada}`,
+        { credentials: 'include' }
+      );
+
+      if (!resp.ok) throw new Error('Error al obtener recepción directa');
+
+      const data = await resp.json();
+      setRecepcionDirecta(data);
+    } catch (err) {
+      console.error(err);
+      Swal.fire('Error', 'No se pudo cargar recepción directa', 'error');
+    }
+  };
+  
   useEffect(() => {
     if (!sucursalSeleccionada) return
 
@@ -163,7 +172,8 @@ export default function InventoryHardwareSection() {
       setLoading(true)
       await Promise.all([
         cargarInventario(),
-        cargarEquiposArmados()
+        cargarEquiposArmados(),
+        cargarRecepcionDirecta()
       ])
       setLoading(false)
     })()
@@ -672,6 +682,27 @@ export default function InventoryHardwareSection() {
     setOpenImpresion(true);
   }; 
 
+  useEffect(() => {
+    const valor = skuBusqueda.trim();
+
+    if (!valor) {
+      setInventarioFiltrado(inventario);
+      setEquiposFiltrados(equiposUnificados);
+      return;
+    }
+
+    setInventarioFiltrado(
+      inventario.filter(item => item.sku === valor)
+    );
+
+    setEquiposFiltrados(
+      equiposUnificados.filter(eq =>
+        eq.serie === valor || eq.etiqueta === valor
+      )
+    );
+  }, [skuBusqueda, inventario, equiposUnificados]);
+
+
   if (loading) {
     return <div className="text-center text-gray-500 py-6">Cargando inventario...</div>;
   }
@@ -761,7 +792,15 @@ export default function InventoryHardwareSection() {
                 {item.descripcion || item.especificacion}
               </span>
             </div>
-            <span className="text-sm text-gray-600">Cantidad: {item.cantidad}</span>
+            {item.cantidad > 0 ? (
+                  <span className="text-sm text-gray-700">
+                    📦 Stock disponible: {item.cantidad}
+                  </span>
+                ) : (
+                  <span className="text-sm text-red-500 font-medium">
+                    🚫 Sin stock
+                  </span>
+                )}            
             <span className="text-sm text-gray-600">
               💲 Precio: {Number(item.precio || 0).toFixed(2)} MXN
             </span>
@@ -805,19 +844,19 @@ export default function InventoryHardwareSection() {
       </h2>
 
       {/* Mensaje cuando no hay coincidencias en equipos armados */}
-      {skuBusqueda && equiposArmadosFiltrados.length === 0 && (
+      {skuBusqueda && equiposFiltrados.length === 0 && (
         <p className="text-sm text-gray-500 mb-4">
           No se encontraron equipos armados con esa serie
         </p>
       )}
 
-      {equiposArmadosFiltrados.length === 0 && !skuBusqueda ? (
+      {equiposFiltrados.length === 0 && !skuBusqueda ? (
         <p className="text-gray-500 text-center py-4">
           No hay equipos armados registrados.
         </p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-          {equiposArmadosFiltrados.map((eq) => (
+          {equiposFiltrados.map((eq) => (
             <motion.div
               key={eq.id}
               whileHover={{ scale: 1.02 }}
@@ -837,6 +876,16 @@ export default function InventoryHardwareSection() {
                     #{eq.etiqueta}
                   </span>
                 </div>
+                {eq.cantidad > 0 ? (
+                  <span className="text-sm text-gray-700">
+                    📦 Stock disponible: {eq.cantidad}
+                  </span>
+                ) : (
+                  <span className="text-sm text-red-500 font-medium">
+                    🚫 Sin stock
+                  </span>
+                )}
+
 
                 {/* 🔹 Especificaciones */}
                 <div className="space-y-1 mt-2 text-sm text-gray-600">
@@ -855,25 +904,44 @@ export default function InventoryHardwareSection() {
                 <p className="text-base font-semibold text-green-700">
                   💲 Precio: {Number(eq.precio || 0).toFixed(2)} MXN
                 </p>
-                <p className="text-xs text-gray-400">Estado: {eq.estado}</p>
-
+                <p className="text-xs text-gray-400">Estado: {eq.estado}</p>                
                 {/* 🔹 Botones de acción */}
-                <div className="flex gap-4 mt-3">
-                  <button
-                    onClick={() => setEditandoEquipo(eq)} // ⚙️ Igual que en el inventario
-                    className="text-blue-600 hover:text-blue-800"
-                    title="Editar equipo"
-                  >
-                    <FaEdit />
-                  </button>
-                  <button
-                    onClick={() => eliminarInventario(eq.id)}
-                    className="text-red-500 hover:text-red-700"
-                    title="Eliminar equipo"
-                  >
-                    <FaTrash />
-                  </button>
+                <div className="flex gap-4 mt-3 items-center">
+                  {eq.origen === 'armado' && (
+                    <>
+                      <button
+                        onClick={() => setEditandoEquipo(eq)}
+                        className="text-blue-600 hover:text-blue-800"
+                        title="Editar equipo"
+                      >
+                        <FaEdit />
+                      </button>
+
+                      <button
+                        onClick={() => eliminarInventario(eq.id)}
+                        className="text-red-500 hover:text-red-700"
+                        title="Eliminar equipo"
+                      >
+                        <FaTrash />
+                      </button>
+                    </>
+                  )}
+
+                  {eq.origen === 'recepcion_directa' &&
+                    eq.es_codigo_generado &&
+                    eq.sku &&
+                    eq.barcode && (
+                      <button
+                        onClick={() => imprimirEtiquetasInventario(eq)}
+                        className="text-green-600 hover:text-green-800"
+                        title="Imprimir etiquetas"
+                      >
+                        <FaDownload />
+                      </button>
+                  )}
+
                 </div>
+
               </div>
             </motion.div>
           ))}
