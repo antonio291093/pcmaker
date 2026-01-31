@@ -7,6 +7,7 @@ import InventoryManagement from '../components/InventorySelectorCard'
 import ReportsManagement from './components/ReportsManagement'
 import Configurations from './components/Configurations'
 import RecibirLote from '../components/RecibirLote'
+import RecepcionDirecta from '../components/RecepcionDirecta'
 import { useUser } from '@/context/UserContext'
 
 export default function AdminDashboard() {
@@ -32,6 +33,7 @@ export default function AdminDashboard() {
         {active === 'reportes' && <ReportsManagement />}
         {active === 'configuracion' && <Configurations />}
         {active === 'lote' && <RecibirLote />}
+        {active === 'recepcion' && <RecepcionDirecta />}
       </main>
     </>
   )

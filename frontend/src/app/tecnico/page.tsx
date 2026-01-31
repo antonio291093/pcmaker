@@ -8,6 +8,7 @@ import HistoryTimeline from './components/HistoryTimeline'
 import SpecsCard from './components/SpecsCard'
 import CommissionCard from './components/CommissionCard'
 import RecibirLote from '../components/RecibirLote'
+import RecepcionDirecta from '../components/RecepcionDirecta'
 import { useUser } from '@/context/UserContext'
 
 export default function DashboardPage() {
@@ -34,6 +35,7 @@ export default function DashboardPage() {
         {active === 'especificaciones' && <SpecsCard />}
         {active === 'comisiones' && <CommissionCard />}
         {active === 'lote' && <RecibirLote />}
+        {active === 'recepcion' && <RecepcionDirecta />}
       </main>
     </>
   )
