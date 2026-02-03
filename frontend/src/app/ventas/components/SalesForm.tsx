@@ -310,7 +310,7 @@ export default function SalesForm() {
     }
   }
 
-  const generarGarantia = async (ventaId: number, equipos: any[]) => {
+  const generarGarantia = async (ventaId: number, equipos: any[]) => {   
     try {
       const resp = await fetch(`${API_URL}/api/garantia`, {
         method: 'POST',

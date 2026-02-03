@@ -35,8 +35,7 @@ exports.generarGarantia = async (req, res) => {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
-    })
-
+    })    
 
     const pdfBytes = await generarGarantiaPDF({
       cliente,
@@ -91,72 +90,95 @@ exports.generarGarantiaPorVenta = async (req, res) => {
 
     const venta = ventaResult.rows[0]
 
-    // 2️⃣ Obtener equipos vendidos
-    const equiposResult = await pool.query(
+    // 2️⃣ Intentar obtener equipos ARMADOS
+    const equiposArmadosResult = await pool.query(
       `
       SELECT
-      d.id AS detalle_id,
-      d.cantidad,
-      d.precio_unitario as precio,
+        d.cantidad,
+        d.precio_unitario AS precio,
 
-      i.id AS inventario_id,
-      i.equipo_id,
+        e.nombre AS descripcion,
+        e.procesador,
 
-      e.nombre as descripcion,
-      e.procesador,
+        COALESCE(
+          (
+            SELECT json_agg(
+              substring(cmr.descripcion FROM '([0-9]+[ ]*GB)')
+            )
+            FROM equipos_ram er
+            JOIN catalogo_memoria_ram cmr
+              ON er.memoria_ram_id = cmr.id
+            WHERE er.equipo_id = e.id
+          ),
+          '[]'
+        ) AS memorias_ram,
 
-      le.etiqueta,
-      le.serie,
+        COALESCE(
+          (
+            SELECT json_agg(ca.descripcion)
+            FROM equipos_almacenamiento ea
+            JOIN catalogo_almacenamiento ca
+              ON ea.almacenamiento_id = ca.id
+            WHERE ea.equipo_id = e.id
+          ),
+          '[]'
+        ) AS almacenamientos
 
-      s.nombre AS sucursal_nombre,
-
-      -- RAM del equipo
-      COALESCE(
-        (
-          SELECT json_agg(
-            substring(cmr.descripcion FROM '([0-9]+[ ]*GB)')
-          )
-          FROM equipos_ram er
-          JOIN catalogo_memoria_ram cmr ON er.memoria_ram_id = cmr.id
-          WHERE er.equipo_id = e.id
-        ),
-        '[]'
-      ) AS memorias_ram,
-
-      -- Almacenamientos del equipo
-      COALESCE(
-        (
-          SELECT json_agg(ca.descripcion)
-          FROM equipos_almacenamiento ea
-          JOIN catalogo_almacenamiento ca ON ea.almacenamiento_id = ca.id
-          WHERE ea.equipo_id = e.id
-        ),
-        '[]'
-      ) AS almacenamientos
-
-    FROM venta_detalle d
-    JOIN inventario i ON d.producto_id = i.id
-    JOIN equipos e ON i.equipo_id = e.id
-    JOIN lotes_etiquetas le ON e.lote_etiqueta_id = le.id
-    LEFT JOIN sucursales s ON e.sucursal_id = s.id
-
-    WHERE d.venta_id = $1
-    AND i.equipo_id IS NOT NULL
+      FROM venta_detalle d
+      JOIN inventario i ON d.producto_id = i.id
+      JOIN equipos e ON i.equipo_id = e.id
+      WHERE d.venta_id = $1
+        AND i.equipo_id IS NOT NULL
       `,
       [ventaId]
     )
 
-    if (!equiposResult.rows.length) {
-      return res.status(404).json({ message: 'La venta no tiene equipos con garantía' })
+    let equiposRaw = []
+
+    // 3️⃣ Si NO hay equipos armados → intentar RECEPCIÓN DIRECTA
+    if (equiposArmadosResult.rows.length > 0) {
+      equiposRaw = equiposArmadosResult.rows
+    } else {
+      const recepcionDirectaResult = await pool.query(
+        `
+        SELECT
+          d.cantidad,
+          d.precio_unitario AS precio,
+
+          i.modelo AS descripcion,
+          i.procesador,
+          CONCAT(i.ram_gb, 'GB ', i.ram_tipo) AS ram,
+          CONCAT(i.almacenamiento_gb, 'GB ', i.almacenamiento_tipo) AS disco
+
+        FROM venta_detalle d
+        JOIN inventario_especificaciones i
+          ON d.producto_id = i.inventario_id
+        WHERE d.venta_id = $1
+        `,
+        [ventaId]
+      )
+
+      if (!recepcionDirectaResult.rows.length) {
+        return res
+          .status(404)
+          .json({ message: 'La venta no tiene equipos con garantía' })
+      }
+
+      equiposRaw = recepcionDirectaResult.rows
     }
 
-    const equipos = equiposResult.rows.map(e => ({
+    // 4️⃣ Normalizar salida (CLAVE)
+    const equipos = equiposRaw.map(e => ({
       cantidad: e.cantidad,
       descripcion: e.descripcion,
       procesador: e.procesador || '',
-      ram: Array.isArray(e.memorias_ram) ? e.memorias_ram.join(', ') : '',
-      disco: Array.isArray(e.almacenamientos) ? e.almacenamientos.join(', ') : '',
-      precio: e.precio
+      ram: Array.isArray(e.memorias_ram)
+        ? e.memorias_ram.join(', ')
+        : e.ram || '',
+      disco: Array.isArray(e.almacenamientos)
+        ? e.almacenamientos.join(', ')
+        : e.disco || '',
+      precio: Number(e.precio)
     }))
 
     const total = equipos.reduce(
@@ -164,14 +186,14 @@ exports.generarGarantiaPorVenta = async (req, res) => {
       0
     )
 
-    // 3️⃣ Formatear fecha de la venta
+    // 5️⃣ Formatear fecha
     const fechaVenta = new Date(venta.fecha_venta).toLocaleDateString('es-MX', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
     })
 
-    // 4️⃣ Generar PDF
+    // 6️⃣ Generar PDF
     const pdfBytes = await generarGarantiaPDF({
       cliente: venta.cliente,
       equipos,
@@ -179,7 +201,7 @@ exports.generarGarantiaPorVenta = async (req, res) => {
       fecha: fechaVenta,
     })
 
-    // 5️⃣ Responder
+    // 7️⃣ Responder
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader(
       'Content-Disposition',
@@ -193,3 +215,4 @@ exports.generarGarantiaPorVenta = async (req, res) => {
     res.status(500).json({ message: 'Error al generar garantía' })
   }
 }
+

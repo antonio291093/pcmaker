@@ -150,14 +150,21 @@ async function obtenerReporteVentas({ from, to, sucursal_id }) {
   v.fecha_venta::date AS fecha_venta,
   d.subtotal,
 
-  -- Nombre del equipo o concepto normal
+  -- 🔹 DESCRIPCIÓN
   CASE
+    -- Equipo armado
     WHEN i.equipo_id IS NOT NULL THEN e.nombre
+
+    -- Recepción directa
+    WHEN ie.inventario_id IS NOT NULL THEN ie.modelo
+
+    -- Otros conceptos
     ELSE COALESCE(i.especificacion, cm.descripcion)
   END AS descripcion,
 
-  -- Specs solo si es equipo
+  -- 🔹 ESPECIFICACIONES
   CASE
+    -- Equipo armado
     WHEN i.equipo_id IS NOT NULL THEN
       CONCAT(
         e.procesador, ' | ',
@@ -178,13 +185,30 @@ async function obtenerReporteVentas({ from, to, sucursal_id }) {
           WHERE ea.equipo_id = e.id
         )
       )
+
+    -- Recepción directa
+    WHEN ie.inventario_id IS NOT NULL THEN
+      CONCAT(
+        ie.procesador, ' | ',
+        ie.ram_gb, 'GB ', ie.ram_tipo, ' | ',
+        ie.almacenamiento_gb, 'GB ', ie.almacenamiento_tipo
+      )
+
     ELSE NULL
   END AS especificaciones
 
 FROM ventas v
 JOIN venta_detalle d ON d.venta_id = v.id
+
+-- Equipo armado
 LEFT JOIN inventario i ON i.id = d.producto_id
 LEFT JOIN equipos e ON e.id = i.equipo_id
+
+-- Recepción directa
+LEFT JOIN inventario_especificaciones ie
+  ON ie.inventario_id = d.producto_id
+
+-- Otros conceptos
 LEFT JOIN mantenimientos m ON m.id = d.mantenimiento_id
 LEFT JOIN catalogo_mantenimiento cm ON cm.id = m.catalogo_id
 
@@ -192,6 +216,7 @@ WHERE v.fecha_venta::date BETWEEN $1 AND $2
   AND ($3::INTEGER IS NULL OR v.sucursal_id = $3)
 
 ORDER BY v.fecha_venta DESC;
+
   `;
 
   const totalesQuery = `

@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import Swal from "sweetalert2";
 import { useUser } from '@/context/UserContext'
@@ -34,7 +34,9 @@ interface EquipoArmado {
 
 interface ProductoSeleccionado extends Producto {
   cantidadSeleccionada: number;
-  es_equipo: boolean; 
+  es_equipo: boolean;
+  memorias_ram?: string[];
+  almacenamientos?: string[];
 }
 
 interface ModalSeleccionarProductoProps {
@@ -52,8 +54,9 @@ export default function ModalSeleccionarProducto({
   const [loading, setLoading] = useState(true);
   const [sucursalId, setSucursalId] = useState<number | null>(null)
   const [skuBusqueda, setSkuBusqueda] = useState('');
-  const [inventarioFiltrado, setInventarioFiltrado] = useState<Producto[]>([]);
-  const [equiposArmadosFiltrados, setEquiposArmadosFiltrados] = useState<EquipoArmado[]>([]);
+  const [inventarioFiltrado, setInventarioFiltrado] = useState<Producto[]>([]);  
+  const [recepcionDirecta, setRecepcionDirecta] = useState<any[]>([]);  
+  const [equiposFiltrados, setEquiposFiltrados] = useState<any[]>([]);
   const { user, loading: userLoading } = useUser()
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -68,7 +71,17 @@ export default function ModalSeleccionarProducto({
   if (userLoading) return null
   if (!user) return null
 
-  // 2️⃣ Cargar inventario
+  const cargarRecepcionDirecta = async () => {
+    const resp = await fetch(
+      `${API_URL}/api/inventario/recepcion-directa?sucursal_id=${sucursalId}`,
+      { credentials: "include" }
+    );
+
+    if (!resp.ok) throw new Error("Error al obtener recepción directa");
+
+    return resp.json();
+  };
+
   const cargarInventario = async () => {
     const resp = await fetch(`${API_URL}/api/inventario?sucursal_id=${sucursalId}`, {
       credentials: "include",
@@ -76,8 +89,7 @@ export default function ModalSeleccionarProducto({
     if (!resp.ok) throw new Error("Error inventario");
     return await resp.json();
   };
-
-  // 3️⃣ Cargar equipos armados
+  
   const cargarEquiposArmados = async () => {
     const resp = await fetch(`${API_URL}/api/inventario/equipos-armados?sucursal_id=${sucursalId}`, {
       credentials: "include",
@@ -86,22 +98,43 @@ export default function ModalSeleccionarProducto({
     return await resp.json();
   };
 
-  // 4️⃣ Cargar datos cuando haya sucursal
+  const normalizarRecepcionDirecta = useCallback((items: any[]) => {
+    return items.map(i => ({
+      ...i,
+      origen: 'recepcion_directa',
+      // asegúrate de mapear campos que el modal usa
+      nombre: i.nombre,
+      serie: i.serie,
+      etiqueta: i.etiqueta,
+      sku: i.sku,
+      precio: i.precio,
+    }));
+  }, []);
+
+  const equiposUnificadosMemo = useMemo(() => {
+    return [
+      ...equiposArmados.map(e => ({ ...e, origen: 'armado' })),
+      ...normalizarRecepcionDirecta(recepcionDirecta),
+    ];
+  }, [equiposArmados, recepcionDirecta, normalizarRecepcionDirecta]);
+
   useEffect(() => {
     if (!sucursalId) return;
 
     (async () => {
       setLoading(true);
       try {
-        const [inv, eqArmados] = await Promise.all([
+        const [inv, eqArmados, recepDirecta] = await Promise.all([
           cargarInventario(),
           cargarEquiposArmados(),
+          cargarRecepcionDirecta(),
         ]);
 
         setInventario(inv);
         setEquiposArmados(eqArmados);
-        setInventarioFiltrado(inv);
-        setEquiposArmadosFiltrados(eqArmados);
+        setRecepcionDirecta(recepDirecta);
+
+        setInventarioFiltrado(inv);        
       } catch (err) {
         console.error("Error cargando inventario/equipos:", err);
         Swal.fire("Error", "No se pudieron cargar los productos", "error");
@@ -112,29 +145,28 @@ export default function ModalSeleccionarProducto({
   }, [sucursalId]);
 
   useEffect(() => {
-    const valor = skuBusqueda.trim();
+    const valor = skuBusqueda.trim().toLowerCase();
 
     if (!valor) {
       setInventarioFiltrado(inventario);
-      setEquiposArmadosFiltrados(equiposArmados);
+      setEquiposFiltrados(equiposUnificadosMemo);
       return;
     }
 
-    // 🔎 Filtra inventario por SKU
     setInventarioFiltrado(
       inventario.filter(item =>
-        item.sku?.toLowerCase() === valor.toLowerCase()
+        item.sku?.toLowerCase() === valor
       )
     );
 
-    // 🔎 Filtra equipos armados por serie
-    setEquiposArmadosFiltrados(
-      equiposArmados.filter(eq =>
-        eq.serie?.toLowerCase() === valor.toLowerCase()
+    setEquiposFiltrados(
+      equiposUnificadosMemo.filter(eq =>
+        eq.sku?.toLowerCase() === valor ||
+        eq.serie?.toLowerCase() === valor ||
+        eq.etiqueta?.toLowerCase() === valor
       )
     );
-  }, [skuBusqueda, inventario, equiposArmados]);
-
+  }, [skuBusqueda, inventario, equiposUnificadosMemo]);
 
   const obtenerIcono = (tipo: string, especificacion?: string) => {
     const texto = `${tipo} ${especificacion || ""}`.toLowerCase();
@@ -249,7 +281,7 @@ export default function ModalSeleccionarProducto({
                     cantidad: producto.cantidad,
                     estado: producto.estado,
                     precio: producto.precio,
-                    cantidadSeleccionada: 1,
+                    cantidadSeleccionada: 1,                  
                     es_equipo: false,
                   })
                 }
@@ -301,7 +333,7 @@ export default function ModalSeleccionarProducto({
         </h3>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 overflow-y-auto pr-2 max-h-[35vh]">          
-          {equiposArmadosFiltrados.map((equipo) => {
+          {equiposFiltrados.map((equipo) => {
             const seleccionado = seleccionados.find((p) => p.id === equipo.id);
             return (
               <motion.div
@@ -317,6 +349,8 @@ export default function ModalSeleccionarProducto({
                     estado: equipo.estado,
                     precio: equipo.precio,
                     cantidadSeleccionada: 1,
+                    memorias_ram: equipo.memorias_ram,
+                    almacenamientos: equipo.almacenamientos,
                     es_equipo: true,
                   })
                 }
