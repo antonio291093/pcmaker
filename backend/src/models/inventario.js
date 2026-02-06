@@ -1,6 +1,32 @@
 const pool = require("../config/db");
 const { generarBarcodeBase64 } = require('../utils/barcode');
 
+async function traspasarInventario(id, sucursal_id) {
+  const updateQuery = `
+    UPDATE inventario
+    SET sucursal_id = $1
+    WHERE id = $2
+    RETURNING 
+      id,
+      tipo,
+      especificacion,
+      cantidad,
+      disponibilidad,
+      estado,
+      precio,
+      memoria_ram_id,
+      almacenamiento_id,
+      sucursal_id,
+      fecha_creacion,
+      sku,
+      es_codigo_generado;
+  `;
+
+  const { rows } = await pool.query(updateQuery, [sucursal_id, id]);
+
+  return rows[0];
+}
+
 async function generarSkuYBarcode({ sucursal_id }) {
   const fecha = new Date();
 
@@ -868,30 +894,30 @@ async function crearInventarioGeneral({
   return rows[0];
 }
 
-async function obtenerInventarioRecepcionDirecta() {
-  const query = `
+async function obtenerInventarioRecepcionDirecta(sucursalId = null) {
+  let query = `
     SELECT
-    i.id,
+      i.id,
 
-    ie.modelo        AS nombre,
-    ie.procesador,
+      ie.modelo        AS nombre,
+      ie.procesador,
 
-    -- 🔑 campos reales
-    i.sku,
-    i.barcode,
-    TRUE             AS es_codigo_generado,
+      -- 🔑 campos reales
+      i.sku,
+      i.barcode,
+      TRUE             AS es_codigo_generado,
 
-    -- etiquetas visuales (si aún las usas)
-    i.sku            AS etiqueta,
-    i.sku            AS serie,
+      -- etiquetas visuales
+      i.sku            AS etiqueta,
+      i.sku            AS serie,
 
-    i.sucursal_id,
-    s.nombre         AS sucursal_nombre,
+      i.sucursal_id,
+      s.nombre         AS sucursal_nombre,
 
-    i.precio,
-    i.estado,
-    i.cantidad,
-    i.disponibilidad,
+      i.precio,
+      i.estado,
+      i.cantidad,
+      i.disponibilidad,
 
       -- 🧠 RAM
       COALESCE(
@@ -926,7 +952,16 @@ async function obtenerInventarioRecepcionDirecta() {
       ON s.id = i.sucursal_id
 
     WHERE i.origen = 'recepcion_directa'
+  `;
 
+  const values = [];
+
+  if (sucursalId) {
+    values.push(sucursalId);
+    query += ` AND i.sucursal_id = $${values.length}`;
+  }
+
+  query += `
     GROUP BY
       i.id,
       ie.modelo,
@@ -935,9 +970,93 @@ async function obtenerInventarioRecepcionDirecta() {
     ORDER BY i.id DESC;
   `;
 
-  const { rows } = await pool.query(query);
+  const { rows } = await pool.query(query, values);
   return rows;
 }
+
+
+async function obtenerEquipoPorInventario(inventarioId) {
+  // 1️⃣ Intentar EQUIPO ARMADO
+  const equipoArmadoQuery = `
+    SELECT 
+      e.id,
+      e.nombre,
+      e.procesador,
+      le.etiqueta,
+      e.sucursal_id,
+      cs.nombre AS sucursal_nombre,
+      i.origen,
+      COALESCE(
+        (
+          SELECT json_agg(cmr.descripcion)
+          FROM equipos_ram er
+          JOIN catalogo_memoria_ram cmr ON er.memoria_ram_id = cmr.id
+          WHERE er.equipo_id = e.id
+        ),
+        '[]'
+      ) AS memorias_ram,
+
+      COALESCE(
+        (
+          SELECT json_agg(ca.descripcion)
+          FROM equipos_almacenamiento ea
+          JOIN catalogo_almacenamiento ca ON ea.almacenamiento_id = ca.id
+          WHERE ea.equipo_id = e.id
+        ),
+        '[]'
+      ) AS almacenamientos
+
+    FROM inventario i
+    JOIN equipos e ON i.equipo_id = e.id
+    JOIN lotes_etiquetas le ON e.lote_etiqueta_id = le.id
+    LEFT JOIN sucursales cs ON e.sucursal_id = cs.id
+    WHERE i.id = $1
+    LIMIT 1;
+  `
+
+  const equipoArmadoResult = await pool.query(equipoArmadoQuery, [inventarioId])
+
+  if (equipoArmadoResult.rows.length > 0) {
+    return equipoArmadoResult.rows[0]
+  }
+
+  // 2️⃣ Fallback → RECEPCIÓN DIRECTA
+  const recepcionDirectaQuery = `
+    SELECT
+      i.inventario_id AS id,
+      i.modelo AS nombre,
+      i.procesador,
+      NULL AS etiqueta,
+      inv.sucursal_id,
+      cs.nombre AS sucursal_nombre,
+      inv.origen,
+      json_build_array(
+        CONCAT(i.ram_gb, 'GB ', i.ram_tipo)
+      ) AS memorias_ram,
+
+      json_build_array(
+        CONCAT(i.almacenamiento_gb, 'GB ', i.almacenamiento_tipo)
+      ) AS almacenamientos
+
+    FROM inventario_especificaciones i
+    JOIN inventario inv ON i.inventario_id = inv.id
+    LEFT JOIN sucursales cs ON inv.sucursal_id = cs.id
+    WHERE i.inventario_id = $1
+    LIMIT 1;
+  `
+
+  const recepcionDirectaResult = await pool.query(
+    recepcionDirectaQuery,
+    [inventarioId]
+  )
+
+  if (recepcionDirectaResult.rows.length > 0) {
+    return recepcionDirectaResult.rows[0]
+  }
+
+  return null
+}
+
 
 module.exports = {
   agregarOActualizarInventario,
@@ -959,4 +1078,6 @@ module.exports = {
   obtenerStockEquipo,
   insertarInventarioRecepcionDirecta,
   obtenerInventarioRecepcionDirecta,
+  obtenerEquipoPorInventario,
+  traspasarInventario,
 };

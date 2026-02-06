@@ -25,6 +25,8 @@ import {
 } from 'react-icons/fa';
 import EtiquetaA4Modal from './EtiquetaA4Modal';
 import type { Etiqueta } from './Types';
+import EquipoTraspasoModal from "./EquiposTraspasoModal";
+import { Equipo } from './Types';
 
 import { useUser } from '@/context/UserContext'
 
@@ -78,6 +80,8 @@ export default function InventoryHardwareSection() {
   const [inventarioFiltrado, setInventarioFiltrado] = useState<any[]>([]);  
   const [recepcionDirecta, setRecepcionDirecta] = useState<any[]>([]);
   const [equiposFiltrados, setEquiposFiltrados] = useState<any[]>([]);
+  const [equipoParaTraspaso, setEquipoParaTraspaso] = useState<Equipo | null>(null); 
+  const [equipos, setEquipos] = useState<Equipo[]>([]);
 
   const normalizarRecepcionDirecta = useCallback((items: any[]) => {
     return items.map(i => ({
@@ -134,6 +138,27 @@ export default function InventoryHardwareSection() {
       Swal.fire('Error', 'No se pudo cargar el inventario', 'error');
     }
   };
+
+  const abrirModalTraspaso = async (inventarioId: number) => {
+    try {
+      const res = await fetch(
+        `${API_URL}/api/inventario/por-inventario/${inventarioId}`,
+        { credentials: 'include' }
+      )
+
+      if (!res.ok) throw new Error('No se pudo obtener el equipo')
+
+      const equipo: Equipo = await res.json()
+
+      if (!equipo?.id) {
+        throw new Error('Equipo inválido recibido')
+      }
+      console.log(equipo)
+      setEquipoParaTraspaso(equipo)
+    } catch (e: any) {
+      Swal.fire('Error', e.message, 'error')
+    }
+  }
 
   // 🔹 Cargar equipos armados
   const cargarEquiposArmados = async () => {
@@ -892,10 +917,12 @@ export default function InventoryHardwareSection() {
                   <p>🧠 {eq.procesador}</p>
                   <p>💾 RAM: {eq.memorias_ram?.join(", ") || "N/A"}</p>
                   <p>📦 Almacenamiento: {eq.almacenamientos?.join(", ") || "N/A"}</p>
-                  <p className="flex items-center gap-1 mt-1">
-                    <FaStore className="text-gray-500" />
-                    {eq.sucursal_nombre}
-                  </p>
+                  <span
+                    className="text-xs text-blue-500 cursor-pointer hover:underline mt-1"
+                    onClick={() => abrirModalTraspaso(eq.id)}
+                  >
+                    Sucursal: {eq.sucursal_nombre ?? "Sin asignar"}
+                  </span>
                 </div>
               </div>
 
@@ -947,6 +974,22 @@ export default function InventoryHardwareSection() {
           ))}
         </div>
       )}
+
+      {/* Modal para traspaso de sucursal */}
+      {equipoParaTraspaso && (
+        <EquipoTraspasoModal
+          equipo={equipoParaTraspaso}
+          onTransfer={(nuevoEquipo:any) => {
+            setEquipos((prev) =>
+              prev.map((e) =>
+                e.id === nuevoEquipo.id ? { ...e, ...nuevoEquipo } : e
+              )
+            );
+            setEquipoParaTraspaso(null);
+          }}
+          onClose={() => setEquipoParaTraspaso(null)}
+        />
+      )}      
 
       <EtiquetaA4Modal
         open={openImpresion}

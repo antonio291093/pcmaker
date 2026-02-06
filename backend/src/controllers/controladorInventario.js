@@ -16,20 +16,51 @@ const {
   obtenerAlmacenamientosDisponibles,
   insertarInventarioRecepcionDirecta,
   obtenerInventarioRecepcionDirecta,
+  obtenerEquipoPorInventario,
+  traspasarInventario,
 } = require("../models/inventario");
+
+exports.obtenerEquipoPorInventario = async (req, res) => {
+  const inventarioId = parseInt(req.params.inventario_id);
+
+  if (isNaN(inventarioId)) {
+    return res.status(400).json({
+      message: "Parámetro 'inventario_id' inválido"
+    });
+  }
+
+  try {
+    const equipo = await obtenerEquipoPorInventario(inventarioId);
+
+    if (!equipo) {
+      return res.status(404).json({
+        message: "No se encontró equipo para este inventario"
+      });
+    }
+
+    res.json(equipo);
+  } catch (error) {
+    console.error("Error al obtener equipo por inventario:", error);
+    res.status(500).json({ message: "Error en el servidor" });
+  }
+};
+
 
 exports.obtenerInventarioRecepcionDirecta = async (req, res) => {
   try {
-    const inventario = await obtenerInventarioRecepcionDirecta();
+    const { sucursal_id } = req.query;
+
+    const inventario = await obtenerInventarioRecepcionDirecta(sucursal_id);
 
     res.json(inventario);
   } catch (error) {
     console.error("Error al obtener inventario de recepción directa:", error);
     res.status(500).json({
-      message: "Error al obtener inventario de recepción directa"
+      message: "Error al obtener inventario de recepción directa",
     });
   }
 };
+
 
 exports.registrarRecepcionDirecta = async (req, res) => {
   try {
@@ -331,3 +362,31 @@ exports.descontarStockVenta = async (req, res) => {
     });
   }
 };
+
+
+exports.traspasarInventario = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { sucursal_id } = req.body;
+
+    if (!sucursal_id) {
+      return res
+        .status(400)
+        .json({ message: "La sucursal es requerida para el traspaso" });
+    }
+
+    const actualizado = await traspasarInventario(id, sucursal_id);
+
+    if (!actualizado) {
+      return res
+        .status(404)
+        .json({ message: "Inventario no encontrado" });
+    }
+
+    res.json(actualizado);
+  } catch (error) {
+    console.error("Error al traspasar inventario:", error);
+    res.status(500).json({ message: "Error al traspasar inventario" });
+  }
+};
+

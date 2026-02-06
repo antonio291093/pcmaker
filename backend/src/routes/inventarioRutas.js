@@ -29,8 +29,12 @@ router.get("/hardware/almacenamiento", authMiddleware, inventarioController.obte
 
 router.get("/equipos-armados", authMiddleware, inventarioController.obtenerEquiposArmados);
 
+router.get("/por-inventario/:inventario_id", authMiddleware, inventarioController.obtenerEquipoPorInventario);
+
 // Actualizar ítem inventario (protegida)
 router.put("/:id", authMiddleware, inventarioController.actualizarInventario);
+
+router.put("/:id/traspaso",authMiddleware,inventarioController.traspasarInventario);
 
 // 👉 Ruta para actualizar un equipo armado
 router.put("/equipos-armados/:id", authMiddleware, inventarioController.actualizarEquipoArmado);

@@ -58,7 +58,11 @@ export default function EquipoTraspasoModal({
     }).then(async (result) => {
       if (result.isConfirmed && result.value) {
         try {
-          const resp = await fetch(`${API_URL}/api/equipos/${equipo.id}`, {
+          const endpoint = equipo.origen === "tecnico"
+              ? `${API_URL}/api/equipos/${equipo.id}`
+              : `${API_URL}/api/inventario/${equipo.id}/traspaso`
+
+          const resp = await fetch(endpoint, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             credentials: "include",

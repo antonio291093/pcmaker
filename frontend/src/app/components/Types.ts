@@ -7,6 +7,7 @@ export interface Equipo {
   almacenamientos?: string[];
   sucursal_id?: number;
   sucursal_nombre?: string;
+  origen: 'tecnico' | 'recepcion_directa';
 }
 
 // Etiqueta preliminar (ANTES de guardar / imprimir)

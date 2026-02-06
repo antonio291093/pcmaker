@@ -30,11 +30,11 @@ const corteCajaMiddleware = async (req, res, next) => {
       FROM caja_dias d
       WHERE d.sucursal_id = $1
         AND d.estado = 'abierto'
-        AND d.fecha < CURRENT_DATE
+        AND d.fecha < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date
         AND EXISTS (
           SELECT 1
           FROM caja_movimientos m
-          WHERE DATE(m.fecha) = d.fecha
+            WHERE DATE(m.fecha AT TIME ZONE 'America/Mexico_City') = d.fecha
             AND m.sucursal_id = d.sucursal_id
         )
         AND NOT EXISTS (
