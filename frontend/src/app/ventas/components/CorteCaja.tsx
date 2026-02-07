@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { useUser } from '@/context/UserContext'
 import Swal from 'sweetalert2'
 import {
@@ -10,10 +10,97 @@ import {
   FaBalanceScale,
   FaFileInvoiceDollar,
   FaPlus,
-  FaListUl
+  FaListUl,
+  FaChevronRight, 
+  FaChevronDown
 } from 'react-icons/fa'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+
+interface DetalleMovimiento {
+  concepto: string;
+  monto: number;
+}
+
+interface MovimientoCorte {
+  fecha: string;
+  total_ventas: number;
+  total_gastos: number;
+  total_ingresos: number;
+  balance_final: number;
+  ingresos?: DetalleMovimiento[];
+  gastos?: DetalleMovimiento[];
+}
+
+interface MovimientoDetalleAPI {
+  id: number
+  tipo: 'venta' | 'ingreso' | 'gasto'
+  monto: string
+  descripcion: string
+  fecha: string
+  created_at: string
+}
+
+interface DetalleCorteResponse {
+  ingresos: MovimientoDetalleAPI[]
+  gastos: MovimientoDetalleAPI[]
+}
+
+function DetalleCorte({
+  detalle
+}: {
+  detalle?: DetalleCorteResponse
+}) {
+  if (!detalle) {
+    return (
+      <p className="text-sm text-gray-400">
+        Cargando movimientos...
+      </p>
+    )
+  }
+
+  const { ingresos, gastos } = detalle
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+      {/* INGRESOS */}
+      <div>
+        <h4 className="font-semibold text-green-700 mb-2">Ingresos</h4>
+
+        {ingresos.length > 0 ? (
+          ingresos.map(m => (
+            <div key={m.id} className="flex justify-between py-1">
+              <span>{m.descripcion}</span>
+              <span className="text-green-600">
+                ${Number(m.monto).toFixed(2)}
+              </span>
+            </div>
+          ))
+        ) : (
+          <p className="text-gray-400">Sin ingresos</p>
+        )}
+      </div>
+
+      {/* GASTOS */}
+      <div>
+        <h4 className="font-semibold text-red-700 mb-2">Gastos</h4>
+
+        {gastos.length > 0 ? (
+          gastos.map(m => (
+            <div key={m.id} className="flex justify-between py-1">
+              <span>{m.descripcion}</span>
+              <span className="text-red-600">
+                ${Number(m.monto).toFixed(2)}
+              </span>
+            </div>
+          ))
+        ) : (
+          <p className="text-gray-400">Sin gastos</p>
+        )}
+      </div>
+    </div>
+  )
+}
 
 export default function CorteCajaSection() {
   const [usuarioId, setUsuarioId] = useState<number | null>(null)
@@ -21,12 +108,16 @@ export default function CorteCajaSection() {
   const [ventas, setVentas] = useState(0)
   const [gastos, setGastos] = useState(0)
   const [ingresos, setIngresos] = useState(0)
-  const [movimientos, setMovimientos] = useState<any[]>([])
+  const [movimientos, setMovimientos] = useState<MovimientoCorte[]>([])
   const [tipoMovimiento, setTipoMovimiento] = useState('gasto')
   const [monto, setMonto] = useState('')
   const [descripcion, setDescripcion] = useState('')  
   const balance = ventas + ingresos - gastos    
   const [fechaCortePendiente, setFechaCortePendiente] = useState<string | null>(null)
+  const [corteAbierto, setCorteAbierto] = useState<number | null>(null);
+  const [detallesPorFecha, setDetallesPorFecha] = useState<Record<string, DetalleCorteResponse>>({})
+
+
   const { user, loading: userLoading } = useUser()
 
   const formatFecha = (fecha?: string | null) => {
@@ -71,6 +162,31 @@ export default function CorteCajaSection() {
     verificarCortePendiente(user.sucursal_id)
     abrirDia(user.sucursal_id)
   }, [user])
+
+  const cargarDetalleCorte = async (fecha: string) => {
+    if (!sucursalId) return
+
+    // 🧠 cache: si ya existe, no vuelvas a pedirlo
+    if (detallesPorFecha[fecha]) return
+
+    try {
+      const resp = await fetch(
+        `${API_URL}/api/caja/cortes/movimientos?sucursal_id=${sucursalId}&fecha=${fecha}`,
+        { credentials: 'include' }
+      )
+
+      if (!resp.ok) return
+
+      const data: DetalleCorteResponse = await resp.json()
+
+      setDetallesPorFecha(prev => ({
+        ...prev,
+        [fecha]: data
+      }))
+    } catch (err) {
+      console.error('Error cargando detalle del corte:', err)
+    }
+  }
 
   const verificarCortePendiente = async (sucursal_id: number) => {
     try {
@@ -382,41 +498,97 @@ export default function CorteCajaSection() {
           <FaListUl className="text-indigo-600" /> Historial de cortes
         </h3>
         <div className="overflow-x-auto">
-          <table className="min-w-full border border-gray-200 rounded-lg">
-            <thead>
-              <tr className="bg-gray-100 text-gray-700">
-                <th className="py-2 px-4 text-left">Fecha</th>
-                <th className="py-2 px-4 text-left">Ventas</th>
-                <th className="py-2 px-4 text-left">Gastos</th>
-                <th className="py-2 px-4 text-left">Ingresos</th>
-                <th className="py-2 px-4 text-left">Balance</th>
+         <table className="min-w-full border border-gray-200 rounded-xl overflow-hidden">
+          <thead>
+            <tr className="bg-gray-100 text-gray-700 text-sm">
+              <th className="py-3 px-4 text-left">Fecha</th>
+              <th className="py-3 px-4 text-left">Ventas</th>
+              <th className="py-3 px-4 text-left">Gastos</th>
+              <th className="py-3 px-4 text-left">Ingresos</th>
+              <th className="py-3 px-4 text-left">Balance</th>
+            </tr>
+          </thead>
+
+          <tbody className="text-sm">
+            {movimientos.length === 0 && (
+              <tr>
+                <td colSpan={5} className="text-center py-6 text-gray-400">
+                  No hay cortes registrados
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {movimientos.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="text-center py-3 text-gray-500">
-                    No hay cortes registrados
-                  </td>
-                </tr>
-              )}
-              {movimientos.map((m, i) => (
-                <tr key={i} className="border-t hover:bg-gray-50">                  
-                  <td className='py-2 px-4'>{formatFecha(m.fecha)}</td>
-                  <td className="py-2 px-4 text-green-700">${m.total_ventas}</td>
-                  <td className="py-2 px-4 text-red-700">${m.total_gastos}</td>
-                  <td className="py-2 px-4 text-blue-700">${m.total_ingresos}</td>
-                  <td
-                    className={`py-2 px-4 font-semibold ${
-                      m.balance_final >= 0 ? 'text-green-700' : 'text-red-700'
-                    }`}
+            )}
+
+            {movimientos.map((m, i) => {
+              const abierto = corteAbierto === i
+              const fechaKey = m.fecha.split('T')[0]
+
+              return (
+                <Fragment key={i}>
+                  {/* === FILA RESUMEN === */}
+                  <tr
+                    onClick={() => {
+                      if (!abierto) {
+                        cargarDetalleCorte(fechaKey)
+                      }
+                      setCorteAbierto(abierto ? null : i)
+                    }}
+                    className={`cursor-pointer transition border-b border-gray-100
+                      ${abierto ? 'bg-gray-50' : 'hover:bg-gray-50'}
+                    `}
                   >
-                    ${m.balance_final}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    <td className="py-3 px-4 flex items-center gap-3 text-gray-700">
+                      <span
+                        className={`text-xs transition-transform duration-200 ${
+                          abierto
+                            ? 'rotate-90 text-indigo-600'
+                            : 'text-gray-400'
+                        }`}
+                      >
+                        <FaChevronRight />
+                      </span>
+
+                      {formatFecha(m.fecha)}
+                    </td>
+
+                    <td className="py-3 px-4 text-green-700">
+                      ${Number(m.total_ventas).toFixed(2)}
+                    </td>
+
+                    <td className="py-3 px-4 text-red-600">
+                      ${Number(m.total_gastos).toFixed(2)}
+                    </td>
+
+                    <td className="py-3 px-4 text-blue-600">
+                      ${Number(m.total_ingresos).toFixed(2)}
+                    </td>
+
+                    <td
+                      className={`py-3 px-4 font-semibold ${
+                        m.balance_final >= 0
+                          ? 'text-green-700'
+                          : 'text-red-700'
+                      }`}
+                    >
+                      ${Number(m.balance_final).toFixed(2)}
+                    </td>
+                  </tr>
+
+                  {/* === DETALLE EXPANDIDO === */}
+                  {abierto && (
+                    <tr className="bg-gray-50/50">
+                      <td colSpan={5} className="px-8 py-4">
+                        <DetalleCorte
+                          detalle={detallesPorFecha[fechaKey]}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              )
+            })}
+          </tbody>
+        </table>
+
         </div>
       </div>
 

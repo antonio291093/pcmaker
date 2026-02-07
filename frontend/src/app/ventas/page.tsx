@@ -6,7 +6,6 @@ import InventoryList from '../components/InventorySelectorCard'
 import SalesForm from './components/SalesForm'
 import ReportsHistory from './components/ReportsHistory'
 import CommissionsCard from './components/CommissionsCard'
-import RecibirLote from '../components/RecibirLote'
 import RecepcionDirecta from '../components/RecepcionDirecta'
 import CorteCaja from './components/CorteCaja'
 import { useUser } from '@/context/UserContext'
@@ -32,8 +31,7 @@ export default function DashboardPage() {
         {active === 'inventario' && <InventoryList />}
         {active === 'venta' && <SalesForm />}
         {active === 'reportes' && <ReportsHistory />}
-        {active === 'comisiones' && <CommissionsCard />}
-        {active === 'lote' && <RecibirLote />}
+        {active === 'comisiones' && <CommissionsCard />}        
         {active === 'recepcion' && <RecepcionDirecta />}
         {active === 'caja' && <CorteCaja />}
       </main>

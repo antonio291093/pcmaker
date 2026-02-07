@@ -197,6 +197,20 @@ async function obtenerCortePendiente(sucursal_id) {
   }
 }
 
+async function obtenerMovimientosPorDia(sucursal_id, fecha) {
+  const { rows } = await pool.query(
+    `
+    SELECT id, tipo, monto, descripcion, fecha, created_at
+    FROM caja_movimientos
+    WHERE sucursal_id = $1
+      AND fecha = $2
+    ORDER BY created_at ASC
+    `,
+    [sucursal_id, fecha]
+  )
+
+  return rows
+}
 
 module.exports = {
   registrarMovimiento,
@@ -206,5 +220,6 @@ module.exports = {
   cerrarDiaOperativo,
   crearCorteCaja,
   obtenerCortes,
-  obtenerCortePendiente
+  obtenerCortePendiente,
+  obtenerMovimientosPorDia
 }

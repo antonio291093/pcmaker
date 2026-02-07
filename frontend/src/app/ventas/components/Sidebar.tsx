@@ -11,8 +11,7 @@ const navItems = [
   { label: 'Inventario', icon: <FaBoxOpen />, path: 'inventario' },
   { label: 'Registrar venta', icon: <FaShoppingCart />, path: 'venta' },
   { label: 'Reportes e historial', icon: <FaFileAlt />, path: 'reportes' },
-  { label: 'Comisiones', icon: <FaDollarSign />, path: 'comisiones' },
-  { label: 'Recibir lote', icon: <FaTruck />, path: 'lote' },
+  { label: 'Comisiones', icon: <FaDollarSign />, path: 'comisiones' },  
   { label: 'Recepción directa', icon: <FaTruck />, path: 'recepcion' },
   { label: 'Corte de caja', icon: <FaCashRegister />, path: 'caja' },
   { label: 'Cerrar sesión', icon: <FaSignOutAlt />, path: 'logout' }

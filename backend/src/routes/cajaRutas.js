@@ -56,4 +56,10 @@ router.get(
   cajaController.obtenerCortePendiente
 )
 
+router.get(
+  '/cortes/movimientos',
+  authMiddleware,
+  cajaController.obtenerMovimientosPorDia
+)
+
 module.exports = router

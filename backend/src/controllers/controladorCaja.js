@@ -6,7 +6,8 @@ const {
   abrirDiaOperativo,
   obtenerDiaAbierto,
   cerrarDiaOperativo,
-  obtenerCortePendiente
+  obtenerCortePendiente,
+  obtenerMovimientosPorDia,
 } = require('../models/caja')
 
 const { obtenerTotalesPorMetodo } = require('../models/ventas')
@@ -187,3 +188,32 @@ exports.obtenerCortePendiente = async (req, res) => {
     res.status(500).json({ message: 'Error en el servidor' })
   }
 }
+
+exports.obtenerMovimientosPorDia = async (req, res) => {
+  try {
+    const { sucursal_id, fecha } = req.query
+
+    if (!sucursal_id || !fecha) {
+      return res.status(400).json({
+        message: 'Sucursal y fecha son requeridas'
+      })
+    }
+
+    const rows = await obtenerMovimientosPorDia(
+      sucursal_id,
+      fecha
+    )
+
+    const ingresos = rows.filter(r =>
+      r.tipo === 'ingreso' || r.tipo === 'venta'
+    )
+
+    const gastos = rows.filter(r => r.tipo === 'gasto')
+
+    res.json({ ingresos, gastos })
+  } catch (error) {
+    console.error('Error obteniendo movimientos del día:', error)
+    res.status(500).json({ message: 'Error en el servidor' })
+  }
+}
+
