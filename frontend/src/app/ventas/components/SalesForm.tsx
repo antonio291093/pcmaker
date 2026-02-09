@@ -230,7 +230,18 @@ export default function SalesForm() {
       }
 
       if (equiposVendidos.length > 0) {
-        await generarGarantia(ventaData.venta_id, equiposVendidos)
+        const garantiaResult = await Swal.fire({
+          title: 'Garantía',
+          text: '¿Deseas imprimir la garantía?',
+          icon: 'question',
+          showCancelButton: true,
+          confirmButtonText: 'Sí, imprimir',
+          cancelButtonText: 'No',
+        })
+
+        if (garantiaResult.isConfirmed) {
+          window.open(`${API_URL}/api/garantia/${ventaId}`, '_blank')
+        }
       }
 
       //Generar comisión SOLO si hay productos
@@ -325,44 +336,6 @@ export default function SalesForm() {
       setLoading(false)
     }
   }
-
-  const generarGarantia = async (ventaId: number, equipos: any[]) => {   
-    try {
-      const resp = await fetch(`${API_URL}/api/garantia`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          venta_id: ventaId,
-          cliente: formData.cliente,
-          total: equipos.reduce(
-            (acc, e) => acc + e.precio * e.cantidadSeleccionada,
-            0
-          ),
-          equipos: equipos.map((e) => ({
-            cantidad: e.cantidadSeleccionada,
-            descripcion: e.descripcion,
-            procesador: e.especificacion,
-            ram: e.memorias_ram?.join(', ') || '',
-            disco: e.almacenamientos?.join(', ') || '',
-            precio: e.precio,
-          })),
-        }),
-      })
-
-      if (!resp.ok) return
-
-      const blob = await resp.blob()
-      const url = window.URL.createObjectURL(blob)
-      window.open(url)
-
-    } catch (err) {
-      console.error('Error al generar garantía', err)
-    }
-  }
-
 
   // ==============================
   //           RENDER
