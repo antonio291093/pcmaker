@@ -213,6 +213,22 @@ export default function SalesForm() {
       const ventaData = await ventaResp.json()
       const ventaId = ventaData.venta_id;
 
+      const ticketResult = await Swal.fire({
+        title: 'Venta generada',
+        text: '¿Deseas imprimir el ticket?',
+        icon: 'success',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, imprimir',
+        cancelButtonText: 'No',
+      })
+
+      if (ticketResult.isConfirmed) {
+        window.open(
+          `${API_URL}/api/ventas/ticket/${ventaId}`,
+          '_blank'
+        )
+      }
+
       if (equiposVendidos.length > 0) {
         await generarGarantia(ventaData.venta_id, equiposVendidos)
       }
@@ -284,7 +300,7 @@ export default function SalesForm() {
         title: 'Operación exitosa',
         text: mensajeExito,
         showConfirmButton: false,
-        timer: 3000
+        timer: 10000
       })
 
       //Limpiar formulario

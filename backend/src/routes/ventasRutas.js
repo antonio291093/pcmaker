@@ -10,4 +10,6 @@ router.post("/", authMiddleware, corteCajaMiddleware, ventasController.crearVent
 // Obtener listado de ventas
 router.get("/", authMiddleware, ventasController.reporteVentas);
 
+router.get('/ticket/:ventaId', ventasController.generarTicketVenta)
+
 module.exports = router;
