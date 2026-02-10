@@ -26,27 +26,36 @@ const corteCajaMiddleware = async (req, res, next) => {
     // 🔐 Validación REAL de bloqueo
     const bloqueoResult = await pool.query(
       `
-      SELECT d.fecha
-      FROM caja_dias d
-      WHERE d.sucursal_id = $1
-        AND d.estado = 'abierto'
-        AND d.fecha = (
-          (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date - INTERVAL '1 day'
-        )
-        AND EXISTS (
-          SELECT 1
-          FROM caja_movimientos m
-            WHERE DATE(m.fecha AT TIME ZONE 'America/Mexico_City') = d.fecha
-            AND m.sucursal_id = d.sucursal_id
-        )
-        AND NOT EXISTS (
-          SELECT 1
-          FROM caja_cortes c
-          WHERE c.fecha = d.fecha
-            AND c.sucursal_id = d.sucursal_id
-        )
-      ORDER BY d.fecha ASC
-      LIMIT 1
+     SELECT d.fecha
+FROM caja_dias d
+WHERE d.sucursal_id = $1
+  AND d.estado = 'abierto'
+
+  -- 🔹 Días anteriores al día operativo MX
+  AND d.fecha < (
+    CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City'
+  )::date
+
+  -- 🔹 Hubo ventas ese día
+  AND EXISTS (
+    SELECT 1
+    FROM caja_movimientos m
+    WHERE m.sucursal_id = d.sucursal_id
+      AND m.fecha = d.fecha
+      AND m.tipo = 'venta'
+      AND m.monto > 0
+  )
+
+  -- 🔹 No hay corte
+  AND NOT EXISTS (
+    SELECT 1
+    FROM caja_cortes c
+    WHERE c.fecha = d.fecha
+      AND c.sucursal_id = d.sucursal_id
+  )
+ORDER BY d.fecha ASC
+LIMIT 1;
+
       `,
       [sucursal_id]
     )
