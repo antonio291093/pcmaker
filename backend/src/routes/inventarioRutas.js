@@ -49,4 +49,11 @@ router.get("/:id", authMiddleware, inventarioController.obtenerInventarioPorId);
 // Eliminar ítem inventario (protegida)
 router.delete("/:id", authMiddleware, inventarioController.eliminarInventario);
 
+router.delete(
+  "/recepcion-directa/:id",
+  authMiddleware,
+  inventarioController.eliminarRecepcionDirecta
+);
+
+
 module.exports = router;

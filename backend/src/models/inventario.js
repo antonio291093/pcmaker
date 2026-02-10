@@ -1,6 +1,56 @@
 const pool = require("../config/db");
 const { generarBarcodeBase64 } = require('../utils/barcode');
 
+async function eliminarInventarioRecepcionDirecta(inventarioId) {
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    // 🔍 Validar que exista y sea de recepción directa
+    const checkQuery = `
+      SELECT id
+      FROM inventario
+      WHERE id = $1
+        AND origen = 'recepcion_directa'
+      FOR UPDATE;
+    `;
+
+    const checkResult = await client.query(checkQuery, [inventarioId]);
+
+    if (checkResult.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return false;
+    }
+
+    // 1️⃣ Eliminar especificaciones
+    await client.query(
+      `
+      DELETE FROM inventario_especificaciones
+      WHERE inventario_id = $1;
+      `,
+      [inventarioId]
+    );
+
+    // 2️⃣ Eliminar inventario
+    await client.query(
+      `
+      DELETE FROM inventario
+      WHERE id = $1;
+      `,
+      [inventarioId]
+    );
+
+    await client.query("COMMIT");
+    return true;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function traspasarInventario(id, sucursal_id) {
   const updateQuery = `
     UPDATE inventario
@@ -1080,4 +1130,5 @@ module.exports = {
   obtenerInventarioRecepcionDirecta,
   obtenerEquipoPorInventario,
   traspasarInventario,
+  eliminarInventarioRecepcionDirecta,
 };

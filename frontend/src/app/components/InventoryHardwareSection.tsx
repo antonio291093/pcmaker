@@ -123,7 +123,60 @@ export default function InventoryHardwareSection() {
           text: 'No se pudieron cargar las sucursales',
         });
       });
-  }, []);
+  }, []);  
+
+  const eliminarRecepcionDirecta = async (id: number) => {
+    const confirm = await Swal.fire({
+      title: "¿Eliminar equipo?",
+      text: "Esta acción eliminará el inventario de recepción directa.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#dc2626",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Sí, eliminar",
+      cancelButtonText: "Cancelar",
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    try {
+      const res = await fetch(
+        `${API_URL}/api/inventario/recepcion-directa/${id}`,
+        {
+          method: "DELETE",
+          credentials: "include", // 🔑 CLAVE
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Error al eliminar");
+      }
+
+      setEquiposFiltrados(prev =>
+        prev.filter(eq => eq.id !== id)
+      );
+
+      Swal.fire({
+        icon: "success",
+        title: "Eliminado",
+        text: "El inventario fue eliminado correctamente",
+        timer: 1600,
+        showConfirmButton: false,
+      });
+
+    } catch (error: any) {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: error.message || "No se pudo eliminar el inventario",
+      });
+    }
+  };
 
   // 🔹 Cargar inventario de accesorios
   const cargarInventario = async () => {
@@ -954,10 +1007,8 @@ export default function InventoryHardwareSection() {
                     </>
                   )}
 
-                  {eq.origen === 'recepcion_directa' &&
-                    eq.es_codigo_generado &&
-                    eq.sku &&
-                    eq.barcode && (
+                  {eq.origen === 'recepcion_directa' && (
+                    <>
                       <button
                         onClick={() => imprimirEtiquetasInventario(eq)}
                         className="text-green-600 hover:text-green-800"
@@ -965,7 +1016,17 @@ export default function InventoryHardwareSection() {
                       >
                         <FaDownload />
                       </button>
+
+                      <button
+                        onClick={() => eliminarRecepcionDirecta(eq.id)}
+                        className="text-red-500 hover:text-red-700"
+                        title="Eliminar inventario"
+                      >
+                        <FaTrash />
+                      </button>
+                    </>
                   )}
+
 
                 </div>
 

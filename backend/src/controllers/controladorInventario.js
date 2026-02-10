@@ -18,7 +18,38 @@ const {
   obtenerInventarioRecepcionDirecta,
   obtenerEquipoPorInventario,
   traspasarInventario,
+  eliminarInventarioRecepcionDirecta,
 } = require("../models/inventario");
+
+exports.eliminarRecepcionDirecta = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        message: "ID de inventario es obligatorio"
+      });
+    }
+
+    const eliminado = await eliminarInventarioRecepcionDirecta(id);
+
+    if (!eliminado) {
+      return res.status(404).json({
+        message: "Inventario no encontrado o no es de recepción directa"
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Inventario de recepción directa eliminado correctamente"
+    });
+  } catch (error) {
+    console.error("Error al eliminar recepción directa:", error);
+    res.status(500).json({
+      message: "Error al eliminar recepción directa"
+    });
+  }
+};
 
 exports.obtenerEquipoPorInventario = async (req, res) => {
   const inventarioId = parseInt(req.params.inventario_id);
