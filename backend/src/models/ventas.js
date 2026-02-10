@@ -148,9 +148,11 @@ async function obtenerReporteVentas({ from, to, sucursal_id }) {
   d.cantidad,
   v.metodo_pago,
   v.fecha_venta::date AS fecha_venta,
-  d.subtotal,
 
-  -- 🔹 DESCRIPCIÓN
+  -- ✅ Subtotal calculado (CLAVE)
+  (d.cantidad * d.precio_unitario) AS subtotal,
+
+  -- 🔹 DESCRIPCIÓN UNIFICADA
   CASE
     -- Equipo armado
     WHEN i.equipo_id IS NOT NULL THEN e.nombre
@@ -158,8 +160,11 @@ async function obtenerReporteVentas({ from, to, sucursal_id }) {
     -- Recepción directa
     WHEN ie.inventario_id IS NOT NULL THEN ie.modelo
 
-    -- Otros conceptos
-    ELSE COALESCE(i.especificacion, cm.descripcion)
+    -- Inventario simple
+    WHEN i.id IS NOT NULL THEN i.especificacion
+
+    -- Servicios
+    ELSE cm.descripcion
   END AS descripcion,
 
   -- 🔹 ESPECIFICACIONES
@@ -194,21 +199,24 @@ async function obtenerReporteVentas({ from, to, sucursal_id }) {
         ie.almacenamiento_gb, 'GB ', ie.almacenamiento_tipo
       )
 
+    -- Inventario simple → opcional
     ELSE NULL
   END AS especificaciones
 
 FROM ventas v
 JOIN venta_detalle d ON d.venta_id = v.id
 
--- Equipo armado
+-- Inventario base
 LEFT JOIN inventario i ON i.id = d.producto_id
+
+-- Equipo armado
 LEFT JOIN equipos e ON e.id = i.equipo_id
 
 -- Recepción directa
 LEFT JOIN inventario_especificaciones ie
   ON ie.inventario_id = d.producto_id
 
--- Otros conceptos
+-- Servicios
 LEFT JOIN mantenimientos m ON m.id = d.mantenimiento_id
 LEFT JOIN catalogo_mantenimiento cm ON cm.id = m.catalogo_id
 
