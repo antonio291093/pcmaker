@@ -1017,19 +1017,18 @@ export default function InventoryHardwareSection() {
                         <FaDownload />
                       </button>
 
-                      <button
-                        onClick={() => eliminarRecepcionDirecta(eq.id)}
-                        className="text-red-500 hover:text-red-700"
-                        title="Eliminar inventario"
-                      >
-                        <FaTrash />
-                      </button>
+                      {user.rol_id === 1 && (
+                        <button
+                          onClick={() => eliminarRecepcionDirecta(eq.id)}
+                          className="text-red-500 hover:text-red-700"
+                          title="Eliminar inventario"
+                        >
+                          <FaTrash />
+                        </button>
+                      )}
                     </>
                   )}
-
-
                 </div>
-
               </div>
             </motion.div>
           ))}
