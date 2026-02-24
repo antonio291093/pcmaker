@@ -5,7 +5,12 @@ const cookieParser = require("cookie-parser");
 const { Pool } = require("pg");
 
 const app = express();
-const allowedOrigins = ["http://localhost:3000", process.env.CORS_ORIGIN||"https://erp.pcmaker.mx"];
+const allowedOrigins = [
+ "http://localhost:3000",
+ "http://localhost:3001",
+ process.env.CORS_ORIGIN || "https://erp.pcmaker.mx",
+ "https://catalogo.pcmaker.mx"
+];
 
 app.use(
   cors({
@@ -55,6 +60,7 @@ const cajaRoutes = require("./routes/cajaRutas");
 const ventasRoutes = require("./routes/ventasRutas");
 const pedidosRoutes = require("./routes/pedidoRutas");
 const garantiasRoutes = require('./routes/garantiaRutas')
+const catalogoRoutes = require('./routes/catalogoRutas')
 
 // Usa las rutas
 app.use("/api/usuarios", usuariosRoutes);
@@ -73,6 +79,8 @@ app.use("/api/configuraciones", configuracion)
 app.use("/api/caja", cajaRoutes);
 app.use("/api/ventas", ventasRoutes);
 app.use('/api/pedidos', pedidosRoutes);
-app.use('/api', garantiasRoutes)
+app.use('/api', garantiasRoutes);
+app.use('/api/catalogo', catalogoRoutes);
+app.use('/catalogo-img', express.static('uploads/catalogo'))
 
 module.exports = { app, pool };

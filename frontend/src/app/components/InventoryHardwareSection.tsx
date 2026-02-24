@@ -192,6 +192,133 @@ export default function InventoryHardwareSection() {
     }
   };
 
+  const subirImagenCatalogo = async (inventarioId: number) => {
+
+    let selectedFile: File | null = null
+
+    await Swal.fire({
+      title: "Imagen catálogo",
+      html: `
+        <div style="text-align:center">
+
+          <label 
+            for="fileInput"
+            style="
+              display:block;
+              border:2px dashed #ccc;
+              border-radius:8px;
+              padding:20px;
+              cursor:pointer;
+              font-size:14px;
+              color:#666;
+            "
+          >
+            Click para seleccionar imagen
+          </label>
+
+          <input 
+            id="fileInput" 
+            type="file" 
+            accept="image/*"
+            style="display:none"
+          />
+
+          <img 
+            id="preview"
+            style="
+              margin-top:10px;
+              max-height:150px;
+              display:none;
+              margin-left:auto;
+              margin-right:auto;
+              border-radius:6px;
+            "
+          />
+
+        </div>
+      `,
+      confirmButtonText: "Subir",
+      showCancelButton: true,
+      didOpen: () => {
+
+        const input = document.getElementById("fileInput") as HTMLInputElement
+        const preview = document.getElementById("preview") as HTMLImageElement
+
+        input.addEventListener("change", () => {
+
+          if (input.files && input.files[0]) {
+
+            selectedFile = input.files[0]
+
+            preview.src = URL.createObjectURL(selectedFile)
+            preview.style.display = "block"
+
+          }
+
+        })
+
+      },
+      preConfirm: () => {
+
+        if (!selectedFile) {
+
+          Swal.showValidationMessage(
+            "Selecciona una imagen"
+          )
+
+          return false
+        }
+
+        return selectedFile
+
+      }
+    }).then(async (result) => {
+
+      if (!result.isConfirmed) return
+
+      try {
+
+        const formData = new FormData()
+        formData.append("imagen", result.value)
+
+        const res = await fetch(
+          `${API_URL}/api/catalogo/imagen/${inventarioId}`,
+          {
+            method: "POST",
+            credentials: "include",
+            body: formData
+          }
+        )
+
+        const data = await res.json()
+
+        if (!res.ok) {
+          throw new Error(data.message)
+        }
+
+        Swal.fire({
+          icon: "success",
+          title: "Imagen subida",
+          timer: 1400,
+          showConfirmButton: false
+        })
+
+        cargarInventario()
+
+      } catch (error: any) {
+
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: error.message
+        })
+
+      }
+
+    })
+
+  }
+
   const abrirModalTraspaso = async (inventarioId: number) => {
     try {
       const res = await fetch(
@@ -901,6 +1028,13 @@ export default function InventoryHardwareSection() {
                 <FaTrash />
               </button>
 
+              <button
+                onClick={() => subirImagenCatalogo(item.id)}
+                className="bg-indigo-600 text-white px-3 py-1 rounded text-sm hover:bg-indigo-700"
+              >
+                Imagen Catálogo
+              </button>
+
                 {/* 🏷️ Imprimir etiquetas (solo si fue generado) */}
                 {item.es_codigo_generado && item.sku && item.barcode && (
                   <button
@@ -1004,6 +1138,13 @@ export default function InventoryHardwareSection() {
                       >
                         <FaTrash />
                       </button>
+
+                      <button
+                        onClick={() => subirImagenCatalogo(eq.id)}
+                        className="bg-indigo-600 text-white px-3 py-1 rounded text-sm hover:bg-indigo-700"
+                      >
+                        Imagen Catálogo
+                      </button>
                     </>
                   )}
 
@@ -1015,6 +1156,13 @@ export default function InventoryHardwareSection() {
                         title="Imprimir etiquetas"
                       >
                         <FaDownload />
+                      </button>
+
+                      <button
+                        onClick={() => subirImagenCatalogo(eq.id)}
+                        className="bg-indigo-600 text-white px-3 py-1 rounded text-sm hover:bg-indigo-700"
+                      >
+                        Imagen Catálogo
                       </button>
 
                       {user.rol_id === 1 && (
