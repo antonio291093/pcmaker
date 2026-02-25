@@ -9,9 +9,7 @@ type Item = {
 
 async function getCatalogo(): Promise<Item[]> {
 
-  const res = await fetch(`${API_URL}/api/catalogo`, {
-    cache: "no-store",
-  })
+  const res = await fetch(`${API_URL}/api/catalogo`)
 
   if (!res.ok) {
     throw new Error("Error cargando catálogo")
