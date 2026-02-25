@@ -1,7 +1,3 @@
-'use client'
-
-import { useEffect, useState } from 'react'
-
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 type Item = {
@@ -11,62 +7,64 @@ type Item = {
   sucursal: string
 }
 
-export default function CatalogoPage() {
+async function getCatalogo(): Promise<Item[]> {
 
-  const [items, setItems] = useState<Item[]>([])
-  const [loading, setLoading] = useState(true)
+  const res = await fetch(`${API_URL}/api/catalogo`, {
+    cache: "no-store",
+  })
 
-  useEffect(() => {
-
-    fetch(`${API_URL}/api/catalogo`)
-      .then(res => res.json())
-      .then(data => {
-
-        setItems(data)
-        setLoading(false)
-
-      })
-
-  }, [])
-
-  if (loading) {
-    return (
-      <div className="p-10 text-center">
-        Cargando catálogo...
-      </div>
-    )
+  if (!res.ok) {
+    throw new Error("Error cargando catálogo")
   }
+
+  return res.json()
+}
+
+export default async function CatalogoPage() {
+
+  const items = await getCatalogo()
 
   return (
 
-    <div className="max-w-6xl mx-auto p-6">
+    <main className="max-w-6xl mx-auto p-6">
 
-      <h1 className="text-3xl font-bold mb-6">
-        Catálogo PCMaker
+      <h1 className="text-3xl font-bold mb-2 text-indigo-600">
+        Catálogo de Computadoras y Refacciones PCMaker
       </h1>
+
+      <p className="text-gray-600 mb-6">
+        Consulta precios actualizados de computadoras, laptops,
+        refacciones y accesorios disponibles en PCMaker.
+      </p>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
 
         {items.map(item => (
 
-          <div
+          <article
             key={item.id}
             className="
-              border rounded-lg
+              border border-gray-200
+              rounded-xl
               overflow-hidden
               shadow-sm
               bg-white
+              hover:shadow-md
+              hover:border-indigo-200
+              transition
             "
           >
 
             <img
               src={`${API_URL}${item.imagen}`}
+              alt={`Producto PCMaker precio ${item.precio}`}
+              loading="lazy"
               className="w-full h-48 object-cover"
             />
 
             <div className="p-3">
 
-              <div className="font-semibold text-lg">
+              <div className="font-bold text-lg text-indigo-600">
 
                 ${item.precio}
 
@@ -74,19 +72,33 @@ export default function CatalogoPage() {
 
               <div className="text-sm text-gray-500">
 
-                {item.sucursal}
+                Disponible en {item.sucursal}
 
               </div>
 
             </div>
 
-          </div>
+          </article>
 
         ))}
 
       </div>
 
-    </div>
+      <section className="mt-10 text-gray-600 text-sm">
+
+        <h2 className="font-semibold text-lg mb-2">
+          PCMaker
+        </h2>
+
+        <p>
+          PCMaker ofrece computadoras, laptops, componentes y refacciones.
+          Nuestro catálogo se actualiza
+          constantemente con nuevos productos y precios.
+        </p>
+
+      </section>
+
+    </main>
 
   )
 
