@@ -1,3 +1,5 @@
+import CatalogoGrid from "./CatalogoGrid"
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 type Item = {
@@ -37,52 +39,7 @@ export default async function CatalogoPage() {
         refacciones y accesorios disponibles en PCMaker.
       </p>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-
-        {items.map(item => (
-
-          <article
-            key={item.id}
-            className="
-              border border-gray-200
-              rounded-xl
-              overflow-hidden
-              shadow-sm
-              bg-white
-              hover:shadow-md
-              hover:border-indigo-200
-              transition
-            "
-          >
-
-            <img
-              src={`${API_URL}${item.imagen}`}
-              alt={`Producto PCMaker precio ${item.precio}`}
-              loading="lazy"
-              className="w-full h-48 object-cover"
-            />
-
-            <div className="p-3">
-
-              <div className="font-bold text-lg text-indigo-600">
-
-                ${item.precio}
-
-              </div>
-
-              <div className="text-sm text-gray-500">
-
-                Disponible en {item.sucursal}
-
-              </div>
-
-            </div>
-
-          </article>
-
-        ))}
-
-      </div>
+      <CatalogoGrid items={items} />      
 
       <section className="mt-10 text-gray-600 text-sm">
 
