@@ -228,12 +228,36 @@ export default function ReportsHistory() {
         {/* Totales sticky */}
         {totales && (
           <div className='grid grid-cols-2 md:grid-cols-5 gap-4 mt-6 sticky bottom-0 bg-white pt-4'>
-            {Object.entries(totales).map(([k, v]) => (
-              <div key={k} className='bg-gray-50 rounded-xl p-4 shadow-sm'>
-                <p className='text-xs text-gray-500 uppercase'>{k}</p>
-                <p className='text-lg font-semibold text-gray-700'>${v.toFixed(2)}</p>
-              </div>
-            ))}
+
+            {Object.entries(totales)
+              .filter(([k]) => k !== 'facturacion' || totales.facturacion > 0)
+
+              // 🔹 Forzar TOTAL al final
+              .sort(([a], [b]) => {
+                if (a === 'total') return 1
+                if (b === 'total') return -1
+                return 0
+              })
+
+              .map(([k, v]) => {
+
+                let label = k
+
+                // 🔹 Unificar nombres
+                if (k === 'facturacion') label = 'factura'
+
+                return (
+                  <div key={k} className='bg-gray-50 rounded-xl p-4 shadow-sm'>
+                    <p className='text-xs text-gray-500 uppercase'>
+                      {label}
+                    </p>
+                    <p className='text-lg font-semibold text-gray-700'>
+                      ${v.toFixed(2)}
+                    </p>
+                  </div>
+                )
+              })}
+
           </div>
         )}
       </div>

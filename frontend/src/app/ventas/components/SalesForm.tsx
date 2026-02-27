@@ -51,6 +51,8 @@ export default function SalesForm() {
     })
   }, [user])
 
+  const IVA = 0.16
+
   const total = useMemo(() => {
     const totalProductos = productosSeleccionados.reduce((acc, p) => {
       const precio = Number(p.precio) || 0
@@ -62,8 +64,15 @@ export default function SalesForm() {
       return acc + Number(s.costo || 0)
     }, 0)
 
-    return totalProductos + totalServicios
-  }, [productosSeleccionados, serviciosSeleccionados])  
+    let subtotal = totalProductos + totalServicios
+
+    // 🔹 Si es factura, agregar IVA
+    if (formData.metodo_pago === 'factura') {
+      subtotal = subtotal * (1 + IVA)
+    }
+
+    return subtotal
+  }, [productosSeleccionados, serviciosSeleccionados, formData.metodo_pago]) 
 
   //Manejador de cambios
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -433,7 +442,21 @@ export default function SalesForm() {
 
             {/* Total */}
             <div className='text-right mt-3 font-bold text-gray-800'>
-              Total: ${total.toFixed(2)} MXN
+              {formData.metodo_pago === 'factura' && (
+                <>
+                  <div className="text-sm text-gray-600">
+                    Subtotal: ${(total / 1.16).toFixed(2)} MXN
+                  </div>
+
+                  <div className="text-sm text-gray-600">
+                    IVA (16%): ${(total - total / 1.16).toFixed(2)} MXN
+                  </div>
+                </>
+              )}
+              <div className="text-lg">
+                Total: ${total.toFixed(2)} MXN
+              </div>
+
             </div>
           </div>
         )}
