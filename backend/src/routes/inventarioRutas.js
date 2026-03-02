@@ -43,6 +43,8 @@ router.post("/recepcion-directa", authMiddleware, inventarioController.registrar
 
 router.get("/recepcion-directa", authMiddleware,inventarioController.obtenerInventarioRecepcionDirecta);
 
+router.put("/recepcion-directa/:id",authMiddleware,inventarioController.actualizarRecepcionDirecta);
+
 // Obtener ítem inventario por ID (protegida)
 router.get("/:id", authMiddleware, inventarioController.obtenerInventarioPorId);
 

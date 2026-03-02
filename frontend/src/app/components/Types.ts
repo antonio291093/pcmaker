@@ -23,3 +23,7 @@ export type Etiqueta = {
   barcode: string;
 };
 
+export type Categoria = {
+  id: number
+  descripcion: string
+}

@@ -9,21 +9,26 @@ exports.obtenerCatalogo = async (req, res) => {
 
   try {
 
-    const items = await catalogoModel.obtenerCatalogo()
+    const { categoria_catalogo_id, limit } = req.query;
 
-    res.json(items)
+    const items = await catalogoModel.obtenerCatalogo({
+      categoria_catalogo_id,
+      limit
+    });
+
+    res.json(items);
 
   } catch (error) {
 
-    console.error(error)
+    console.error("Error catalogo:", error);
 
     res.status(500).json({
-      message: "Error al obtener catálogo"
-    })
+      message: "Error cargando catálogo"
+    });
 
   }
 
-}
+};
 
 exports.subirImagenCatalogo = async (req, res) => {
 

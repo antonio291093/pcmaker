@@ -19,6 +19,7 @@ const {
   obtenerEquipoPorInventario,
   traspasarInventario,
   eliminarInventarioRecepcionDirecta,
+  actualizarRecepcionDirecta,
 } = require("../models/inventario");
 
 exports.eliminarRecepcionDirecta = async (req, res) => {
@@ -92,6 +93,50 @@ exports.obtenerInventarioRecepcionDirecta = async (req, res) => {
   }
 };
 
+exports.actualizarRecepcionDirecta = async (req, res) => {
+
+  try {
+
+    const { id } = req.params;
+
+    const {
+      cantidad,
+      precio,
+      categoria_catalogo_id
+    } = req.body;
+
+    if (
+      cantidad === undefined ||
+      precio === undefined ||
+      !categoria_catalogo_id
+    ) {
+      return res.status(400).json({
+        message: "Datos incompletos"
+      });
+    }
+
+    await actualizarRecepcionDirecta({
+      id,
+      cantidad,
+      precio,
+      categoria_catalogo_id
+    });
+
+    res.json({
+      message: "Recepción directa actualizada"
+    });
+
+  } catch (error) {
+
+    console.error("Error actualizarRecepcionDirecta:", error);
+
+    res.status(500).json({
+      message: "Error al actualizar recepción directa"
+    });
+
+  }
+
+};
 
 exports.registrarRecepcionDirecta = async (req, res) => {
   try {

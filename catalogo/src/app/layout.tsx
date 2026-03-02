@@ -68,13 +68,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es">
+    <html lang="es" className="light">
 
-      <body className="bg-gray-50 text-gray-800">
+      <body className="bg-white text-gray-800">        
 
         {/* HEADER estilo ERP */}
 
-        <header className="bg-white border-b border-gray-200 shadow-sm">
+        <header className="border-b border-gray-200 shadow-sm">
 
           <div className="max-w-6xl mx-auto px-6 py-3 flex items-center gap-4">
 

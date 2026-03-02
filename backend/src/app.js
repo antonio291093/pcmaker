@@ -61,6 +61,7 @@ const ventasRoutes = require("./routes/ventasRutas");
 const pedidosRoutes = require("./routes/pedidoRutas");
 const garantiasRoutes = require('./routes/garantiaRutas')
 const catalogoRoutes = require('./routes/catalogoRutas')
+const catalogoCategoriasRoutes = require('./routes/categoriaInventarioRutas')
 
 // Usa las rutas
 app.use("/api/usuarios", usuariosRoutes);
@@ -81,6 +82,7 @@ app.use("/api/ventas", ventasRoutes);
 app.use('/api/pedidos', pedidosRoutes);
 app.use('/api', garantiasRoutes);
 app.use('/api/catalogo', catalogoRoutes);
-app.use('/catalogo-img', express.static('uploads/catalogo'))
+app.use('/catalogo-img', express.static('uploads/catalogo'));
+app.use('/api/catalogo-categorias', catalogoCategoriasRoutes);
 
 module.exports = { app, pool };

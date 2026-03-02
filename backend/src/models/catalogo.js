@@ -1,14 +1,16 @@
 const pool = require('../config/db')
 
-exports.obtenerCatalogo = async () => {
+exports.obtenerCatalogo = async ({
+  categoria_catalogo_id,
+  limit
+}) => {
 
-  const result = await pool.query(`
-    
+  let query = `
+
     SELECT
-      i.id,      
+      i.id,
       i.precio,
-      '/catalogo-img/' || i.imagen_catalogo
-      AS imagen,
+      '/catalogo-img/' || i.imagen_catalogo AS imagen,
       s.nombre AS sucursal
 
     FROM inventario i
@@ -19,9 +21,40 @@ exports.obtenerCatalogo = async () => {
     WHERE i.visible_catalogo = true
     AND i.imagen_catalogo IS NOT NULL
 
-    ORDER BY i.id
+  `
 
-  `)
+  const params = []
+  let index = 1
+
+  // 🔹 Filtro categoría
+  if (categoria_catalogo_id) {
+
+    query += `
+      AND i.categoria_catalogo_id = $${index}
+    `
+
+    params.push(categoria_catalogo_id)
+
+    index++
+
+  }
+
+  query += `
+    ORDER BY i.id DESC
+  `
+
+  // 🔹 Límite
+  if (limit) {
+
+    query += `
+      LIMIT $${index}
+    `
+
+    params.push(limit)
+
+  }
+
+  const result = await pool.query(query, params)
 
   return result.rows
 

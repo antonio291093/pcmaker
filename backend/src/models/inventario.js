@@ -163,7 +163,7 @@ async function obtenerAlmacenamientosDisponibles() {
 }
 
 async function actualizarEquipoArmado(id, data) {
-  const { nombre, procesador, precio, memorias_ram_ids, almacenamientos_ids } = data;
+  const { nombre, procesador, precio, memorias_ram_ids, almacenamientos_ids, categoria_catalogo_id } = data;
 
   console.log("🧠 [INICIO ACTUALIZAR EQUIPO ARMADO]");
   console.log("📦 ID de inventario:", id);
@@ -290,8 +290,17 @@ async function actualizarEquipoArmado(id, data) {
       [nombre, procesador, equipoId]
     );
 
-    console.log("💰 Actualizando precio del inventario del equipo...");
-    await pool.query(`UPDATE inventario SET precio = $1 WHERE equipo_id = $2`, [precio, equipoId]);
+    console.log("💰 Actualizando precio del inventario del equipo...");    
+
+    await pool.query(
+      `
+      UPDATE inventario 
+      SET precio = $1,
+          categoria_catalogo_id = $2
+      WHERE equipo_id = $3
+      `,
+      [precio, categoria_catalogo_id || null, equipoId]
+    );
 
     await pool.query("COMMIT");
     console.log("✅ [COMMIT] Equipo armado actualizado correctamente");
@@ -490,6 +499,7 @@ async function agregarOActualizarInventario({
   memoria_ram_id = null,
   almacenamiento_id = null,
   sucursal_id = null,
+  categoria_catalogo_id = null,
 }) {
   if (!sucursal_id) throw new Error("Debe especificar sucursal_id");
 
@@ -523,13 +533,15 @@ async function agregarOActualizarInventario({
     const updateQuery = `
       UPDATE inventario
       SET cantidad = $1,
-          precio = $2
-      WHERE id = $3
+          precio = $2,
+          categoria_catalogo_id = $3
+      WHERE id = $4
       RETURNING *;
     `;
     const { rows: updateRows } = await pool.query(updateQuery, [
       nuevaCantidad,
       precio,
+      categoria_catalogo_id,
       inventario.id,
     ]);
     return updateRows[0];
@@ -537,8 +549,19 @@ async function agregarOActualizarInventario({
     // 🆕 No existe: crear nuevo registro
     const insertQuery = `
       INSERT INTO inventario 
-        (tipo, especificacion, cantidad, disponibilidad, estado, precio, memoria_ram_id, almacenamiento_id, sucursal_id)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      (
+        tipo,
+        especificacion,
+        cantidad,
+        disponibilidad,
+        estado,
+        precio,
+        memoria_ram_id,
+        almacenamiento_id,
+        sucursal_id,
+        categoria_catalogo_id
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
       RETURNING *;
     `;
     const insertValues = [
@@ -551,6 +574,7 @@ async function agregarOActualizarInventario({
       memoria_ram_id,
       almacenamiento_id,
       sucursal_id,
+      categoria_catalogo_id,
     ];
 
     const { rows: insertRows } = await pool.query(insertQuery, insertValues);
@@ -574,7 +598,8 @@ async function obtenerInventario(sucursalId = null) {
       i.fecha_creacion,
       i.es_codigo_generado,
       i.barcode,
-      i.sku
+      i.sku,
+      i.categoria_catalogo_id
     FROM inventario i
     LEFT JOIN catalogo_memoria_ram cm ON i.memoria_ram_id = cm.id
     LEFT JOIN catalogo_almacenamiento ca ON i.almacenamiento_id = ca.id
@@ -608,6 +633,7 @@ async function obtenerEquiposArmados(sucursalId = null) {
       i.estado,
       i.cantidad,
       i.disponibilidad,
+      i.categoria_catalogo_id,
       -- Agrupa las memorias RAM asociadas
       COALESCE(
         (
@@ -671,6 +697,7 @@ async function actualizarInventario(
     sucursal_id = null,
     sku = null,                     
     es_codigo_generado = false,    
+    categoria_catalogo_id = null,
   }
 ) {
   // 🧩 Si no hay especificacion pero sí descripcion, úsala
@@ -690,8 +717,9 @@ async function actualizarInventario(
         almacenamiento_id = $8,
         sucursal_id = $9,
         sku = $10,
-        es_codigo_generado = $11
-    WHERE id = $12;
+        es_codigo_generado = $11,
+        categoria_catalogo_id = $12
+    WHERE id = $13;
   `;
 
   const values = [
@@ -706,6 +734,7 @@ async function actualizarInventario(
     sucursal_id,
     sku,
     es_codigo_generado,
+    categoria_catalogo_id,
     id,
   ];
 
@@ -719,16 +748,19 @@ async function actualizarInventario(
       i.cantidad,
       i.disponibilidad,
       i.estado,
-      i.precio, -- ✅ incluir el precio en el retorno
+      i.precio,
       i.memoria_ram_id,
       i.almacenamiento_id,
       i.sucursal_id,
       i.fecha_creacion,
       i.sku,
-      i.es_codigo_generado
+      i.es_codigo_generado,
+      i.categoria_catalogo_id,
+      cc.descripcion AS categoria_catalogo
     FROM inventario i
     LEFT JOIN catalogo_memoria_ram cm ON i.memoria_ram_id = cm.id
     LEFT JOIN catalogo_almacenamiento ca ON i.almacenamiento_id = ca.id
+    LEFT JOIN catalogo_categorias cc ON i.categoria_catalogo_id = cc.id
     WHERE i.id = $1;
   `;
 
@@ -859,6 +891,7 @@ async function crearInventarioGeneral({
   estado = "usado",
   sucursal_id,
   precio = 0,
+  categoria_catalogo_id = null,
 }) {
   if (!tipo || !descripcion || !sucursal_id) {
     throw new Error("Faltan datos requeridos");
@@ -921,9 +954,10 @@ async function crearInventarioGeneral({
       precio,
       sku,
       es_codigo_generado,
-      barcode
+      barcode,
+      categoria_catalogo_id
     )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
     RETURNING *;
   `;
 
@@ -938,6 +972,7 @@ async function crearInventarioGeneral({
     skuFinal,
     esGenerado,
     barcode,
+    categoria_catalogo_id
   ];
 
   const { rows } = await pool.query(insertQuery, values);
@@ -968,6 +1003,7 @@ async function obtenerInventarioRecepcionDirecta(sucursalId = null) {
       i.estado,
       i.cantidad,
       i.disponibilidad,
+      i.categoria_catalogo_id,
 
       -- 🧠 RAM
       COALESCE(
@@ -1107,6 +1143,54 @@ async function obtenerEquipoPorInventario(inventarioId) {
   return null
 }
 
+async function actualizarRecepcionDirecta({
+  id,
+  cantidad,
+  precio,
+  categoria_catalogo_id
+}) {
+
+  const client = await pool.connect();
+
+  try {
+
+    await client.query("BEGIN");
+
+    await client.query(
+      `
+      UPDATE inventario
+      SET
+        cantidad = $1,
+        precio = $2,
+        categoria_catalogo_id = $3
+      WHERE id = $4
+      AND origen = 'recepcion_directa'
+      `,
+      [
+        cantidad,
+        precio,
+        categoria_catalogo_id,
+        id
+      ]
+    );
+
+    await client.query("COMMIT");
+
+  } catch (error) {
+
+    await client.query("ROLLBACK");
+
+    console.error("Error actualizarRecepcionDirecta:", error);
+
+    throw error;
+
+  } finally {
+
+    client.release();
+
+  }
+
+}
 
 module.exports = {
   agregarOActualizarInventario,
@@ -1131,4 +1215,5 @@ module.exports = {
   obtenerEquipoPorInventario,
   traspasarInventario,
   eliminarInventarioRecepcionDirecta,
+  actualizarRecepcionDirecta,
 };

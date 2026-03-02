@@ -27,6 +27,7 @@ import EtiquetaA4Modal from './EtiquetaA4Modal';
 import type { Etiqueta } from './Types';
 import EquipoTraspasoModal from "./EquiposTraspasoModal";
 import { Equipo } from './Types';
+import { Categoria } from './Types'
 
 import { useUser } from '@/context/UserContext'
 
@@ -43,6 +44,14 @@ interface InventarioItem {
   sku?: string;
   es_codigo_generado?: boolean;
   barcode?: string;
+  categoria_catalogo_id:number
+}
+
+interface RecepcionDirectaItem {
+  id: number
+  cantidad: number
+  precio: number
+  categoria_catalogo_id: number
 }
 
 export interface EquipoArmado {
@@ -56,6 +65,7 @@ export interface EquipoArmado {
   estado: string;
   disponibilidad: boolean;
   serie:string;
+  categoria_catalogo_id: number;
 
   // 🔹 Estas pueden o no existir al momento de enviar el payload
   memorias_ram?: string[];
@@ -82,7 +92,9 @@ export default function InventoryHardwareSection() {
   const [equiposFiltrados, setEquiposFiltrados] = useState<any[]>([]);
   const [equipoParaTraspaso, setEquipoParaTraspaso] = useState<Equipo | null>(null); 
   const [equipos, setEquipos] = useState<Equipo[]>([]);
-
+  const [categorias, setCategorias] = useState<Categoria[]>([]);  
+  const [editandoRecepcionDirecta, setEditandoRecepcionDirecta] =useState<RecepcionDirectaItem | null>(null);
+  
   const normalizarRecepcionDirecta = useCallback((items: any[]) => {
     return items.map(i => ({
       ...i,
@@ -124,6 +136,31 @@ export default function InventoryHardwareSection() {
         });
       });
   }, []);  
+
+  // cargar categorias
+  useEffect(() => {
+    const cargarCategorias = async () => {
+
+      const resp = await fetch(
+        `${API_URL}/api/catalogo-categorias`,
+        {
+          credentials: 'include'
+        }
+      )
+
+      if (!resp.ok) {
+        console.error('Error cargando categorías')
+        return
+      }
+
+      const data = await resp.json()
+
+      setCategorias(data)
+    }
+
+    cargarCategorias()
+
+  }, [])
 
   const eliminarRecepcionDirecta = async (id: number) => {
     const confirm = await Swal.fire({
@@ -369,6 +406,49 @@ export default function InventoryHardwareSection() {
       Swal.fire('Error', 'No se pudo cargar recepción directa', 'error');
     }
   };
+
+  const guardarRecepcionDirecta = async (item:any) => {
+    try {
+
+      const res = await fetch(
+        `${API_URL}/api/inventario/recepcion-directa/${item.id}`,
+        {
+          method: 'PUT',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            cantidad: item.cantidad,
+            precio: item.precio,
+            categoria_catalogo_id: item.categoria_catalogo_id
+          })
+        }
+      );
+
+      if (!res.ok) throw new Error();
+
+      Swal.fire(
+        'Guardado',
+        'Recepción directa actualizada',
+        'success'
+      );
+
+      setEditandoRecepcionDirecta(null);
+
+      cargarInventario();
+
+    } catch {
+
+      Swal.fire(
+        'Error',
+        'No se pudo actualizar',
+        'error'
+      );
+
+    }
+
+  };
   
   useEffect(() => {
     if (!sucursalSeleccionada) return
@@ -384,44 +464,194 @@ export default function InventoryHardwareSection() {
     })()
   }, [sucursalSeleccionada])
 
-  // 🔹 Modal de edición (sin cambios)
   useEffect(() => {
-    if (editandoInventario) {
+    if (editandoRecepcionDirecta) {
+
+      const categoriasOptions = categorias.map(c => `
+        <option value="${c.id}"
+          ${c.id === editandoRecepcionDirecta.categoria_catalogo_id ? 'selected' : ''}>
+          ${c.descripcion}
+        </option>
+      `).join('');
+
       Swal.fire({
-        title: 'Editar artículo',
+        title: 'Editar recepción directa',
+
         html: `
-          <input id="swal-descripcion" class="swal2-input" value="${editandoInventario.descripcion || ''}" placeholder="Descripción">
-          <input id="swal-cantidad" type="number" class="swal2-input" value="${editandoInventario.cantidad}" placeholder="Cantidad">
-          <input id="swal-precio" type="number" step="0.01" min="0" class="swal2-input" value="${editandoInventario.precio || 0}" placeholder="Precio (MXN)">
+
+          <input id="swal-cantidad" 
+            type="number" 
+            class="swal2-input"
+            value="${editandoRecepcionDirecta.cantidad || 0}"
+            placeholder="Cantidad">
+
+          <input id="swal-precio" 
+            type="number" 
+            step="0.01" 
+            min="0"
+            class="swal2-input"
+            value="${editandoRecepcionDirecta.precio || 0}"
+            placeholder="Precio (MXN)">
+
+          <select id="swal-categoria" class="swal2-input">
+            <option value="">Seleccionar categoría</option>
+            ${categoriasOptions}
+          </select>
+
         `,
+
         focusConfirm: false,
         showCancelButton: true,
         confirmButtonText: 'Guardar cambios',
         cancelButtonText: 'Cancelar',
+
         preConfirm: () => {
-          const descripcion = (document.getElementById('swal-descripcion') as HTMLInputElement).value;
-          const cantidad = parseInt((document.getElementById('swal-cantidad') as HTMLInputElement).value);
-          const precio = parseFloat((document.getElementById('swal-precio') as HTMLInputElement).value);
+
+          const cantidad =
+            parseInt(
+              (document.getElementById('swal-cantidad') as HTMLInputElement).value
+            );
+
+          const precio =
+            parseFloat(
+              (document.getElementById('swal-precio') as HTMLInputElement).value
+            );
+
+          const categoria_id =
+            parseInt(
+              (document.getElementById('swal-categoria') as HTMLSelectElement).value
+            );
+
+          if (isNaN(cantidad) || isNaN(precio) || !categoria_id) {
+
+            Swal.showValidationMessage(
+              'Todos los campos son obligatorios'
+            );
+
+            return null;
+          }
+
+          return {
+            ...editandoRecepcionDirecta,
+            cantidad,
+            precio,
+            categoria_catalogo_id: categoria_id
+          };
+
+        }
+
+      }).then((res) => {
+
+        if (res.isConfirmed && res.value) {
+
+          guardarRecepcionDirecta(res.value);
+
+        } else {
+
+          setEditandoRecepcionDirecta(null);
+
+        }
+
+      });
+
+    }
+
+  }, [editandoRecepcionDirecta, categorias]);
+
+  // 🔹 Modal de edición (sin cambios)
+  useEffect(() => {
+    if (editandoInventario) {
+
+      const categoriasOptions = categorias.map(c => `
+        <option value="${c.id}" 
+          ${c.id === editandoInventario.categoria_catalogo_id ? 'selected' : ''}>
+          ${c.descripcion}
+        </option>
+      `).join('');
+
+      Swal.fire({
+        title: 'Editar artículo',
+        html: `        
+          <input id="swal-descripcion" class="swal2-input" 
+            value="${editandoInventario.descripcion || ''}" 
+            placeholder="Descripción">
+
+          <input id="swal-cantidad" type="number" class="swal2-input" 
+            value="${editandoInventario.cantidad}" 
+            placeholder="Cantidad">
+
+          <input id="swal-precio" type="number" step="0.01" min="0" 
+            class="swal2-input" 
+            value="${editandoInventario.precio || 0}" 
+            placeholder="Precio (MXN)">
+
+          <select id="swal-categoria" class="swal2-input">
+            <option value="">Seleccionar categoría</option>
+            ${categoriasOptions}
+          </select>
+        `,
+
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Guardar cambios',
+        cancelButtonText: 'Cancelar',
+
+        preConfirm: () => {
+
+          const categoria_id =
+            parseInt(
+              (document.getElementById('swal-categoria') as HTMLSelectElement).value
+            );
+
+          const descripcion =
+            (document.getElementById('swal-descripcion') as HTMLInputElement).value;
+
+          const cantidad =
+            parseInt(
+              (document.getElementById('swal-cantidad') as HTMLInputElement).value
+            );
+
+          const precio =
+            parseFloat(
+              (document.getElementById('swal-precio') as HTMLInputElement).value
+            );
 
           if (!descripcion || isNaN(cantidad) || isNaN(precio)) {
             Swal.showValidationMessage('Todos los campos son obligatorios');
             return null;
           }
 
-          return { ...editandoInventario, descripcion, cantidad, precio };
+          return {
+            ...editandoInventario,
+            categoria_catalogo_id: categoria_id,
+            descripcion,
+            cantidad,
+            precio,
+          };
         },
+
       }).then((res) => {
+
         if (res.isConfirmed && res.value) {
           guardarInventario(res.value as InventarioItem);
         } else {
           setEditandoInventario(null);
         }
+
       });
+
     }
-  }, [editandoInventario]);
+  }, [editandoInventario, categorias]);
 
   useEffect(() => {
     if (!editandoEquipo) return;
+
+    const categoriasOptions = categorias.map(c => `
+        <option value="${c.id}" 
+          ${c.id === editandoEquipo.categoria_catalogo_id ? 'selected' : ''}>
+          ${c.descripcion}
+        </option>
+      `).join('');
 
     const abrirModalEdicion = (datosActuales: any) => {
       Swal.fire({
@@ -440,6 +670,11 @@ export default function InventoryHardwareSection() {
             <input id="swal-almacenamiento" class="swal2-input" value="${datosActuales.almacenamientos?.join(', ') || ''}" placeholder="Almacenamientos (separa por coma)" style="flex:1;">
             <button id="btn-seleccionar-almacenamiento" class="swal2-confirm swal2-styled" style="padding:4px 8px;font-size:12px;">🔍</button>
           </div>
+
+          <select id="swal-categoria" class="swal2-input">
+            <option value="">Seleccionar categoría</option>
+            ${categoriasOptions}
+          </select>
         `,
         showCancelButton: true,
         confirmButtonText: 'Guardar cambios',
@@ -503,6 +738,7 @@ export default function InventoryHardwareSection() {
           const precio = parseFloat((document.getElementById('swal-precio') as HTMLInputElement).value);
           const memorias_ram = (document.getElementById('swal-ram') as HTMLInputElement).value.split(',').map(r => r.trim()).filter(r => r);
           const almacenamientos = (document.getElementById('swal-almacenamiento') as HTMLInputElement).value.split(',').map(a => a.trim()).filter(a => a);
+          const categoria_id = parseInt((document.getElementById('swal-categoria') as HTMLSelectElement).value) || null;
 
           if (!nombre || !procesador || isNaN(precio)) {
             Swal.showValidationMessage('Completa todos los campos obligatorios');
@@ -515,6 +751,7 @@ export default function InventoryHardwareSection() {
             nombre,
             procesador,
             precio,
+            categoria_catalogo_id: categoria_id,
             memorias_ram,
             almacenamientos,
             memorias_ram_ids: datosActuales.memorias_ram_ids || [],
@@ -539,6 +776,7 @@ export default function InventoryHardwareSection() {
     memoria_ram_id: number | null
     almacenamiento_id: number | null
     sucursal_id: number
+    categoria_catalogo_id: number
   }) => {
     const resp = await fetch(`${API_URL}/api/inventario`, {
       method: 'POST',
@@ -668,13 +906,15 @@ export default function InventoryHardwareSection() {
 
   const abrirModalInventario = async () => {
     // 🔹 Cargar catálogos
-    const [ramResp, almacenamientoResp] = await Promise.all([
+    const [ramResp, almacenamientoResp, categoriasResp] = await Promise.all([
       fetch(`${API_URL}/api/catalogoMemoriaRam`, { credentials: 'include' }),
-      fetch(`${API_URL}/api/catalogoAlmacenamiento`, { credentials: 'include' })
+      fetch(`${API_URL}/api/catalogoAlmacenamiento`, { credentials: 'include' }),
+      fetch(`${API_URL}/api/catalogo-categorias`, { credentials: 'include' })
     ])
 
     const catalogoRam = await ramResp.json()
     const catalogoAlmacenamiento = await almacenamientoResp.json()
+    const catalogoCategorias = await categoriasResp.json()
 
     // 🔹 Opciones HTML
     const opcionesRam = catalogoRam
@@ -683,6 +923,10 @@ export default function InventoryHardwareSection() {
 
     const opcionesAlmacenamiento = catalogoAlmacenamiento
       .map((a: any) => `<option value="${a.id}">${a.descripcion}</option>`)
+      .join('')
+
+    const opcionesCategorias = catalogoCategorias
+      .map((c: any) => `<option value="${c.id}">${c.descripcion}</option>`)
       .join('')
 
     Swal.fire({
@@ -729,6 +973,11 @@ export default function InventoryHardwareSection() {
           <select id="estado" class="swal2-select">
             <option value="nuevo">Nuevo</option>
             <option value="usado" selected>Usado</option>
+          </select>          
+
+          <select id="categoria-select" class="swal2-select">
+            <option value="">Sin categoría</option>
+            ${opcionesCategorias}
           </select>
         </div>
       `,
@@ -767,6 +1016,12 @@ export default function InventoryHardwareSection() {
         const precio = parseFloat((document.getElementById('precio') as HTMLInputElement).value)
         const sku = (document.getElementById('sku') as HTMLInputElement).value.trim()
         const estado = (document.getElementById('estado') as HTMLSelectElement).value
+        const categoriaId =(document.getElementById('categoria-select') as HTMLSelectElement).value
+
+        if (!categoriaId) {
+          Swal.showValidationMessage('Selecciona una categoría')
+          return
+        }
 
         if (isNaN(precio)) {
           Swal.showValidationMessage('Precio inválido')
@@ -795,7 +1050,8 @@ export default function InventoryHardwareSection() {
           memoria_ram_id: tipo === 'ram' ? Number(ramId) : null,
           almacenamiento_id: tipo === 'almacenamiento' ? Number(almId) : null,
           precio,
-          estado
+          estado,
+          categoria_catalogo_id: categoriaId ? Number(categoriaId) : null
         }
       }
     }).then(async res => {
@@ -818,6 +1074,7 @@ export default function InventoryHardwareSection() {
             memoria_ram_id: data.memoria_ram_id,
             almacenamiento_id: null,
             sucursal_id: sucursalId, // ✅ ya es number
+            categoria_catalogo_id: data.categoria_catalogo_id
           })
 
           Swal.fire('Agregado', 'Memoria RAM agregada al inventario', 'success')
@@ -833,6 +1090,7 @@ export default function InventoryHardwareSection() {
             memoria_ram_id: null,
             almacenamiento_id: data.almacenamiento_id,
             sucursal_id: sucursalId, // ✅
+            categoria_catalogo_id: data.categoria_catalogo_id
           })
 
           Swal.fire('Agregado', 'Almacenamiento agregado al inventario', 'success')
@@ -849,6 +1107,7 @@ export default function InventoryHardwareSection() {
           estado: data.estado,
           sucursal_id: sucursalId, // ✅
           precio: data.precio,
+          categoria_catalogo_id: data.categoria_catalogo_id
         } as InventarioItem)
       } catch (err) {
         console.error(err)
@@ -1150,6 +1409,14 @@ export default function InventoryHardwareSection() {
 
                   {eq.origen === 'recepcion_directa' && (
                     <>
+                      <button
+                        onClick={() => setEditandoRecepcionDirecta(eq)}
+                        className="text-blue-600 hover:text-blue-800"
+                        title="Editar inventario"
+                      >
+                        <FaEdit />
+                      </button>
+
                       <button
                         onClick={() => imprimirEtiquetasInventario(eq)}
                         className="text-green-600 hover:text-green-800"

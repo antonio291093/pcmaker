@@ -1,4 +1,4 @@
-import CatalogoGrid from "./CatalogoGrid"
+import CatalogoFiltros from "./CatalogoFiltros"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -9,22 +9,36 @@ type Item = {
   sucursal: string
 }
 
+type Categoria = {
+  id: number
+  descripcion: string
+}
+
 async function getCatalogo(): Promise<Item[]> {
 
   const res = await fetch(`${API_URL}/api/catalogo`, {
     cache: "no-store"
   })
 
-  if (!res.ok) {
-    throw new Error("Error cargando catálogo")
-  }
+  return res.json()
+
+}
+
+async function getCategorias(): Promise<Categoria[]> {
+
+  const res = await fetch(
+    `${API_URL}/api/catalogo-categorias`,
+    { cache: "no-store" }
+  )
 
   return res.json()
+
 }
 
 export default async function CatalogoPage() {
 
   const items = await getCatalogo()
+  const categorias = await getCategorias()
 
   return (
 
@@ -39,7 +53,10 @@ export default async function CatalogoPage() {
         refacciones y accesorios disponibles en PCMaker.
       </p>
 
-      <CatalogoGrid items={items} />      
+      <CatalogoFiltros
+        categorias={categorias}
+        itemsIniciales={items}
+      />
 
       <section className="mt-10 text-gray-600 text-sm">
 
