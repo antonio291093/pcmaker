@@ -16,6 +16,7 @@ exports.generarTicketVenta = async (req, res) => {
         v.correo,
         v.total,
         v.fecha_venta,
+        v.sucursal_id,
         u.nombre AS vendedor
       FROM ventas v
       LEFT JOIN usuarios u ON v.user_venta = u.id
@@ -102,6 +103,7 @@ exports.generarTicketVenta = async (req, res) => {
     // 5️⃣ Generar PDF
     const pdfBytes = await generarTicketVentaPDF({
       ventaId,
+      sucursal_id: venta.sucursal_id,
       fecha,
       cliente: venta.cliente,
       telefono: venta.telefono || '',

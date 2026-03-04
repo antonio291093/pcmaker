@@ -2,8 +2,19 @@ const fs = require('fs')
 const path = require('path')
 const { PDFDocument, StandardFonts } = require('pdf-lib')
 
-async function generarGarantiaPDF({ equipos, total, fecha }) {
-  const pdfPath = path.join(__dirname, 'garantia_base.pdf')
+async function generarGarantiaPDF({ sucursal_id, equipos, total, fecha }) {
+  const garantiaTemplates = {
+    1: 'garantia_base_saltillo.pdf',
+    2: 'garantia_base_monterrey.pdf'    
+  }
+
+  const sucursal = Number(sucursal_id)
+
+  const baseFile =
+    garantiaTemplates[sucursal] ||
+    'garantia_base_saltillo.pdf'
+
+  const pdfPath = path.join(__dirname, baseFile)  
   const pdfBytes = fs.readFileSync(pdfPath)
 
   const pdfDoc = await PDFDocument.load(pdfBytes)
@@ -18,7 +29,7 @@ async function generarGarantiaPDF({ equipos, total, fecha }) {
   const rowGap = 70       // separación entre equipos (ajustable) 
 
   page.drawText(fecha, {
-        x: 365,
+        x: 425,
         y: 715,
         size: 9,
         font,
@@ -74,7 +85,7 @@ async function generarGarantiaPDF({ equipos, total, fecha }) {
 
   // 🧮 Total (fijo, no depende de equipos)
   page.drawText(`$${Number(total).toFixed(2)}`, {
-    x: 460,
+    x: 470,
     y: 320,
     size: 10,
     font,

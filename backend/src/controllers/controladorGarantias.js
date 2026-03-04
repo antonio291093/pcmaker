@@ -77,7 +77,7 @@ exports.generarGarantiaPorVenta = async (req, res) => {
     // 1️⃣ Obtener venta
     const ventaResult = await pool.query(
       `
-      SELECT id, cliente, fecha_venta
+      SELECT id, cliente, fecha_venta, sucursal_id
       FROM ventas
       WHERE id = $1
       `,
@@ -195,6 +195,7 @@ exports.generarGarantiaPorVenta = async (req, res) => {
 
     // 6️⃣ Generar PDF
     const pdfBytes = await generarGarantiaPDF({
+      sucursal_id: venta.sucursal_id,
       cliente: venta.cliente,
       equipos,
       total,

@@ -4,6 +4,7 @@ const { PDFDocument, StandardFonts } = require('pdf-lib')
 
 async function generarTicketVentaPDF({
   ventaId,
+  sucursal_id,
   fecha,
   cliente,
   telefono,
@@ -13,7 +14,15 @@ async function generarTicketVentaPDF({
   total
 }) {
   //console.log('🧠 DATA RECIBIDA EN PDF:', fecha, cliente, telefono, email, vendedor, items, total)
-  const pdfPath = path.join(__dirname, 'ticket_base.pdf')
+  const ticketTemplates = {
+    1: 'ticket_base_saltillo.pdf',
+    2: 'ticket_base_monterrey.pdf'    
+  }
+
+  const sucursal = Number(sucursal_id)
+  const baseFile = ticketTemplates[sucursal] || 'ticket_base_saltillo.pdf'
+
+  const pdfPath = path.join(__dirname, baseFile)
   const pdfBytes = fs.readFileSync(pdfPath)
 
   const pdfDoc = await PDFDocument.load(pdfBytes)
