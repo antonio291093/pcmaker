@@ -183,14 +183,21 @@ exports.crearVenta = async (req, res) => {
 
 exports.reporteVentas = async (req, res) => {
   try {
+
     const { from, to } = req.query;
-    const sucursal_id = req.user?.sucursal_id || null;
+    
+    const sucursal_id = Number(req.query.sucursal_id) || null;
 
     if (!from || !to) {
       return res.status(400).json({ message: 'Fechas requeridas' });
     }
 
-    const data = await obtenerReporteVentas({ from, to, sucursal_id });
+    const data = await obtenerReporteVentas({
+      from,
+      to,
+      sucursal_id
+    });
+
     res.json(data);
 
   } catch (error) {

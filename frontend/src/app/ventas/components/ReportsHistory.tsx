@@ -5,6 +5,7 @@ import { FaDownload } from 'react-icons/fa'
 import { exportVentasExcel } from '@/utils/exportVentasExcel'
 import { exportCaptura } from '@/utils/exportCaptura'
 import { useRef } from 'react'
+import { useUser } from '@/context/UserContext'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -62,6 +63,15 @@ export default function ReportsHistory() {
   const [loading, setLoading] = useState(false)
   const ventasRenderizadas = new Set<number>()
   const capturaRef = useRef<HTMLDivElement>(null)
+  const { user, loading: userLoading } = useUser()
+  if (userLoading) {
+    return <p>Cargando usuario...</p>
+  }
+
+  if (!user) {
+    return null
+  }
+  const sucursalId = user?.sucursal_id
   const formatFecha = (fecha: string) => {
     const soloFecha = fecha.split('T')[0].split(' ')[0]
     const [year, month, day] = soloFecha.split('-')
@@ -72,7 +82,7 @@ export default function ReportsHistory() {
       setLoading(true)
 
       const resp = await fetch(
-        `${API_URL}/api/ventas?from=${from}&to=${to}`,
+        `${API_URL}/api/ventas?from=${from}&to=${to}&sucursal_id=${sucursalId}`,
         { credentials: 'include' }
       )
 
@@ -245,6 +255,8 @@ export default function ReportsHistory() {
 
                 // 🔹 Unificar nombres
                 if (k === 'facturacion') label = 'factura'
+                if (k === 'facturacion_subtotal') label = 'factura subtotal'
+                if (k === 'facturacion_iva') label = 'factura iva'
 
                 return (
                   <div key={k} className='bg-gray-50 rounded-xl p-4 shadow-sm'>
