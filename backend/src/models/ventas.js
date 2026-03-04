@@ -243,17 +243,36 @@ ORDER BY v.fecha_venta DESC;
   ]);
 
   const totales = {
-    efectivo: 0,
-    transferencia: 0,
-    terminal: 0,
-    facturacion: 0,
-    total: 0
-  };
+  efectivo: 0,
+  transferencia: 0,
+  terminal: 0,
 
-  totalesRaw.rows.forEach(r => {
-    totales[r.metodo_pago] = Number(r.total);
-    totales.total += Number(r.total);
-  });
+  facturacion_subtotal: 0,
+  facturacion_iva: 0,
+  facturacion: 0,
+
+  total: 0
+};
+
+totalesRaw.rows.forEach(r => {
+
+  const monto = Number(r.total);
+
+  if (r.metodo_pago === 'factura') {
+
+    const subtotal = monto / 1.16;
+    const iva = monto - subtotal;
+
+    totales.facturacion = monto;
+    totales.facturacion_subtotal = subtotal;
+    totales.facturacion_iva = iva;
+
+  } else {
+    totales[r.metodo_pago] = monto;
+  }
+
+  totales.total += monto;
+});
 
   return {
     detalle: detalle.rows,
