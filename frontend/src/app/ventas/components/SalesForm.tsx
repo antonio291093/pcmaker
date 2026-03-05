@@ -49,11 +49,12 @@ export default function SalesForm() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sucursal_id: user.sucursal_id })
     })
-  }, [user])
+  }, [user])  
 
   const IVA = 0.16
 
-  const total = useMemo(() => {
+  // 🔹 subtotal real de productos + servicios
+  const subtotal = useMemo(() => {
     const totalProductos = productosSeleccionados.reduce((acc, p) => {
       const precio = Number(p.precio) || 0
       const cantidad = Number(p.cantidadSeleccionada) || 0
@@ -64,15 +65,22 @@ export default function SalesForm() {
       return acc + Number(s.costo || 0)
     }, 0)
 
-    let subtotal = totalProductos + totalServicios
+    return totalProductos + totalServicios
+  }, [productosSeleccionados, serviciosSeleccionados])
 
-    // 🔹 Si es factura, agregar IVA
-    if (formData.metodo_pago === 'factura') {
-      subtotal = subtotal * (1 + IVA)
-    }
+  // 🔹 si requiere factura
+  const requiereFactura = formData.metodo_pago === 'factura'
 
-    return subtotal
-  }, [productosSeleccionados, serviciosSeleccionados, formData.metodo_pago]) 
+  // 🔹 iva calculado
+  const iva = useMemo(() => {
+    if (!requiereFactura) return 0
+    return subtotal * IVA
+  }, [subtotal, requiereFactura])
+
+  // 🔹 total final
+  const total = useMemo(() => {
+    return subtotal + iva
+  }, [subtotal, iva])
 
   //Manejador de cambios
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -204,12 +212,18 @@ export default function SalesForm() {
           observaciones: formData.observaciones,
           usuario_id: usuarioId,
           sucursal_id: sucursalId,
+
+          subtotal,
+          iva,
           total,
+          requiere_factura: requiereFactura,
+
           productos: tieneProductos ? productosSeleccionados.map(p => ({
             id: p.id,
             cantidad: p.cantidadSeleccionada,
             precio_unitario: Number(p.precio) || 0
-          })): [],
+          })) : [],
+
           servicios: tieneServicios ? serviciosSeleccionados.map(s => s.id) : []
         })
       })
@@ -221,6 +235,7 @@ export default function SalesForm() {
 
       const ventaData = await ventaResp.json()
       const ventaId = ventaData.venta_id;
+      const totalVenta = ventaData.total;
 
       const ticketResult = await Swal.fire({
         title: 'Venta generada',
@@ -269,7 +284,7 @@ export default function SalesForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tipo: 'venta',
-          monto: total,
+          monto: totalVenta,
           descripcion: `Venta #${ventaId} - Cliente: ${formData.cliente}`,
           usuario_id: usuarioId,
           sucursal_id: sucursalId,
@@ -445,11 +460,11 @@ export default function SalesForm() {
               {formData.metodo_pago === 'factura' && (
                 <>
                   <div className="text-sm text-gray-600">
-                    Subtotal: ${(total / 1.16).toFixed(2)} MXN
+                    Subtotal: ${subtotal.toFixed(2)}
                   </div>
 
                   <div className="text-sm text-gray-600">
-                    IVA (16%): ${(total - total / 1.16).toFixed(2)} MXN
+                    IVA (16%): ${iva.toFixed(2)}
                   </div>
                 </>
               )}

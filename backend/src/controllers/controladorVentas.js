@@ -14,7 +14,10 @@ exports.generarTicketVenta = async (req, res) => {
         v.cliente,
         v.telefono,
         v.correo,
+        v.subtotal,
+        v.iva,
         v.total,
+        v.requiere_factura,
         v.fecha_venta,
         v.sucursal_id,
         u.nombre AS vendedor
@@ -110,7 +113,10 @@ exports.generarTicketVenta = async (req, res) => {
       email: venta.correo || '',
       vendedor: venta.vendedor || '',
       items,
+      subtotal: venta.subtotal,
+      iva: venta.iva,
       total: venta.total,
+      requiere_factura: venta.requiere_factura
     })
 
     // 6️⃣ Respuesta
@@ -142,7 +148,10 @@ exports.crearVenta = async (req, res) => {
       observaciones,
       usuario_id,
       sucursal_id,
-      total
+      subtotal,
+      iva,
+      total,
+      requiere_factura
     } = req.body;
 
     if (!cliente) {
@@ -157,7 +166,7 @@ exports.crearVenta = async (req, res) => {
       });
     }
 
-    const { venta_id } = await registrarVenta({
+    const venta = await registrarVenta({
       cliente,
       telefono,
       correo,
@@ -167,12 +176,15 @@ exports.crearVenta = async (req, res) => {
       observaciones,
       usuario_id,
       sucursal_id,
-      total
+      subtotal,
+      iva,
+      total,
+      requiere_factura
     });
 
     res.status(201).json({
       message: "Venta registrada correctamente",
-      venta_id
+      ...venta
     });
 
   } catch (error) {

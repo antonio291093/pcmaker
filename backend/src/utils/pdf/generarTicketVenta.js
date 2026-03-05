@@ -2,17 +2,20 @@ const fs = require('fs')
 const path = require('path')
 const { PDFDocument, StandardFonts } = require('pdf-lib')
 
-async function generarTicketVentaPDF({
-  ventaId,
-  sucursal_id,
-  fecha,
-  cliente,
-  telefono,
-  email,
-  vendedor,
-  items,
-  total
-}) {
+  async function generarTicketVentaPDF({
+    ventaId,
+    sucursal_id,
+    fecha,
+    cliente,
+    telefono,
+    email,
+    vendedor,
+    items,
+    subtotal,
+    iva,
+    total,
+    requiere_factura
+  }) {
   //console.log('🧠 DATA RECIBIDA EN PDF:', fecha, cliente, telefono, email, vendedor, items, total)
   const ticketTemplates = {
     1: 'ticket_base_saltillo.pdf',
@@ -46,28 +49,63 @@ async function generarTicketVentaPDF({
     const y = startY - index * rowGap
 
     page.drawText(item.descripcion, { x: 165, y, size: fontSize, font })
+
     page.drawText(String(item.cantidad), { x: 450, y, size: fontSize, font })
+
     page.drawText(`$${item.precio_unitario.toFixed(2)}`, {
       x: 520,
       y,
       size: fontSize,
       font,
     })
-    page.drawText(`$${item.total.toFixed(2)}`, {
-      x: 620,
-      y,
-      size: fontSize,
-      font,
-    })
-  })
 
-  // 🔹 Total
-  page.drawText(`$${Number(total).toFixed(2)}`, {
-    x: 600,
-    y: 145,
-    size: 12,
-    font,
-  })
+    if (requiere_factura) {
+      page.drawText(`$${Number(subtotal).toFixed(2)}`, {
+        x: 600,
+        y,
+        size: 12,
+        font,
+      })
+
+      page.drawText("IVA:", {
+        x: 560,
+        y: 160,
+        size: 12,
+        font,
+      })
+
+
+      page.drawText(`$${Number(iva).toFixed(2)}`, {
+        x: 600,
+        y: 160,
+        size: 12,
+        font,
+      })
+
+      page.drawText(`$${Number(total).toFixed(2)}`, {
+        x: 600,
+        y: 145,
+        size: 12,
+        font,
+      })
+
+    } else {
+      page.drawText(`$${Number(total).toFixed(2)}`, {
+        x: 600,
+        y,
+        size: 12,
+        font,
+      })
+
+      page.drawText(`$${Number(total).toFixed(2)}`, {
+        x: 600,
+        y: 145,
+        size: 12,
+        font,
+      })
+
+    }
+  })  
 
   return await pdfDoc.save()
 }

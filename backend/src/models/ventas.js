@@ -10,14 +10,62 @@ async function registrarVenta({
   observaciones,
   usuario_id,
   sucursal_id,
-  total
+  requiere_factura
 }) {
+
   const client = await pool.connect();
 
   try {
+
     await client.query("BEGIN");
 
-    // 1️⃣ Insertar encabezado de venta
+    // 🔹 Calcular subtotal productos
+    const subtotalProductos = productos.reduce((acc, p) => {
+      return acc + (p.cantidad * p.precio_unitario)
+    }, 0)
+
+    // 🔹 Calcular subtotal servicios
+    let subtotalServicios = 0
+
+    if (servicios.length > 0) {
+      for (const mantenimientoId of servicios) {
+
+        const { rows } = await client.query(
+          `
+          SELECT
+            cm.costo AS precio,
+            m.estado
+          FROM mantenimientos m
+          JOIN catalogo_mantenimiento cm
+            ON cm.id = m.catalogo_id
+          WHERE m.id = $1
+          `,
+          [mantenimientoId]
+        )
+
+        if (!rows.length) {
+          throw new Error(`Mantenimiento ${mantenimientoId} no existe`)
+        }
+
+        const { precio, estado } = rows[0]
+
+        if (estado !== "pendiente") {
+          throw new Error(`Mantenimiento ${mantenimientoId} ya fue cobrado`)
+        }
+
+        subtotalServicios += Number(precio)
+      }
+    }
+
+    const subtotalReal = subtotalProductos + subtotalServicios
+
+    const ivaReal = requiere_factura
+      ? Number((subtotalReal * 0.16).toFixed(2))
+      : 0
+
+    const totalReal = Number((subtotalReal + ivaReal).toFixed(2))
+
+    // 1️⃣ Insertar encabezado
     const ventaResult = await client.query(
       `
       INSERT INTO ventas (
@@ -28,9 +76,12 @@ async function registrarVenta({
         observaciones,
         user_venta,
         sucursal_id,
-        total
+        subtotal,
+        iva,
+        total,
+        requiere_factura
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
       RETURNING id;
       `,
       [
@@ -41,14 +92,20 @@ async function registrarVenta({
         observaciones || "",
         usuario_id,
         sucursal_id,
-        total
+        subtotalReal,
+        ivaReal,
+        totalReal,
+        requiere_factura || false
       ]
-    );
+    )
 
-    const ventaId = ventaResult.rows[0].id;
+    const ventaId = ventaResult.rows[0].id
 
-    // 2️⃣ Insertar productos en detalle
+    // 2️⃣ Insertar productos
     for (const producto of productos) {
+
+      const subtotalProducto = producto.cantidad * producto.precio_unitario
+
       await client.query(
         `
         INSERT INTO venta_detalle (
@@ -66,35 +123,28 @@ async function registrarVenta({
           producto.id,
           producto.cantidad,
           producto.precio_unitario,
-          producto.cantidad * producto.precio_unitario
+          subtotalProducto
         ]
-      );
+      )
     }
 
-    // 3️⃣ Insertar servicios en detalle
+    // 3️⃣ Insertar servicios
     for (const mantenimientoId of servicios) {
+
       const { rows } = await client.query(
         `
         SELECT
           cm.costo AS precio,
-          m.estado          
+          m.estado
         FROM mantenimientos m
         JOIN catalogo_mantenimiento cm
           ON cm.id = m.catalogo_id
         WHERE m.id = $1
         `,
         [mantenimientoId]
-      );
+      )
 
-      if (!rows.length) {
-        throw new Error(`Mantenimiento ${mantenimientoId} no existe`);
-      }
-
-      const { precio, estado } = rows[0];
-
-      if (estado !== "pendiente") {
-        throw new Error(`Mantenimiento ${mantenimientoId} ya fue cobrado`);
-      }
+      const { precio } = rows[0]
 
       await client.query(
         `
@@ -110,7 +160,7 @@ async function registrarVenta({
         VALUES ($1,'servicio',$2,NULL,1,$3,$3)
         `,
         [ventaId, mantenimientoId, precio]
-      );
+      )
 
       await client.query(
         `
@@ -119,22 +169,28 @@ async function registrarVenta({
         WHERE id = $1
         `,
         [mantenimientoId]
-      );
+      )
     }
 
-    await client.query("COMMIT");
+    await client.query("COMMIT")
 
     return {
       venta_id: ventaId,
-      total
-    };
+      subtotal: subtotalReal,
+      iva: ivaReal,
+      total: totalReal
+    }
 
   } catch (error) {
-    await client.query("ROLLBACK");
-    console.error("❌ Error en registrarVenta:", error);
-    throw error;
+
+    await client.query("ROLLBACK")
+    console.error("❌ Error en registrarVenta:", error)
+    throw error
+
   } finally {
-    client.release();
+
+    client.release()
+
   }
 }
 
