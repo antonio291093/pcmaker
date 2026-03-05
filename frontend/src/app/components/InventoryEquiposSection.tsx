@@ -223,9 +223,15 @@ export default function InventoryEquiposSection() {
               <span className="text-xs text-gray-500">Procesador: {eq.procesador}</span>
               <span className="text-xs text-gray-500">RAM: {eq.memorias_ram?.join(", ")}</span>
               <span className="text-xs text-gray-500">Almacenamiento: {eq.almacenamientos?.join(", ")}</span>
+              <span className="text-xs text-gray-500">Comentarios: {eq.descripcion}</span>              
               <span
                 className="text-xs text-blue-500 cursor-pointer hover:underline mt-1"
-                onClick={() => setEquipoParaTraspaso(eq)}
+                onClick={() =>
+                  setEquipoParaTraspaso({
+                    ...eq,
+                    origen: "tecnico"
+                  })
+                }
               >
                 Sucursal: {eq.sucursal_nombre ?? "Sin asignar"}
               </span>

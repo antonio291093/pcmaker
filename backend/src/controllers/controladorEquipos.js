@@ -62,7 +62,7 @@ exports.obtenerEquipoPorId = async (req, res) => {
 };
 
 exports.actualizarEquipo = async (req, res) => {
-  const id = parseInt(req.params.id);
+  const id = parseInt(req.params.id);  
   const tecnico_id = req.userId;
   const client = await pool.connect();
 
@@ -100,6 +100,14 @@ exports.actualizarEquipo = async (req, res) => {
     if (!equipoActualizado) {
       await client.query("ROLLBACK");
       return res.status(404).json({ message: "Equipo no encontrado" });
+    }
+
+    if (body.sucursal_id !== undefined) {
+      await client.query(`
+        UPDATE inventario
+        SET sucursal_id = $1
+        WHERE equipo_id = $2
+      `, [body.sucursal_id, id]);
     }
 
     // --- Actualizar RAM y almacenamiento si el estado es ARMADO (4) ---

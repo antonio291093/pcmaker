@@ -111,11 +111,13 @@ async function guardarEtiquetasLote(etiquetas) {
 }
 
 // Obtener etiquetas de un lote específico
+// Obtener etiquetas de un lote específico
 async function obtenerEtiquetasPorLote(loteId) {
   const query = `
     SELECT
       le.id AS lote_etiqueta_id,
       le.etiqueta,
+      le.barcode,
       e.id AS equipo_id,
       ce.id AS estado_id,
       ce.nombre AS estado_nombre,
@@ -126,6 +128,7 @@ async function obtenerEtiquetasPorLote(loteId) {
     WHERE le.lote_id = $1
     ORDER BY le.id ASC;
   `;
+  
   const { rows } = await pool.query(query, [loteId]);
   return rows;
 }

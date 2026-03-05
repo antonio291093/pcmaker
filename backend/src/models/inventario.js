@@ -52,29 +52,71 @@ async function eliminarInventarioRecepcionDirecta(inventarioId) {
 }
 
 async function traspasarInventario(id, sucursal_id) {
-  const updateQuery = `
-    UPDATE inventario
-    SET sucursal_id = $1
-    WHERE id = $2
-    RETURNING 
-      id,
-      tipo,
-      especificacion,
-      cantidad,
-      disponibilidad,
-      estado,
-      precio,
-      memoria_ram_id,
-      almacenamiento_id,
+
+  const client = await pool.connect();
+
+  try {
+
+    await client.query("BEGIN");
+
+    const updateInventario = `
+      UPDATE inventario
+      SET sucursal_id = $1
+      WHERE id = $2
+      RETURNING 
+        id,
+        equipo_id,
+        tipo,
+        especificacion,
+        cantidad,
+        disponibilidad,
+        estado,
+        precio,
+        memoria_ram_id,
+        almacenamiento_id,
+        sucursal_id,
+        fecha_creacion,
+        sku,
+        es_codigo_generado;
+    `;
+
+    const { rows } = await client.query(updateInventario, [
       sucursal_id,
-      fecha_creacion,
-      sku,
-      es_codigo_generado;
-  `;
+      id
+    ]);
 
-  const { rows } = await pool.query(updateQuery, [sucursal_id, id]);
+    if (!rows[0]) {
+      await client.query("ROLLBACK");
+      return null;
+    }
 
-  return rows[0];
+    const equipo_id = rows[0].equipo_id;
+
+    // 🔵 Sincronizar equipos solo si existe
+    if (equipo_id) {
+
+      await client.query(`
+        UPDATE equipos
+        SET sucursal_id = $1
+        WHERE id = $2
+      `, [sucursal_id, equipo_id]);
+
+    }
+
+    await client.query("COMMIT");
+
+    return rows[0];
+
+  } catch (error) {
+
+    await client.query("ROLLBACK");
+    throw error;
+
+  } finally {
+
+    client.release();
+
+  }
 }
 
 async function generarSkuYBarcode({ sucursal_id }) {
@@ -587,7 +629,11 @@ async function obtenerInventario(sucursalId = null) {
     SELECT 
       i.id,
       i.tipo,
-      COALESCE(cm.descripcion, ca.descripcion, i.especificacion) AS descripcion,
+      COALESCE(
+        cm.descripcion || ' - ' || cm.tipo_modulo,
+        ca.descripcion,
+        i.especificacion
+      ) AS descripcion,
       i.cantidad,
       i.precio,
       i.disponibilidad,

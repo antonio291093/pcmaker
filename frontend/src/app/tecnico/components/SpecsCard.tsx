@@ -3,6 +3,8 @@ import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 import { useUser } from '@/context/UserContext'
+import EtiquetaA4Modal from '../../components/EtiquetaA4Modal';
+import type { Etiqueta } from '../../components/Types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -47,8 +49,7 @@ export default function SpecsCard() {
   const [specs, setSpecs] = useState({
     modelo: "",
     procesador: "",
-    observaciones: "",
-    detalles: "",
+    observaciones: ""    
   });
   const [lotes, setLotes] = useState<Lote[]>([]);
   const [selectedLote, setSelectedLote] = useState("");  
@@ -59,6 +60,10 @@ export default function SpecsCard() {
   const [busqueda, setBusqueda] = useState("");
   const [camposDeshabilitados, setCamposDeshabilitados] = useState(false);
   const [equipoEncontrado, setEquipoEncontrado] = useState<any>(null);    
+
+  const [etiquetas, setEtiquetas] = useState<Etiqueta[]>([]);
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [loadingEtiquetas, setLoadingEtiquetas] = useState(false);
 
   // Dentro de SpecsCard agrega al inicio:
   const [ramOptions, setRamOptions] = useState<{ id: number; descripcion: string }[]>([]);
@@ -123,21 +128,20 @@ export default function SpecsCard() {
             setSpecs({
               modelo: equipo.nombre,
               procesador: equipo.procesador,
-              observaciones: "",
-              detalles: "",
+              observaciones: ""              
             });
             setSelectedEstadoId(equipo.estado_id);
             setCamposDeshabilitados(equipo.estado_id === 4);
             setEquipoEncontrado(equipo);
           } else {
-            setSpecs({ modelo: "", procesador: "", observaciones: "", detalles: "" });
+            setSpecs({ modelo: "", procesador: "", observaciones: ""});
             setSelectedEstadoId("");
             setCamposDeshabilitados(false);
             setEquipoEncontrado(null);
           }
         });
     } else {
-      setSpecs({ modelo: "", procesador: "", observaciones: "", detalles: "" });
+      setSpecs({ modelo: "", procesador: "", observaciones: ""});
       setSelectedEstadoId("");
       setCamposDeshabilitados(false);
       setEquipoEncontrado(null);
@@ -183,6 +187,44 @@ export default function SpecsCard() {
     }
     setSelectedSerialId("");
   }, [selectedLote, lotes]);
+
+  const handleReimprimirEtiquetas = async () => {
+    if (!selectedLote) {
+      Swal.fire('Error', 'Selecciona un lote primero', 'warning');
+      return;
+    }
+
+    const lote = lotes.find(l => l.etiqueta === selectedLote);
+    if (!lote) return;
+
+    setLoadingEtiquetas(true);
+
+    try {
+
+      const resp = await fetch(
+        `${API_URL}/api/lotes/${lote.id}/etiquetas`,
+        { credentials: 'include' }
+      );
+
+      if (!resp.ok) throw new Error('No se pudieron obtener las etiquetas');
+
+      const data = await resp.json();
+
+      const etiquetasFormateadas = data.map((e: any) => ({
+        lote: lote.etiqueta,
+        id: e.etiqueta || e.serie,
+        barcode: e.barcode
+      }));
+
+      setEtiquetas(etiquetasFormateadas);
+      setShowPrintModal(true);
+
+    } catch (err: any) {
+      Swal.fire('Error', err.message || 'Error del servidor', 'error');
+    } finally {
+      setLoadingEtiquetas(false);
+    }
+  };
 
   function agruparCantidadPorId<T extends { [key: string]: number }>(
     items: T[],
@@ -274,8 +316,7 @@ export default function SpecsCard() {
       setSpecs({
         modelo: equipo.nombre,
         procesador: equipo.procesador,
-        observaciones: "",
-        detalles: "",
+        observaciones: ""        
       });
       setSelectedEstadoId(equipo.estado_id);
       setCamposDeshabilitados(equipo.estado_id === 4);
@@ -354,7 +395,7 @@ export default function SpecsCard() {
       // --- ARMADO DEL PAYLOAD para POST/PUT ---
       const equipoPayload = {
         nombre: data.specs.modelo,
-        descripcion: `Procesador: ${data.specs.procesador}. Observaciones: ${data.specs.observaciones}`,
+        descripcion: `Observaciones/Detalles Técnicos: ${data.specs.observaciones}`,
         procesador: data.specs.procesador,
         tipo: "equipo",
         lote_etiqueta_id: data.lote_etiqueta_id,
@@ -557,7 +598,7 @@ export default function SpecsCard() {
         title: "Guardado",
         text: "La especificación ha sido guardada correctamente.",
       });
-      setSpecs({ modelo: "", procesador: "", observaciones: "", detalles: "" });
+      setSpecs({ modelo: "", procesador: "", observaciones: ""});
       setSelectedLote("");
       setSelectedEstadoId("");
       setRamModules([{ memoria_ram_id: "" }]);
@@ -612,6 +653,16 @@ export default function SpecsCard() {
             </option>
           ))}
         </select>
+        {selectedLote && (
+          <button
+            type="button"
+            onClick={handleReimprimirEtiquetas}
+            disabled={loadingEtiquetas}
+            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition"
+          >
+            {loadingEtiquetas ? "Cargando..." : "Reimprimir etiquetas"}
+          </button>
+        )}
         <select
           value={selectedSerialId}
           onChange={(e) => setSelectedSerialId(Number(e.target.value))}
@@ -646,22 +697,13 @@ export default function SpecsCard() {
           disabled={camposDeshabilitados}
         />
         <textarea
-          placeholder="Observaciones"
+          placeholder="Observaciones/Detalles Técnicos"
           className="border rounded-md p-2 text-gray-600 resize-none"
           rows={2}
           value={specs.observaciones}
           onChange={(e) => setSpecs({ ...specs, observaciones: e.target.value })}
           disabled={camposDeshabilitados}
-        />
-        <textarea
-          placeholder="Detalles técnicos"
-          className="border rounded-md p-2 text-gray-600 resize-none"
-          rows={3}
-          value={specs.detalles}
-          onChange={(e) => setSpecs({ ...specs, detalles: e.target.value })}
-          disabled={camposDeshabilitados}
-        />
-
+        />       
         <div className="mt-4">
           <label htmlFor="estado" className="font-semibold mb-1 block">Estado</label>
           <select
@@ -749,7 +791,7 @@ export default function SpecsCard() {
                 </button>
               )}
             </div>
-          ))}
+          ))}         
         </div>
 
         <motion.button
@@ -760,6 +802,14 @@ export default function SpecsCard() {
           Guardar especificación
         </motion.button>
       </form>
+       <EtiquetaA4Modal
+            open={showPrintModal}
+            etiquetas={etiquetas}
+            onClose={() => {
+              setShowPrintModal(false);
+              setEtiquetas([]);
+            }}
+          />
     </motion.div>
   );
 }

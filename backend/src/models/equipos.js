@@ -129,6 +129,7 @@ async function obtenerEquiposPorEstado(estadoId) {
     SELECT 
       e.id,
       e.nombre,
+      e.descripcion,
       e.procesador,
       le.etiqueta,
       e.sucursal_id,

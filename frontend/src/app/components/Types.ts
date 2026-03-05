@@ -3,6 +3,7 @@ export interface Equipo {
   nombre: string;
   etiqueta: string;
   procesador: string;
+  descripcion?: string;
   memorias_ram?: string[];
   almacenamientos?: string[];
   sucursal_id?: number;

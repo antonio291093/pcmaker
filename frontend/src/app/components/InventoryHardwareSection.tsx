@@ -918,7 +918,11 @@ export default function InventoryHardwareSection() {
 
     // 🔹 Opciones HTML
     const opcionesRam = catalogoRam
-      .map((r: any) => `<option value="${r.id}">${r.descripcion}</option>`)
+      .map((r: any) => 
+        `<option value="${r.id}">
+          ${r.descripcion} - ${r.tipo_modulo}
+        </option>`
+      )
       .join('')
 
     const opcionesAlmacenamiento = catalogoAlmacenamiento
