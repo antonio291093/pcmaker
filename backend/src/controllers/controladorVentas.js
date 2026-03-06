@@ -142,7 +142,7 @@ exports.crearVenta = async (req, res) => {
       cliente,
       telefono,
       correo,
-      metodo_pago,
+      pagos = [],
       productos = [],
       servicios = [],
       observaciones,
@@ -166,11 +166,17 @@ exports.crearVenta = async (req, res) => {
       });
     }
 
+    if (!pagos.length) {
+      return res.status(400).json({
+        message: "Debes registrar al menos un método de pago"
+      });
+    }
+
     const venta = await registrarVenta({
       cliente,
       telefono,
       correo,
-      metodo_pago,
+      pagos,
       productos,
       servicios,
       observaciones,

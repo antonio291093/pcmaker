@@ -15,7 +15,13 @@ export default function SalesForm() {
     observaciones: '',
     telefono: '',
     correo: '',
-    metodo_pago: 'efectivo', // valor por defecto
+    requiere_factura: false
+  })
+
+  const [pagos, setPagos] = useState({
+    efectivo: 0,
+    terminal: 0,
+    transferencia: 0,
   })
 
   const [productosSeleccionados, setProductosSeleccionados] = useState<any[]>([])
@@ -68,8 +74,8 @@ export default function SalesForm() {
     return totalProductos + totalServicios
   }, [productosSeleccionados, serviciosSeleccionados])
 
-  // 🔹 si requiere factura
-  const requiereFactura = formData.metodo_pago === 'factura'
+  // 🔹 si requiere factura  
+  const requiereFactura = formData.requiere_factura
 
   // 🔹 iva calculado
   const iva = useMemo(() => {
@@ -81,13 +87,29 @@ export default function SalesForm() {
   const total = useMemo(() => {
     return subtotal + iva
   }, [subtotal, iva])
+  
+  const totalPagado = useMemo(() => {
+    return (
+      Number(pagos.efectivo) +
+      Number(pagos.terminal) +
+      Number(pagos.transferencia)
+    )
+  }, [pagos])
 
-  //Manejador de cambios
+  const cambio = totalPagado - total
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({
       ...prev,
       [name]: value
+    }))
+  }
+
+  const handlePagoChange = (metodo: string, value: string) => {
+    setPagos(prev => ({
+      ...prev,
+      [metodo]: Number(value) || 0
     }))
   }
 
@@ -194,6 +216,16 @@ export default function SalesForm() {
       }
     }
 
+    if (totalPagado !== total) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Monto incorrecto',
+        text: 'La suma de los pagos debe ser igual al total de la venta.',
+        confirmButtonColor: '#4F46E5'
+      })
+      return
+    }
+
     try {
       setLoading(true)
       const tieneProductos = productosSeleccionados.length > 0
@@ -208,7 +240,12 @@ export default function SalesForm() {
           cliente: formData.cliente,
           telefono: formData.telefono || null,
           correo: formData.correo || null,
-          metodo_pago: formData.metodo_pago,
+          pagos: Object.entries(pagos)
+          .filter(([_, monto]) => monto > 0)
+          .map(([metodo, monto]) => ({
+            metodo,
+            monto
+          })),
           observaciones: formData.observaciones,
           usuario_id: usuarioId,
           sucursal_id: sucursalId,
@@ -216,7 +253,7 @@ export default function SalesForm() {
           subtotal,
           iva,
           total,
-          requiere_factura: requiereFactura,
+          requiere_factura: formData.requiere_factura,
 
           productos: tieneProductos ? productosSeleccionados.map(p => ({
             id: p.id,
@@ -344,8 +381,15 @@ export default function SalesForm() {
         observaciones: '',
         telefono: '',
         correo: '',
-        metodo_pago: 'efectivo',
+        requiere_factura: false      
       });
+
+      setPagos({
+        efectivo: 0,
+        terminal: 0,
+        transferencia: 0
+      });
+
       setProductosSeleccionados([])
       setServiciosSeleccionados([])
 
@@ -457,7 +501,7 @@ export default function SalesForm() {
 
             {/* Total */}
             <div className='text-right mt-3 font-bold text-gray-800'>
-              {formData.metodo_pago === 'factura' && (
+              {formData.requiere_factura && (
                 <>
                   <div className="text-sm text-gray-600">
                     Subtotal: ${subtotal.toFixed(2)}
@@ -471,6 +515,22 @@ export default function SalesForm() {
               <div className="text-lg">
                 Total: ${total.toFixed(2)} MXN
               </div>
+
+              <div className="text-right mt-1 text-sm text-gray-700">
+                Pagado: <b>${totalPagado.toFixed(2)}</b>
+              </div>
+
+              {cambio > 0 && (
+                <div className="text-right text-green-600 text-sm font-semibold">
+                  Cambio: ${cambio.toFixed(2)}
+                </div>
+              )}
+
+              {totalPagado < total && (
+                <div className="text-xs text-red-500 text-right">
+                  Faltan ${(total - totalPagado).toFixed(2)}
+                </div>
+              )}
 
             </div>
           </div>
@@ -521,32 +581,113 @@ export default function SalesForm() {
           className='border rounded-md p-2 text-gray-600 resize-none textarea-minimal'
         />
 
-        <div>
-          <span className="block text-sm font-medium text-gray-700 mb-1">
-            Método de pago
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={formData.requiere_factura}
+            onChange={(e) =>
+              setFormData(prev => ({
+                ...prev,
+                requiere_factura: e.target.checked
+              }))
+            }
+          />
+          <span className="text-sm text-gray-700">
+            Requiere factura
           </span>
-          <div className="flex flex-wrap gap-4">
-            {[
-              { value: 'efectivo', label: 'Efectivo' },
-              { value: 'terminal', label: 'Terminal' },
-              { value: 'transferencia', label: 'Transferencia' },
-              { value: 'factura', label: 'Factura' },
-            ].map(op => (
-              <label key={op.value} className="inline-flex items-center space-x-2">
-                <input
-                  type="radio"
-                  name="metodo_pago"
-                  value={op.value}
-                  checked={formData.metodo_pago === op.value}
-                  onChange={handleChange}
-                  className="text-indigo-600"
-                />
-                <span className="text-sm text-gray-700">{op.label}</span>
-              </label>
-            ))}
-          </div>
         </div>
 
+        <div className="border rounded-md p-3 bg-gray-50 input-minimal">
+          <span className="block text-sm font-medium text-gray-700 mb-2">
+            Pagos
+          </span>
+
+          <div className="grid grid-cols-3 gap-3">
+
+            <div>
+              <label className="text-xs text-gray-600">Efectivo</label>              
+              <input
+                type="number"
+                min="0"
+                value={pagos.efectivo}
+                onChange={(e) => handlePagoChange("efectivo", e.target.value)}
+                className="border rounded-md p-2 w-full text-sm input-minimal"
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  setPagos({
+                    efectivo: total,
+                    terminal: 0,
+                    transferencia: 0
+                  })
+                }
+                className="w-full bg-green-600 text-white px-3 py-1 rounded-md text-xs hover:bg-green-700 mt-1"
+              >
+                Pagar todo en efectivo
+              </button>
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-600">Terminal</label>
+              <input
+                type="number"
+                min="0"
+                value={pagos.terminal}
+                onChange={(e) => handlePagoChange("terminal", e.target.value)}
+                className="border rounded-md p-2 w-full text-sm input-minimal"
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  setPagos({
+                    efectivo: 0,
+                    terminal: total,
+                    transferencia: 0
+                  })
+                }
+                className="w-full bg-blue-600 text-white px-3 py-1 rounded-md text-xs hover:bg-blue-700 mt-1"
+              >
+                Pagar con terminal
+              </button>
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-600">Transferencia</label>
+              <input
+                type="number"
+                min="0"
+                value={pagos.transferencia}
+                onChange={(e) => handlePagoChange("transferencia", e.target.value)}
+                className="border rounded-md p-2 w-full text-sm input-minimal"
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  setPagos({
+                    efectivo: 0,
+                    terminal: 0,
+                    transferencia: total
+                  })
+                }
+                className="w-full bg-purple-600 text-white px-3 py-1 rounded-md text-xs hover:bg-purple-700 mt-1"
+              >
+                Pagar con transferencia
+              </button>
+            </div>
+
+          </div>
+
+          <div className="text-right mt-2 text-sm text-gray-700">
+            Pagado: <b>${totalPagado.toFixed(2)}</b>
+          </div>
+
+          {totalPagado < total && (
+            <div className="text-xs text-red-500 text-right">
+              Faltan ${(total - totalPagado).toFixed(2)}
+            </div>
+          )}
+        </div>
 
         <button
           type="submit"
