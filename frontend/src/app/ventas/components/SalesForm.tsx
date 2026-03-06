@@ -230,6 +230,7 @@ export default function SalesForm() {
       setLoading(true)
       const tieneProductos = productosSeleccionados.length > 0
       const tieneServicios = serviciosSeleccionados.length > 0
+      const tieneEquipos = equiposVendidos.length > 0
 
       //Registrar la venta
       const ventaResp = await fetch(`${API_URL}/api/ventas`, {
@@ -290,7 +291,7 @@ export default function SalesForm() {
         )
       }
 
-      if (equiposVendidos.length > 0) {
+      if (tieneEquipos || tieneProductos) {
         const garantiaResult = await Swal.fire({
           title: 'Garantía',
           text: '¿Deseas imprimir la garantía?',

@@ -1,8 +1,6 @@
 const express = require('express')
 const router = express.Router()
-const { generarGarantia, generarGarantiaPorVenta } = require('../controllers/controladorGarantias')
-
-router.post('/garantia', generarGarantia)
+const { generarGarantiaPorVenta } = require('../controllers/controladorGarantias')
 
 router.get('/garantia/:ventaId', generarGarantiaPorVenta)
 
