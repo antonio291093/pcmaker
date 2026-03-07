@@ -257,6 +257,7 @@ export default function ReportsHistory() {
                 if (k === 'facturacion') label = 'factura'
                 if (k === 'facturacion_subtotal') label = 'factura subtotal'
                 if (k === 'facturacion_iva') label = 'factura iva'
+                if (k === 'total_sin_iva') label = 'total sin iva'
 
                 return (
                   <div key={k} className='bg-gray-50 rounded-xl p-4 shadow-sm'>

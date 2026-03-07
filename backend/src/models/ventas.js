@@ -344,6 +344,7 @@ async function obtenerReporteVentas({ from, to, sucursal_id }) {
     facturacion_subtotal: 0,
     facturacion_iva: 0,
     facturacion: 0,
+    total_sin_iva: 0,
 
     total: 0
   };
@@ -381,6 +382,8 @@ async function obtenerReporteVentas({ from, to, sucursal_id }) {
     totales.facturacion = Number(f.total) || 0;
 
   }
+
+  totales.total_sin_iva = totales.total - totales.facturacion_iva;
 
   return {
     detalle: detalle.rows,
