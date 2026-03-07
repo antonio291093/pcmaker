@@ -2,24 +2,35 @@ const fs = require('fs')
 const path = require('path')
 const { PDFDocument, StandardFonts } = require('pdf-lib')
 
-  async function generarTicketVentaPDF({
-    ventaId,
-    sucursal_id,
-    fecha,
-    cliente,
-    telefono,
-    email,
-    vendedor,
-    items,
-    subtotal,
-    iva,
-    total,
-    requiere_factura
-  }) {
-  //console.log('🧠 DATA RECIBIDA EN PDF:', fecha, cliente, telefono, email, vendedor, items, total)
+function drawRightText(page, text, x, y, font, size) {
+  const textWidth = font.widthOfTextAtSize(text, size)
+
+  page.drawText(text, {
+    x: x - textWidth,
+    y,
+    size,
+    font
+  })
+}
+
+async function generarTicketVentaPDF({
+  ventaId,
+  sucursal_id,
+  fecha,
+  cliente,
+  telefono,
+  email,
+  vendedor,
+  items,
+  subtotal,
+  iva,
+  total,
+  requiere_factura
+}) {
+
   const ticketTemplates = {
     1: 'ticket_base_saltillo.pdf',
-    2: 'ticket_base_monterrey.pdf'    
+    2: 'ticket_base_monterrey.pdf'
   }
 
   const sucursal = Number(sucursal_id)
@@ -34,78 +45,109 @@ const { PDFDocument, StandardFonts } = require('pdf-lib')
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
   const fontSize = 12
 
-  // 🔹 Header
-  page.drawText(fecha, { x: 220, y: 415, size: 12, font })
+  // HEADER
+  page.drawText(fecha || '', { x: 220, y: 415, size: 12, font })
+
   page.drawText(cliente || '', { x: 220, y: 365, size: 12, font })
+
   page.drawText(telefono || '', { x: 220, y: 345, size: 12, font })
+
   page.drawText(email || '', { x: 220, y: 325, size: 12, font })
+
   page.drawText(vendedor || '', { x: 540, y: 310, size: 12, font })
 
-  // 🔹 Items
+  // ITEMS
   let startY = 230
   const rowGap = 18
 
   items.slice(0, 12).forEach((item, index) => {
-    const y = startY - index * rowGap
 
-    page.drawText(item.descripcion, { x: 165, y, size: fontSize, font })
+    const y = startY - (index * rowGap)
 
-    page.drawText(String(item.cantidad), { x: 450, y, size: fontSize, font })
+    const cantidad = Number(item.cantidad)
+    const precioUnitario = Number(item.precio_unitario)
+    const totalItem = cantidad * precioUnitario
 
-    page.drawText(`$${item.precio_unitario.toFixed(2)}`, {
-      x: 520,
+    // descripcion
+    page.drawText(item.descripcion || '', {
+      x: 165,
       y,
       size: fontSize,
-      font,
+      font
     })
 
-    if (requiere_factura) {
-      page.drawText(`$${Number(subtotal).toFixed(2)}`, {
-        x: 600,
-        y,
-        size: 12,
-        font,
-      })
+    // cantidad
+    drawRightText(
+      page,
+      String(cantidad),
+      470,
+      y,
+      font,
+      fontSize
+    )
 
-      page.drawText("IVA:", {
-        x: 560,
-        y: 160,
-        size: 12,
-        font,
-      })
+    // precio unitario
+    drawRightText(
+      page,
+      `$${precioUnitario.toFixed(2)}`,
+      560,
+      y,
+      font,
+      fontSize
+    )
 
+    // total item
+    drawRightText(
+      page,
+      `$${totalItem.toFixed(2)}`,
+      640,
+      y,
+      font,
+      fontSize
+    )
 
-      page.drawText(`$${Number(iva).toFixed(2)}`, {
-        x: 600,
-        y: 160,
-        size: 12,
-        font,
-      })
+  })
 
-      page.drawText(`$${Number(total).toFixed(2)}`, {
-        x: 600,
-        y: 145,
-        size: 12,
-        font,
-      })
+  // TOTALES
+  if (requiere_factura) {
 
-    } else {
-      page.drawText(`$${Number(total).toFixed(2)}`, {
-        x: 600,
-        y,
-        size: 12,
-        font,
-      })
+    page.drawText("IVA:", {
+      x: 560,
+      y: 160,
+      size: 12,
+      font
+    })
 
-      page.drawText(`$${Number(total).toFixed(2)}`, {
-        x: 600,
-        y: 145,
-        size: 12,
-        font,
-      })
+    drawRightText(
+      page,
+      `$${Number(iva).toFixed(2)}`,
+      640,
+      160,
+      font,
+      12
+    )
 
-    }
-  })  
+    drawRightText(
+      page,
+      `$${Number(total).toFixed(2)}`,
+      640,
+      145,
+      font,
+      12
+    )
+
+  } else {
+
+    drawRightText(
+      page,
+      `$${Number(total).toFixed(2)}`,
+      640,
+      145,
+      font,
+      12
+    )
+
+  }
 
   return await pdfDoc.save()
 }
