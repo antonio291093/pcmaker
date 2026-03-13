@@ -95,9 +95,7 @@ async function obtenerMantenimientosPendientesParaVenta({ sucursal_id }) {
     JOIN catalogo_mantenimiento cm ON m.catalogo_id = cm.id
     WHERE
       m.estado = 'pendiente'
-      AND m.sucursal_id = $1
-      AND m.fecha_mantenimiento >= date_trunc('week', CURRENT_DATE)
-      AND m.fecha_mantenimiento < date_trunc('week', CURRENT_DATE) + INTERVAL '7 days'
+      AND m.sucursal_id = $1      
     ORDER BY m.fecha_mantenimiento DESC;
   `;
 
