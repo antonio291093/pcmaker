@@ -28,6 +28,7 @@ import type { Etiqueta } from './Types';
 import EquipoTraspasoModal from "./EquiposTraspasoModal";
 import { Equipo } from './Types';
 import { Categoria } from './Types'
+import { ItemEtiqueta } from './Types'
 
 import { useUser } from '@/context/UserContext'
 
@@ -74,6 +75,33 @@ export interface EquipoArmado {
   almacenamientos_ids?: number[];
 }
 
+type EquipoInventario = {
+  id: number
+  nombre: string
+  procesador?: string
+  memorias_ram?: string[]
+  almacenamientos?: string[]
+  precio: number
+  estado: string
+  sucursal_nombre?: string
+  cantidad: number
+  serie?: string
+  etiqueta?: string
+  origen: "armado" | "recepcion_directa"
+}
+
+function esEquipoArmado(
+  eq: EquipoInventario
+): eq is EquipoInventario & EquipoArmado {
+  return eq.origen === "armado";
+}
+
+function esRecepcionDirecta(
+  eq: EquipoInventario
+): eq is EquipoInventario & RecepcionDirectaItem {
+  return eq.origen === "recepcion_directa";
+}
+
 export default function InventoryHardwareSection() {  
   const [loading, setLoading] = useState(true);  
   const [editandoInventario, setEditandoInventario] = useState<InventarioItem | null>(null);
@@ -89,11 +117,12 @@ export default function InventoryHardwareSection() {
   const [equiposArmados, setEquiposArmados] = useState<EquipoArmado[]>([]);
   const [inventarioFiltrado, setInventarioFiltrado] = useState<any[]>([]);  
   const [recepcionDirecta, setRecepcionDirecta] = useState<any[]>([]);
-  const [equiposFiltrados, setEquiposFiltrados] = useState<any[]>([]);
+  const [equiposFiltrados, setEquiposFiltrados] = useState<EquipoInventario[]>([]);
   const [equipoParaTraspaso, setEquipoParaTraspaso] = useState<Equipo | null>(null); 
   const [equipos, setEquipos] = useState<Equipo[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);  
   const [editandoRecepcionDirecta, setEditandoRecepcionDirecta] =useState<RecepcionDirectaItem | null>(null);
+  const [vistaTabla, setVistaTabla] = useState(false);
   
   const normalizarRecepcionDirecta = useCallback((items: any[]) => {
     return items.map(i => ({
@@ -102,9 +131,9 @@ export default function InventoryHardwareSection() {
     }));
   }, []);
 
-  const equiposUnificados = useMemo(() => {
+  const equiposUnificados = useMemo<EquipoInventario[]>(() => {
     return [
-      ...equiposArmados.map(e => ({ ...e, origen: 'armado' })),
+      ...equiposArmados.map(e => ({ ...e, origen: 'armado' as const })),
       ...normalizarRecepcionDirecta(recepcionDirecta)
     ];
   }, [equiposArmados, recepcionDirecta]);
@@ -1136,7 +1165,7 @@ export default function InventoryHardwareSection() {
     return <FaQuestionCircle className="text-gray-400 text-3xl" />;
   };
 
-  const imprimirEtiquetasInventario = (item: InventarioItem) => {
+  const imprimirEtiquetasInventario = (item: ItemEtiqueta) => {
     if (!item.sku || !item.barcode) return;
 
     setEtiquetasImpresion([
@@ -1170,6 +1199,34 @@ export default function InventoryHardwareSection() {
     );
   }, [skuBusqueda, inventario, equiposUnificados]);
 
+
+  const equiposAgrupados = Object.values(
+    equiposFiltrados.reduce<Record<string, EquipoInventario>>((acc, eq) => {
+
+      const ram = eq.memorias_ram?.join(", ") || "N/A"
+      const almacenamiento = eq.almacenamientos?.join(", ") || "N/A"
+
+      const key = [
+        eq.nombre,
+        eq.procesador,
+        ram,
+        almacenamiento,
+        eq.precio,
+        eq.sucursal_nombre
+      ].join("|")
+
+      if (!acc[key]) {
+        acc[key] = {
+          ...eq,
+          cantidad: eq.cantidad ?? 0
+        }
+      } else {
+        acc[key].cantidad = (acc[key].cantidad ?? 0) + (eq.cantidad ?? 0)
+      }
+
+      return acc
+    }, {})
+  )
 
   if (loading) {
     return <div className="text-center text-gray-500 py-6">Cargando inventario...</div>;
@@ -1233,6 +1290,13 @@ export default function InventoryHardwareSection() {
             <FaPlus /> Agregar
           </button>
 
+          <button
+            onClick={() => setVistaTabla(!vistaTabla)}
+            className="flex items-center gap-2 bg-gray-600 text-white px-3 py-2 rounded-lg shadow hover:bg-gray-700"
+          >
+            {vistaTabla ? 'Vista Cards' : 'Vista Tabla'}
+          </button>
+
         </div>
       </div>      
 
@@ -1243,75 +1307,153 @@ export default function InventoryHardwareSection() {
         </p>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-        {inventarioFiltrado.map((item) => (
-          <motion.div
-            key={item.id}
-            whileHover={{ scale: 1.02 }}
-            className={`p-4 rounded-lg shadow-sm flex flex-col items-start
-              ${skuBusqueda
-                ? 'border-2 border-indigo-500 bg-indigo-50'
-                : 'border border-gray-100 bg-gray-50'}
-            `}
-          >
-            <div className="flex items-center gap-3 mb-2">
-              {obtenerIcono(item.tipo, item.especificacion || item.descripcion)}
-              <span className="font-semibold text-gray-800">
-                {item.descripcion || item.especificacion}
+      {!vistaTabla && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+          {inventarioFiltrado.map((item) => (
+            <motion.div
+              key={item.id}
+              whileHover={{ scale: 1.02 }}
+              className={`p-4 rounded-lg shadow-sm flex flex-col items-start
+                ${skuBusqueda
+                  ? 'border-2 border-indigo-500 bg-indigo-50'
+                  : 'border border-gray-100 bg-gray-50'}
+              `}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                {obtenerIcono(item.tipo, item.especificacion || item.descripcion)}
+                <span className="font-semibold text-gray-800">
+                  {item.descripcion || item.especificacion}
+                </span>
+              </div>
+              {item.cantidad > 0 ? (
+                    <span className="text-sm text-gray-700">
+                      📦 Stock disponible: {item.cantidad}
+                    </span>
+                  ) : (
+                    <span className="text-sm text-red-500 font-medium">
+                      🚫 Sin stock
+                    </span>
+                  )}            
+              <span className="text-sm text-gray-600">
+                💲 Precio: {Number(item.precio || 0).toFixed(2)} MXN
               </span>
-            </div>
-            {item.cantidad > 0 ? (
-                  <span className="text-sm text-gray-700">
-                    📦 Stock disponible: {item.cantidad}
-                  </span>
-                ) : (
-                  <span className="text-sm text-red-500 font-medium">
-                    🚫 Sin stock
-                  </span>
-                )}            
-            <span className="text-sm text-gray-600">
-              💲 Precio: {Number(item.precio || 0).toFixed(2)} MXN
-            </span>
-            <span className="text-xs text-gray-400 mt-1">Estado: {item.estado}</span>
+              <span className="text-xs text-gray-400 mt-1">Estado: {item.estado}</span>
 
-            <div className="flex gap-3 mt-4 items-center">
-              <button
-                onClick={() => setEditandoInventario(item)}
-                className="text-blue-600 hover:text-blue-800"
-                title="Editar"
-              >
-                <FaEdit />
-              </button>
+              <div className="flex gap-3 mt-4 items-center">
+                <button
+                  onClick={() => setEditandoInventario(item)}
+                  className="text-blue-600 hover:text-blue-800"
+                  title="Editar"
+                >
+                  <FaEdit />
+                </button>
 
-              <button
-                onClick={() => eliminarInventario(item.id)}
-                className="text-red-500 hover:text-red-700"
-                title="Eliminar"
-              >
-                <FaTrash />
-              </button>
+                <button
+                  onClick={() => eliminarInventario(item.id)}
+                  className="text-red-500 hover:text-red-700"
+                  title="Eliminar"
+                >
+                  <FaTrash />
+                </button>
 
-              <button
-                onClick={() => subirImagenCatalogo(item.id)}
-                className="bg-indigo-600 text-white px-3 py-1 rounded text-sm hover:bg-indigo-700"
-              >
-                Imagen Catálogo
-              </button>
+                <button
+                  onClick={() => subirImagenCatalogo(item.id)}
+                  className="bg-indigo-600 text-white px-3 py-1 rounded text-sm hover:bg-indigo-700"
+                >
+                  Imagen Catálogo
+                </button>
 
-                {/* 🏷️ Imprimir etiquetas (solo si fue generado) */}
-                {item.es_codigo_generado && item.sku && item.barcode && (
-                  <button
-                    onClick={() => imprimirEtiquetasInventario(item)}
-                    className="text-green-600 hover:text-green-800"
-                    title="Imprimir etiquetas"
-                  >
-                    <FaDownload />
-                  </button>
-                )}              
-            </div>
-          </motion.div>
-        ))}
-      </div>
+                  {/* 🏷️ Imprimir etiquetas (solo si fue generado) */}
+                  {item.es_codigo_generado && item.sku && item.barcode && (
+                    <button
+                      onClick={() => imprimirEtiquetasInventario(item)}
+                      className="text-green-600 hover:text-green-800"
+                      title="Imprimir etiquetas"
+                    >
+                      <FaDownload />
+                    </button>
+                  )}              
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {vistaTabla && (
+        <div className="overflow-x-auto mb-8">
+          <table className="min-w-full text-sm border border-gray-200 rounded-xl overflow-hidden">
+            
+            <thead className="bg-gray-50 text-gray-600 text-xs uppercase tracking-wider">
+              <tr>
+                <th className="px-4 py-3 text-left font-medium">Producto</th>
+                <th className="px-4 py-3 text-left font-medium">Stock</th>
+                <th className="px-4 py-3 text-left font-medium">Precio</th>
+                <th className="px-4 py-3 text-left font-medium">Estado</th>
+                <th className="px-4 py-3 text-left font-medium">Acciones</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {inventarioFiltrado.map((item) => (
+                <tr key={item.id} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">                  
+
+                  <td className="px-3 py-2">
+                    {item.descripcion || item.especificacion}
+                  </td>                  
+
+                  <td className="px-3 py-2">
+                    {item.cantidad > 0 ? (
+                      <span className="text-green-700 font-medium">
+                        {item.cantidad}
+                      </span>
+                    ) : (
+                      <span className="text-red-500 font-medium">
+                        Sin stock
+                      </span>
+                    )}
+                  </td>
+
+                  <td className="px-3 py-2">
+                    ${Number(item.precio || 0).toFixed(2)}
+                  </td>
+
+                  <td className="px-3 py-2">
+                    {item.estado}
+                  </td>
+
+                  <td className="px-3 py-2 flex gap-3">
+
+                    <button
+                      onClick={() => setEditandoInventario(item)}
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      <FaEdit />
+                    </button>
+
+                    <button
+                      onClick={() => eliminarInventario(item.id)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <FaTrash />
+                    </button>                    
+
+                    <button
+                      onClick={() => subirImagenCatalogo(item.id)}
+                      className="text-indigo-600 hover:text-indigo-800"
+                      title="Imagen catálogo"
+                    >
+                      <FaCamera />
+                    </button>
+
+                  </td>
+
+                </tr>
+              ))}
+            </tbody>
+
+          </table>
+        </div>
+      )}
 
       {/* === EQUIPOS ARMADOS === */}
       <h2 className="font-semibold text-lg text-gray-700 mb-4 flex items-center gap-2">
@@ -1325,132 +1467,213 @@ export default function InventoryHardwareSection() {
         </p>
       )}
 
-      {equiposFiltrados.length === 0 && !skuBusqueda ? (
-        <p className="text-gray-500 text-center py-4">
-          No hay equipos armados registrados.
-        </p>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-          {equiposFiltrados.map((eq) => (
-            <motion.div
-              key={eq.id}
-              whileHover={{ scale: 1.02 }}
-              className={`p-5 rounded-2xl shadow-md flex flex-col justify-between
-                ${skuBusqueda
-                  ? 'border-2 border-indigo-500 bg-indigo-50'
-                  : 'border border-gray-200 bg-white'}
-              `}
-            >
-              {/* 🔹 Encabezado */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-semibold text-gray-800 text-lg leading-tight">
+      {!vistaTabla && (
+        <>
+          {equiposFiltrados.length === 0 && !skuBusqueda ? (
+            <p className="text-gray-500 text-center py-4">
+              No hay equipos armados registrados.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+              {equiposFiltrados.map((eq) => (
+                <motion.div
+                  key={eq.id}
+                  whileHover={{ scale: 1.02 }}
+                  className={`p-5 rounded-2xl shadow-md flex flex-col justify-between
+                    ${skuBusqueda
+                      ? 'border-2 border-indigo-500 bg-indigo-50'
+                      : 'border border-gray-200 bg-white'}
+                  `}
+                >
+                  {/* 🔹 Encabezado */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-semibold text-gray-800 text-lg leading-tight">
+                        {eq.nombre}
+                      </h3>
+                      <span className="text-xs text-gray-500 font-mono">
+                        #{eq.etiqueta}
+                      </span>
+                    </div>
+                    {eq.cantidad > 0 ? (
+                      <span className="text-sm text-gray-700">
+                        📦 Stock disponible: {eq.cantidad}
+                      </span>
+                    ) : (
+                      <span className="text-sm text-red-500 font-medium">
+                        🚫 Sin stock
+                      </span>
+                    )}
+
+
+                    {/* 🔹 Especificaciones */}
+                    <div className="space-y-1 mt-2 text-sm text-gray-600">
+                      <p>🧠 {eq.procesador}</p>
+                      <p>💾 RAM: {eq.memorias_ram?.join(", ") || "N/A"}</p>
+                      <p>📦 Almacenamiento: {eq.almacenamientos?.join(", ") || "N/A"}</p>
+                      <span
+                        className="text-xs text-blue-500 cursor-pointer hover:underline mt-1"
+                        onClick={() => abrirModalTraspaso(eq.id)}
+                      >
+                        Sucursal: {eq.sucursal_nombre ?? "Sin asignar"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 🔹 Precio y estado */}
+                  <div className="mt-4 pt-3 border-t border-gray-100">
+                    <p className="text-base font-semibold text-green-700">
+                      💲 Precio: {Number(eq.precio || 0).toFixed(2)} MXN
+                    </p>
+                    <p className="text-xs text-gray-400">Estado: {eq.estado}</p>                
+                    {/* 🔹 Botones de acción */}
+                    <div className="flex gap-4 mt-3 items-center">
+                      {esEquipoArmado(eq) && (
+                        <>
+                          <button
+                            onClick={() => setEditandoEquipo(eq)}
+                            className="text-blue-600 hover:text-blue-800"
+                            title="Editar equipo"
+                          >
+                            <FaEdit />
+                          </button>
+
+                          <button
+                            onClick={() => eliminarInventario(eq.id)}
+                            className="text-red-500 hover:text-red-700"
+                            title="Eliminar equipo"
+                          >
+                            <FaTrash />
+                          </button>
+
+                          <button
+                            onClick={() => subirImagenCatalogo(eq.id)}
+                            className="bg-indigo-600 text-white px-3 py-1 rounded text-sm hover:bg-indigo-700"
+                          >
+                            Imagen Catálogo
+                          </button>
+                        </>
+                      )}
+
+                      {esRecepcionDirecta(eq) && (
+                        <>
+                          <button
+                            onClick={() => setEditandoRecepcionDirecta(eq)}
+                            className="text-blue-600 hover:text-blue-800"
+                            title="Editar inventario"
+                          >
+                            <FaEdit />
+                          </button>
+
+                          <button
+                            onClick={() => imprimirEtiquetasInventario(eq as any)}
+                            className="text-green-600 hover:text-green-800"
+                            title="Imprimir etiquetas"
+                          >
+                            <FaDownload />
+                          </button>
+
+                          <button
+                            onClick={() => subirImagenCatalogo(eq.id)}
+                            className="bg-indigo-600 text-white px-3 py-1 rounded text-sm hover:bg-indigo-700"
+                          >
+                            Imagen Catálogo
+                          </button>
+
+                          {user.rol_id === 1 && (
+                            <button
+                              onClick={() => eliminarRecepcionDirecta(eq.id)}
+                              className="text-red-500 hover:text-red-700"
+                              title="Eliminar inventario"
+                            >
+                              <FaTrash />
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {vistaTabla && (
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm border border-gray-200 rounded-xl overflow-hidden">
+
+            <thead className="bg-gray-50 text-gray-600 text-xs uppercase tracking-wider">
+              <tr className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
+                <th className="px-4 py-3 text-left font-medium">Equipo</th>                
+                <th className="px-4 py-3 text-left font-medium">Stock</th>
+                <th className="px-4 py-3 text-left font-medium">Procesador</th>
+                <th className="px-4 py-3 text-left font-medium">RAM</th>
+                <th className="px-4 py-3 text-left font-medium">Almacenamiento</th>
+                <th className="px-4 py-3 text-left font-medium">Sucursal</th>
+                <th className="px-4 py-3 text-left font-medium">Precio</th>
+                <th className="px-4 py-3 text-left font-medium">Estado</th>                
+              </tr>
+            </thead>
+
+            <tbody>
+              {equiposAgrupados.map((eq) => (
+                <tr
+                  key={eq.id}
+                  className={`border-t border-gray-100 hover:bg-gray-50 transition-colors
+                    ${skuBusqueda ? 'bg-indigo-50' : ''}
+                  `}
+                >
+
+                  <td className="px-3 py-2 font-medium">
                     {eq.nombre}
-                  </h3>
-                  <span className="text-xs text-gray-500 font-mono">
-                    #{eq.etiqueta}
-                  </span>
-                </div>
-                {eq.cantidad > 0 ? (
-                  <span className="text-sm text-gray-700">
-                    📦 Stock disponible: {eq.cantidad}
-                  </span>
-                ) : (
-                  <span className="text-sm text-red-500 font-medium">
-                    🚫 Sin stock
-                  </span>
-                )}
+                  </td>                  
 
+                  <td className="px-3 py-2">
+                    {eq.cantidad > 0 ? (
+                      <span className="text-green-700 font-medium">
+                        {eq.cantidad}
+                      </span>
+                    ) : (
+                      <span className="text-red-500 font-medium">
+                        Sin stock
+                      </span>
+                    )}
+                  </td>
 
-                {/* 🔹 Especificaciones */}
-                <div className="space-y-1 mt-2 text-sm text-gray-600">
-                  <p>🧠 {eq.procesador}</p>
-                  <p>💾 RAM: {eq.memorias_ram?.join(", ") || "N/A"}</p>
-                  <p>📦 Almacenamiento: {eq.almacenamientos?.join(", ") || "N/A"}</p>
-                  <span
-                    className="text-xs text-blue-500 cursor-pointer hover:underline mt-1"
+                  <td className="px-3 py-2">
+                    {eq.procesador}
+                  </td>
+
+                  <td className="px-3 py-2">
+                    {eq.memorias_ram?.join(", ") || "N/A"}
+                  </td>
+                  
+                  <td className="px-3 py-2">
+                    {eq.almacenamientos?.join(", ") || "N/A"}
+                  </td>
+
+                  <td
+                    className="px-3 py-2 text-blue-600 cursor-pointer hover:underline"
                     onClick={() => abrirModalTraspaso(eq.id)}
                   >
-                    Sucursal: {eq.sucursal_nombre ?? "Sin asignar"}
-                  </span>
-                </div>
-              </div>
+                    {eq.sucursal_nombre ?? "Sin asignar"}
+                  </td>
 
-              {/* 🔹 Precio y estado */}
-              <div className="mt-4 pt-3 border-t border-gray-100">
-                <p className="text-base font-semibold text-green-700">
-                  💲 Precio: {Number(eq.precio || 0).toFixed(2)} MXN
-                </p>
-                <p className="text-xs text-gray-400">Estado: {eq.estado}</p>                
-                {/* 🔹 Botones de acción */}
-                <div className="flex gap-4 mt-3 items-center">
-                  {eq.origen === 'armado' && (
-                    <>
-                      <button
-                        onClick={() => setEditandoEquipo(eq)}
-                        className="text-blue-600 hover:text-blue-800"
-                        title="Editar equipo"
-                      >
-                        <FaEdit />
-                      </button>
+                  <td className="px-3 py-2 text-green-700 font-semibold">
+                    ${Number(eq.precio || 0).toFixed(2)}
+                  </td>
 
-                      <button
-                        onClick={() => eliminarInventario(eq.id)}
-                        className="text-red-500 hover:text-red-700"
-                        title="Eliminar equipo"
-                      >
-                        <FaTrash />
-                      </button>
+                  <td className="px-3 py-2 text-gray-500">
+                    {eq.estado}
+                  </td>                  
 
-                      <button
-                        onClick={() => subirImagenCatalogo(eq.id)}
-                        className="bg-indigo-600 text-white px-3 py-1 rounded text-sm hover:bg-indigo-700"
-                      >
-                        Imagen Catálogo
-                      </button>
-                    </>
-                  )}
+                </tr>
+              ))}
+            </tbody>
 
-                  {eq.origen === 'recepcion_directa' && (
-                    <>
-                      <button
-                        onClick={() => setEditandoRecepcionDirecta(eq)}
-                        className="text-blue-600 hover:text-blue-800"
-                        title="Editar inventario"
-                      >
-                        <FaEdit />
-                      </button>
-
-                      <button
-                        onClick={() => imprimirEtiquetasInventario(eq)}
-                        className="text-green-600 hover:text-green-800"
-                        title="Imprimir etiquetas"
-                      >
-                        <FaDownload />
-                      </button>
-
-                      <button
-                        onClick={() => subirImagenCatalogo(eq.id)}
-                        className="bg-indigo-600 text-white px-3 py-1 rounded text-sm hover:bg-indigo-700"
-                      >
-                        Imagen Catálogo
-                      </button>
-
-                      {user.rol_id === 1 && (
-                        <button
-                          onClick={() => eliminarRecepcionDirecta(eq.id)}
-                          className="text-red-500 hover:text-red-700"
-                          title="Eliminar inventario"
-                        >
-                          <FaTrash />
-                        </button>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          ))}
+          </table>
         </div>
       )}
 
@@ -1468,6 +1691,7 @@ export default function InventoryHardwareSection() {
           }}
           onClose={() => setEquipoParaTraspaso(null)}
         />
+        
       )}      
 
       <EtiquetaA4Modal

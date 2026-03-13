@@ -9,6 +9,7 @@ export interface Equipo {
   sucursal_id?: number;
   sucursal_nombre?: string;
   origen: 'tecnico' | 'recepcion_directa';
+  cantidad?: number
 }
 
 // Etiqueta preliminar (ANTES de guardar / imprimir)
@@ -28,3 +29,10 @@ export type Categoria = {
   id: number
   descripcion: string
 }
+
+export type ItemEtiqueta = Partial<{
+  sku: string
+  barcode: string
+  descripcion: string
+  especificacion: string
+}>
