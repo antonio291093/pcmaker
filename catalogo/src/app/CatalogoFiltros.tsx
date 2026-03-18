@@ -17,33 +17,51 @@ type Categoria = {
   descripcion: string
 }
 
+type Sucursal = {
+  id: number
+  nombre: string
+}
+
+
 export default function CatalogoFiltros({
   categorias,
+  sucursales,
   itemsIniciales
 }: {
   categorias: Categoria[]
+  sucursales: Sucursal[]
   itemsIniciales: Item[]
 }) {
 
   const [items, setItems] = useState<Item[]>(itemsIniciales)
   const [categoriaActiva, setCategoriaActiva] = useState<number | null>(null)
+  const [sucursalActiva, setSucursalActiva] = useState<number | null>(null)
 
-  async function cargarCategoria(id: number | null) {
+  async function cargarFiltros(
+    categoriaId: number | null,
+    sucursalId: number | null
+  ) {
+    setCategoriaActiva(categoriaId)
+    setSucursalActiva(sucursalId)
 
-    setCategoriaActiva(id)
+    let url = `${API_URL}/api/catalogo?`
 
-    let url = `${API_URL}/api/catalogo`
+    const params = new URLSearchParams()
 
-    if (id) {
-      url += `?categoria_catalogo_id=${id}`
+    if (categoriaId) {
+      params.append("categoria_catalogo_id", categoriaId.toString())
     }
 
-    const res = await fetch(url)
+    if (sucursalId) {
+      params.append("sucursal_id", sucursalId.toString())
+    }
 
+    url += params.toString()
+
+    const res = await fetch(url)
     const data = await res.json()
 
     setItems(data)
-
   }
 
   return (
@@ -54,7 +72,7 @@ export default function CatalogoFiltros({
       <div className="flex flex-wrap gap-2 mb-6">
 
         <button
-          onClick={() => cargarCategoria(null)}
+          onClick={() => cargarFiltros(null, sucursalActiva)}
           className={`px-4 py-2 rounded border ${
             categoriaActiva === null
             ? "bg-indigo-600 text-white"
@@ -64,11 +82,39 @@ export default function CatalogoFiltros({
           Todos
         </button>
 
+        {/* SUCURSALES */}        
+          <button
+            onClick={() => cargarFiltros(categoriaActiva, null)}
+            className={`px-4 py-2 rounded border ${
+              sucursalActiva === null
+                ? "bg-indigo-600 text-white"
+                : "bg-white"
+            }`}
+          >
+            Todas las sucursales
+          </button>
+
+          {sucursales.map(suc => (
+
+            <button
+              key={suc.id}
+              onClick={() => cargarFiltros(categoriaActiva, suc.id)}
+              className={`px-4 py-2 rounded border ${
+                sucursalActiva === suc.id
+                  ? "bg-indigo-600 text-white"
+                  : "bg-white"
+              }`}
+            >
+              {suc.nombre}
+            </button>
+
+          ))}        
+
         {categorias.map(cat => (
 
           <button
             key={cat.id}
-            onClick={() => cargarCategoria(cat.id)}
+            onClick={() => cargarFiltros(cat.id, sucursalActiva)}
             className={`px-4 py-2 rounded border ${
               categoriaActiva === cat.id
               ? "bg-indigo-600 text-white"

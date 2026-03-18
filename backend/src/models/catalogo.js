@@ -2,6 +2,7 @@ const pool = require('../config/db')
 
 exports.obtenerCatalogo = async ({
   categoria_catalogo_id,
+  sucursal_id,
   limit
 }) => {
 
@@ -27,7 +28,7 @@ exports.obtenerCatalogo = async ({
   let index = 1
 
   // 🔹 Filtro categoría
-  if (categoria_catalogo_id) {
+  if (categoria_catalogo_id != null) {
 
     query += `
       AND i.categoria_catalogo_id = $${index}
@@ -39,12 +40,25 @@ exports.obtenerCatalogo = async ({
 
   }
 
+  // 🔹 Filtro sucursal
+  if (sucursal_id != null) {
+
+    query += `
+      AND i.sucursal_id = $${index}
+    `
+
+    params.push(sucursal_id)
+
+    index++
+
+  }
+
   query += `
     ORDER BY i.id DESC
   `
 
   // 🔹 Límite
-  if (limit) {
+  if (limit != null) {
 
     query += `
       LIMIT $${index}

@@ -9,10 +9,11 @@ exports.obtenerCatalogo = async (req, res) => {
 
   try {
 
-    const { categoria_catalogo_id, limit } = req.query;
+    const { categoria_catalogo_id, sucursal_id, limit } = req.query;
 
     const items = await catalogoModel.obtenerCatalogo({
       categoria_catalogo_id,
+      sucursal_id,
       limit
     });
 

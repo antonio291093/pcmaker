@@ -14,6 +14,19 @@ type Categoria = {
   descripcion: string
 }
 
+type Sucursal = {
+  id: number
+  nombre: string
+}
+
+async function getSucursales(): Promise<Sucursal[]> {
+  const res = await fetch(`${API_URL}/api/sucursales`, {
+    cache: "no-store"
+  })
+
+  return res.json()
+}
+
 async function getCatalogo(): Promise<Item[]> {
 
   const res = await fetch(`${API_URL}/api/catalogo`, {
@@ -39,6 +52,7 @@ export default async function CatalogoPage() {
 
   const items = await getCatalogo()
   const categorias = await getCategorias()
+  const sucursales = await getSucursales()
 
   return (
 
@@ -55,6 +69,7 @@ export default async function CatalogoPage() {
 
       <CatalogoFiltros
         categorias={categorias}
+        sucursales={sucursales}
         itemsIniciales={items}
       />
 

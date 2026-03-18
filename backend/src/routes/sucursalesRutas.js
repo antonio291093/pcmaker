@@ -7,7 +7,7 @@ const authMiddleware = require("../middlewares/authMiddleware");
 router.post("/", authMiddleware, sucursalesController.crearSucursal);
 
 // Obtener todas las sucursales
-router.get("/", authMiddleware, sucursalesController.obtenerSucursales);
+router.get("/", sucursalesController.obtenerSucursales);
 
 // Obtener sucursal por ID
 router.get("/:id", authMiddleware, sucursalesController.obtenerSucursalPorId);
