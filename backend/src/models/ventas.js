@@ -226,7 +226,7 @@ async function obtenerReporteVentas({ from, to, sucursal_id }) {
         SELECT string_agg(metodo_pago, ' + ')
         FROM ventas_pagos vp
         WHERE vp.venta_id = v.id
-      ) AS pago,
+      ) AS metodo_pago,
       v.fecha_venta::date AS fecha_venta,
 
       -- ✅ Subtotal calculado (CLAVE)
