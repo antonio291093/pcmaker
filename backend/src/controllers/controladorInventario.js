@@ -20,6 +20,7 @@ const {
   traspasarInventario,
   eliminarInventarioRecepcionDirecta,
   actualizarRecepcionDirecta,
+  actualizarVisibleCatalogo,
 } = require("../models/inventario");
 
 exports.eliminarRecepcionDirecta = async (req, res) => {
@@ -136,6 +137,35 @@ exports.actualizarRecepcionDirecta = async (req, res) => {
 
   }
 
+};
+
+exports.actualizarVisibleCatalogo = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { visible_catalogo } = req.body;
+
+    // 🔒 Validación básica
+    if (typeof visible_catalogo !== "boolean") {
+      return res.status(400).json({
+        message: "visible_catalogo debe ser boolean",
+      });
+    }
+
+    const actualizado = await actualizarVisibleCatalogo(id, visible_catalogo);
+
+    if (!actualizado) {
+      return res.status(404).json({
+        message: "Inventario no encontrado",
+      });
+    }
+
+    res.json(actualizado);
+  } catch (error) {
+    console.error("Error al actualizar visible_catalogo:", error);
+    res.status(500).json({
+      message: "Error al actualizar visibilidad",
+    });
+  }
 };
 
 exports.registrarRecepcionDirecta = async (req, res) => {

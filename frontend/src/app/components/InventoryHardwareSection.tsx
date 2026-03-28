@@ -45,7 +45,8 @@ interface InventarioItem {
   sku?: string;
   es_codigo_generado?: boolean;
   barcode?: string;
-  categoria_catalogo_id:number
+  categoria_catalogo_id:number;
+  visible_catalogo?: boolean; 
 }
 
 interface RecepcionDirectaItem {
@@ -67,6 +68,7 @@ export interface EquipoArmado {
   disponibilidad: boolean;
   serie:string;
   categoria_catalogo_id: number;
+  visible_catalogo?: boolean; 
 
   // 🔹 Estas pueden o no existir al momento de enviar el payload
   memorias_ram?: string[];
@@ -88,6 +90,7 @@ type EquipoInventario = {
   serie?: string
   etiqueta?: string
   origen: "armado" | "recepcion_directa"
+  visible_catalogo?: boolean 
 }
 
 function esEquipoArmado(
@@ -137,6 +140,53 @@ export default function InventoryHardwareSection() {
       ...normalizarRecepcionDirecta(recepcionDirecta)
     ];
   }, [equiposArmados, recepcionDirecta]);
+
+  const toggleVisibleCatalogo = async (id: number, value: boolean) => {
+    try {
+      // 🔥 Optimista (UI rápida)
+      setInventario(prev =>
+        prev.map(i =>
+          i.id === id ? { ...i, visible_catalogo: value } : i
+        )
+      );
+
+      setEquiposArmados(prev =>
+        prev.map(e =>
+          e.id === id ? { ...e, visible_catalogo: value } : e
+        )
+      );
+
+      setRecepcionDirecta(prev =>
+        prev.map((i: any) =>
+          i.id === id ? { ...i, visible_catalogo: value } : i
+        )
+      );
+
+      const res = await fetch(
+        `${API_URL}/api/inventario/${id}/visible-catalogo`,
+        {
+          method: "PUT",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            visible_catalogo: value,
+          }),
+        }
+      );
+
+      if (!res.ok) throw new Error();
+
+    } catch (error) {
+      Swal.fire("Error", "No se pudo actualizar visibilidad", "error");
+
+      // ❌ rollback
+      cargarInventario();
+      cargarEquiposArmados();
+      cargarRecepcionDirecta();
+    }
+  };
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -1363,6 +1413,20 @@ export default function InventoryHardwareSection() {
                   Imagen Catálogo
                 </button>
 
+                <div className="flex items-center gap-2 mt-2">
+                  <input
+                    type="checkbox"
+                    checked={!!item.visible_catalogo}
+                    onChange={(e) =>
+                      toggleVisibleCatalogo(item.id, e.target.checked)
+                    }
+                    className="w-4 h-4"
+                  />
+                  <span className="text-xs text-gray-600">
+                    Visible catálogo
+                  </span>
+                </div>
+
                   {/* 🏷️ Imprimir etiquetas (solo si fue generado) */}
                   {item.es_codigo_generado && item.sku && item.barcode && (
                     <button
@@ -1552,6 +1616,20 @@ export default function InventoryHardwareSection() {
                           >
                             Imagen Catálogo
                           </button>
+
+                          <div className="flex items-center gap-2 mt-2">
+                            <input
+                              type="checkbox"
+                              checked={!!eq.visible_catalogo}
+                              onChange={(e) =>
+                                toggleVisibleCatalogo(eq.id, e.target.checked)
+                              }
+                              className="w-4 h-4"
+                            />
+                            <span className="text-xs text-gray-600">
+                              Visible catálogo
+                            </span>
+                          </div>
                         </>
                       )}
 
@@ -1579,6 +1657,20 @@ export default function InventoryHardwareSection() {
                           >
                             Imagen Catálogo
                           </button>
+
+                          <div className="flex items-center gap-2 mt-2">
+                            <input
+                              type="checkbox"
+                              checked={!!eq.visible_catalogo}
+                              onChange={(e) =>
+                                toggleVisibleCatalogo(eq.id, e.target.checked)
+                              }
+                              className="w-4 h-4"
+                            />
+                            <span className="text-xs text-gray-600">
+                              Visible catálogo
+                            </span>
+                          </div>
 
                           {user.rol_id === 1 && (
                             <button

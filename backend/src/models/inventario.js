@@ -645,7 +645,8 @@ async function obtenerInventario(sucursalId = null) {
       i.es_codigo_generado,
       i.barcode,
       i.sku,
-      i.categoria_catalogo_id
+      i.categoria_catalogo_id,
+      COALESCE(i.visible_catalogo, false) AS visible_catalogo
     FROM inventario i
     LEFT JOIN catalogo_memoria_ram cm ON i.memoria_ram_id = cm.id
     LEFT JOIN catalogo_almacenamiento ca ON i.almacenamiento_id = ca.id
@@ -680,6 +681,7 @@ async function obtenerEquiposArmados(sucursalId = null) {
       i.cantidad,
       i.disponibilidad,
       i.categoria_catalogo_id,
+      COALESCE(i.visible_catalogo, false) AS visible_catalogo,
       -- Agrupa las memorias RAM asociadas
       COALESCE(
         (
@@ -1050,6 +1052,7 @@ async function obtenerInventarioRecepcionDirecta(sucursalId = null) {
       i.cantidad,
       i.disponibilidad,
       i.categoria_catalogo_id,
+      COALESCE(i.visible_catalogo, false) AS visible_catalogo,
 
       -- 🧠 RAM
       COALESCE(
@@ -1098,7 +1101,8 @@ async function obtenerInventarioRecepcionDirecta(sucursalId = null) {
       i.id,
       ie.modelo,
       ie.procesador,
-      s.nombre
+      s.nombre,
+      i.visible_catalogo
     ORDER BY i.id DESC;
   `;
 
@@ -1238,6 +1242,22 @@ async function actualizarRecepcionDirecta({
 
 }
 
+async function actualizarVisibleCatalogo(id, visible_catalogo) {
+  const query = `
+    UPDATE inventario
+    SET visible_catalogo = $1
+    WHERE id = $2
+    RETURNING id, visible_catalogo;
+  `;
+
+  const { rows } = await pool.query(query, [
+    visible_catalogo,
+    id,
+  ]);
+
+  return rows[0];
+}
+
 module.exports = {
   agregarOActualizarInventario,
   obtenerInventario,
@@ -1262,4 +1282,5 @@ module.exports = {
   traspasarInventario,
   eliminarInventarioRecepcionDirecta,
   actualizarRecepcionDirecta,
+  actualizarVisibleCatalogo,
 };

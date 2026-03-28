@@ -45,6 +45,8 @@ router.get("/recepcion-directa", authMiddleware,inventarioController.obtenerInve
 
 router.put("/recepcion-directa/:id",authMiddleware,inventarioController.actualizarRecepcionDirecta);
 
+router.put("/:id/visible-catalogo", authMiddleware, inventarioController.actualizarVisibleCatalogo);
+
 // Obtener ítem inventario por ID (protegida)
 router.get("/:id", authMiddleware, inventarioController.obtenerInventarioPorId);
 
