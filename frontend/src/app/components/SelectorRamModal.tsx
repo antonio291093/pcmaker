@@ -4,6 +4,7 @@ import Swal from "sweetalert2";
 interface HardwareItem {
   id?: number;
   descripcion: string;
+  tipo_modulo?: string;
   especificacion?: string;
 }
 
@@ -55,7 +56,11 @@ export default async function SelectorRamModal({
                       <td style="text-align:center;">
                         <input type="checkbox" id="ram-${i}" value="${item.descripcion}">
                       </td>
-                      <td><label for="ram-${i}">${item.descripcion}</label></td>
+                      <td>
+                        <label for="ram-${i}">
+                          ${item.descripcion} ${item.tipo_modulo ? `(${item.tipo_modulo})` : ""}
+                        </label>
+                      </td>
                     </tr>
                   `
                 )

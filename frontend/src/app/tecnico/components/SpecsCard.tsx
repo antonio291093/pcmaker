@@ -66,7 +66,7 @@ export default function SpecsCard() {
   const [loadingEtiquetas, setLoadingEtiquetas] = useState(false);
 
   // Dentro de SpecsCard agrega al inicio:
-  const [ramOptions, setRamOptions] = useState<{ id: number; descripcion: string }[]>([]);
+  const [ramOptions, setRamOptions] = useState<{ id: number; descripcion: string; tipo_modulo?: string}[]>([]);
   const [storageOptions, setStorageOptions] = useState<{ id: number; descripcion: string }[]>([]);
 
   const [ramModules, setRamModules] = useState<RamModule[]>([{ memoria_ram_id: "" }]);
@@ -757,7 +757,7 @@ export default function SpecsCard() {
               >
                 <option value="">Selecciona tipo RAM</option>
                 {ramOptions.map(opt => (
-                  <option key={opt.id} value={opt.id}>{opt.descripcion}</option>
+                  <option key={opt.id} value={opt.id}>{opt.descripcion} {opt.tipo_modulo ? `(${opt.tipo_modulo})` : ""}</option>
                 ))}
               </select>
               {ramModules.length > 1 && (
