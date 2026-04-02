@@ -104,7 +104,19 @@ export default function SpecsCard() {
 
   // En un useEffect para cargar las opciones de RAM y Almacenamiento desde la API
   useEffect(() => {
-    fetch(`${API_URL}/api/catalogoMemoriaRam`, { credentials: 'include' })
+    if (!sucursalId) return;
+
+    let url = "";
+
+    if (selectedEstadoId === 4) {
+      // 🔥 SOLO RAM DISPONIBLE (inventario)
+      url = `${API_URL}/api/inventario/hardware/ram?sucursal_id=${sucursalId}`;
+    } else {
+      // 📚 TODAS LAS RAM (catálogo)
+      url = `${API_URL}/api/catalogoMemoriaRam`;
+    }
+
+    fetch(url, { credentials: 'include' })
       .then(res => res.json())
       .then(data => setRamOptions(data))
       .catch(() => setRamOptions([]));
@@ -113,7 +125,11 @@ export default function SpecsCard() {
       .then(res => res.json())
       .then(data => setStorageOptions(data))
       .catch(() => setStorageOptions([]));
-  }, []);
+  }, [sucursalId, selectedEstadoId]);
+
+  useEffect(() => {
+    setRamModules([{ memoria_ram_id: "" }]);
+  }, [selectedEstadoId]);
 
   //Buscar Equipo en base a la etiqueta
   useEffect(() => {

@@ -8,6 +8,7 @@ interface HardwareItem {
 }
 
 interface SelectorRamModalProps {
+  sucursalId: number;
   onSelect: (items: HardwareItem[]) => void;
   onCancel?: () => void;
 }
@@ -15,11 +16,12 @@ interface SelectorRamModalProps {
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export default async function SelectorRamModal({
+  sucursalId,
   onSelect,
   onCancel,
 }: SelectorRamModalProps) {
   try {
-    const resp = await fetch(`${API_URL}/api/inventario/hardware/ram`, {
+    const resp = await fetch(`${API_URL}/api/inventario/hardware/ram?sucursal_id=${sucursalId}`, {
       credentials: "include",
     });
     const data: HardwareItem[] = await resp.json();

@@ -167,21 +167,33 @@ async function obtenerStockEquipo(equipoId) {
 }
 
 // 🔹 Obtener memorias RAM disponibles
-async function obtenerMemoriasRamDisponibles() {
-  const query = `
+async function obtenerMemoriasRamDisponibles({ tipo, sucursal_id }) {
+
+  let query = `
     SELECT 
-      i.memoria_ram_id AS id,
+      cmr.id,
       cmr.descripcion,
-      i.cantidad,
-      i.precio,
-      s.nombre AS sucursal
+      cmr.tipo_modulo
     FROM inventario i
-    JOIN catalogo_memoria_ram cmr ON i.memoria_ram_id = cmr.id
-    LEFT JOIN sucursales s ON i.sucursal_id = s.id
+    JOIN catalogo_memoria_ram cmr 
+      ON i.memoria_ram_id = cmr.id
     WHERE i.cantidad > 0
-    ORDER BY cmr.descripcion ASC;
+      AND i.sucursal_id = $1
   `;
-  const { rows } = await pool.query(query);
+
+  const params = [sucursal_id];
+
+  if (tipo) {
+    query += ` AND cmr.tipo_modulo = $${params.length + 1}`;
+    params.push(tipo);
+  }
+
+  query += `
+    GROUP BY cmr.id, cmr.descripcion, cmr.tipo_modulo
+    ORDER BY cmr.descripcion ASC
+  `;
+
+  const { rows } = await pool.query(query, params);
   return rows;
 }
 

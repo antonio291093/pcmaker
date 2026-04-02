@@ -231,8 +231,29 @@ exports.actualizarEquipoArmado = async (req, res) => {
 
 exports.obtenerMemoriasRamDisponibles = async (req, res) => {
   try {
-    const rams = await obtenerMemoriasRamDisponibles();
+    let { tipo, sucursal_id } = req.query;
+
+    if (!sucursal_id) {
+      return res.status(400).json({
+        message: "sucursal_id es requerido"
+      });
+    }
+
+    sucursal_id = Number(sucursal_id);
+
+    if (tipo) {
+      tipo = tipo.toUpperCase();
+
+      if (!['DIMM', 'SODIMM'].includes(tipo)) {
+        return res.status(400).json({
+          message: "tipo debe ser DIMM o SODIMM"
+        });
+      }
+    }
+
+    const rams = await obtenerMemoriasRamDisponibles({ tipo, sucursal_id });
     res.json(rams);
+
   } catch (error) {
     console.error("Error al obtener memorias RAM disponibles:", error);
     res.status(500).json({ message: "Error en el servidor" });

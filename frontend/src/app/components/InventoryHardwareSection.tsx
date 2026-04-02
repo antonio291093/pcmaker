@@ -766,6 +766,7 @@ export default function InventoryHardwareSection() {
             Swal.close(); // Cierra el modal principal temporalmente
 
             await SelectorRamModal({
+              sucursalId: user.sucursal_id,
               onSelect: (items) => {
                 // 🔸 Extraemos tanto las descripciones como los IDs
                 const nuevasRams = items.map((i) => i.descripcion);
