@@ -1299,9 +1299,9 @@ export default function InventoryHardwareSection() {
         </h2>        
 
         {/* Acciones */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full">
 
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
@@ -1312,18 +1312,18 @@ export default function InventoryHardwareSection() {
               onKeyDown={(e) => {
                 if (e.key === 'Escape') setSkuBusqueda('');
               }}
-              className="pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm
+              className="w-full sm:w-64 pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm
                         focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
 
           {/* Filtro por sucursal */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <FaStore className="text-gray-500" />
             <select
               value={sucursalSeleccionada ?? ''}
               onChange={(e) => setSucursalSeleccionada(Number(e.target.value))}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full sm:w-auto border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               {sucursales.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -1336,14 +1336,14 @@ export default function InventoryHardwareSection() {
           {/* Botón agregar */}
           <button
             onClick={abrirModalInventario}
-            className="flex items-center gap-2 bg-indigo-600 text-white px-3 py-2 rounded-lg shadow hover:bg-indigo-700"
+            className="flex items-center justify-center gap-2 w-full sm:w-auto bg-indigo-600 text-white px-3 py-2 rounded-lg shadow hover:bg-indigo-700"
           >
             <FaPlus /> Agregar
           </button>
 
           <button
             onClick={() => setVistaTabla(!vistaTabla)}
-            className="flex items-center gap-2 bg-gray-600 text-white px-3 py-2 rounded-lg shadow hover:bg-gray-700"
+            className="flex items-center justify-center gap-2 w-full sm:w-auto bg-gray-600 text-white px-3 py-2 rounded-lg shadow hover:bg-gray-700"
           >
             {vistaTabla ? 'Vista Cards' : 'Vista Tabla'}
           </button>

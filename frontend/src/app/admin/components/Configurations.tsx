@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import Swal from 'sweetalert2';
 import { FaPlus, FaTrash, FaSave, FaSync } from 'react-icons/fa';
+import ConfiguracionPagosAdmin from '../components/ConfiguracionPagosAdmin';
 
 type Config = {
   id: number;
@@ -15,6 +16,7 @@ type Config = {
 export default function Configurations() {
   const [configs, setConfigs] = useState<Config[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<'general' | 'pagos'>('general');  
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
   // 🔹 Cargar configuraciones desde el backend
@@ -149,62 +151,107 @@ export default function Configurations() {
       transition={{ type: 'spring', stiffness: 70 }}
       className="bg-white rounded-xl shadow p-6 max-w-4xl"
     >
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold text-gray-700">Configuración del sistema</h2>
-        <div className="flex gap-3">
+      <div className="flex flex-col gap-4 mb-6">
+
+        {/* Título */}
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-semibold text-gray-700">
+            Configuración del sistema
+          </h2>          
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-3 border-b pb-2">
           <button
-            onClick={agregarConfig}
-            className="flex items-center gap-2 bg-indigo-600 text-white px-3 py-2 rounded-lg shadow hover:bg-indigo-700"
+            onClick={() => setTab('general')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition ${
+              tab === 'general'
+                ? 'bg-indigo-600 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
           >
-            <FaPlus /> Agregar
+            Configuración general
           </button>
+
           <button
-            onClick={cargarConfiguraciones}
-            className="flex items-center gap-2 bg-gray-200 text-gray-700 px-3 py-2 rounded-lg shadow hover:bg-gray-300"
+            onClick={() => setTab('pagos')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition ${
+              tab === 'pagos'
+                ? 'bg-indigo-600 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
           >
-            <FaSync /> Recargar
+            Cuentas bancarias
           </button>
         </div>
+
       </div>
 
-      <ul className="space-y-4">
-        {configs.map((c) => (
-          <li
-            key={c.id}
-            className="flex flex-col sm:flex-row sm:items-center gap-3 border-b border-gray-100 pb-3"
-          >
-            <label className="sm:w-64 font-medium text-gray-700">
-              {c.nombre}
-            </label>
-            <input
-              type="text"
-              value={c.valor}
-              onChange={(e) =>
-                setConfigs((prev) =>
-                  prev.map((conf) =>
-                    conf.id === c.id ? { ...conf, valor: e.target.value } : conf
+      {tab === 'general' && (
+        <ul className="space-y-4">
+          {configs.map((c) => (
+            <li
+              key={c.id}
+              className="flex flex-col sm:flex-row sm:items-center gap-3 border-b border-gray-100 pb-3"
+            >
+              <label className="sm:w-64 font-medium text-gray-700">
+                {c.nombre}
+              </label>
+
+              <input
+                type="text"
+                value={c.valor}
+                onChange={(e) =>
+                  setConfigs((prev) =>
+                    prev.map((conf) =>
+                      conf.id === c.id ? { ...conf, valor: e.target.value } : conf
+                    )
                   )
-                )
-              }
-              className="border rounded-md p-2 flex-1 text-gray-600"
-            />
-            <div className="flex gap-3 justify-end sm:justify-normal">
+                }
+                className="border rounded-md p-2 flex-1 text-gray-600 input-minimal"
+              />
+
+              <div className="flex gap-3 justify-end sm:justify-normal">
+                <button
+                  onClick={() => actualizarConfig(c)}
+                  className="text-green-600 hover:text-green-800"
+                >
+                  <FaSave />
+                </button>
+
+                <button
+                  onClick={() => eliminarConfig(c.id)}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  <FaTrash />
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {tab === 'general' && (
+            <div className="flex gap-3 flex-wrap">
               <button
-                onClick={() => actualizarConfig(c)}
-                className="text-green-600 hover:text-green-800"
+                onClick={agregarConfig}
+                className="flex items-center gap-2 bg-indigo-600 text-white px-3 py-2 rounded-lg shadow hover:bg-indigo-700"
               >
-                <FaSave />
+                <FaPlus /> Agregar
               </button>
+
               <button
-                onClick={() => eliminarConfig(c.id)}
-                className="text-red-500 hover:text-red-700"
+                onClick={cargarConfiguraciones}
+                className="flex items-center gap-2 bg-gray-200 text-gray-700 px-3 py-2 rounded-lg shadow hover:bg-gray-300"
               >
-                <FaTrash />
+                <FaSync /> Recargar
               </button>
             </div>
-          </li>
-        ))}
-      </ul>
+      )}
+
+      {tab === 'pagos' && (
+        <ConfiguracionPagosAdmin />
+      )}
     </motion.div>
   );
 }

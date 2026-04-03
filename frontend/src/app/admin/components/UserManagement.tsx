@@ -166,14 +166,14 @@ export default function UserManagement() {
 
       {/* Formulario responsive */}
       <form
-        className="mb-6 flex flex-col sm:flex-row flex-wrap gap-2 items-stretch sm:items-end"
+        className="mb-6 flex flex-col sm:flex-row flex-wrap gap-2 items-stretch sm:items-end input-minimal"
         onSubmit={handleSubmit}
       >
         <input
           type="text"
           required
           placeholder="Nombre"
-          className="border px-3 py-2 rounded w-full sm:w-36 text-sm"
+          className="border px-3 py-2 rounded w-full sm:w-36 text-sm input-minimal"
           value={form.nombre}
           onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))}
         />
@@ -181,13 +181,13 @@ export default function UserManagement() {
           type="email"
           required
           placeholder="Email"
-          className="border px-3 py-2 rounded w-full sm:w-44 text-sm"
+          className="border px-3 py-2 rounded w-full sm:w-44 text-sm input-minimal"
           value={form.email}
           onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
         />
         <select
           required
-          className="border px-3 py-2 rounded w-full sm:w-auto text-sm"
+          className="border px-3 py-2 rounded w-full sm:w-auto text-sm input-minimal"
           value={form.rol_id}
           onChange={e => setForm(f => ({ ...f, rol_id: Number(e.target.value) }))}
         >
@@ -197,7 +197,7 @@ export default function UserManagement() {
         </select>        
         <select
           required
-          className="border px-3 py-2 rounded w-full sm:w-auto text-sm"
+          className="border px-3 py-2 rounded w-full sm:w-auto text-sm input-minimal"
           value={form.sucursal_id ?? ""}
           onChange={e => setForm(f => ({ ...f, sucursal_id: Number(e.target.value) }))}
         >
@@ -209,7 +209,7 @@ export default function UserManagement() {
         <input
           type="password"
           placeholder="Contraseña"
-          className="border px-3 py-2 rounded w-full sm:w-36 text-sm"
+          className="border px-3 py-2 rounded w-full sm:w-36 text-sm input-minimal"
           value={form.password ?? ""}
           onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
         />

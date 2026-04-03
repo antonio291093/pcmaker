@@ -45,6 +45,9 @@ export default function SalesForm() {
   const sucursalId = user.sucursal_id
   const [serviciosSeleccionados, setServiciosSeleccionados] = useState<any[]>([])
   const [mostrarModalServicios, setMostrarModalServicios] = useState(false)
+  const [configTransferencia, setConfigTransferencia] = useState<any>(null)
+  const [loadingConfig, setLoadingConfig] = useState(false)
+  const usaTransferencia = pagos.transferencia > 0
 
   useEffect(() => {
     if (!user?.sucursal_id) return
@@ -56,6 +59,55 @@ export default function SalesForm() {
       body: JSON.stringify({ sucursal_id: user.sucursal_id })
     })
   }, [user])  
+
+  useEffect(() => {
+    const obtenerConfig = async () => {
+      try {
+        // 🔹 Si no hay transferencia → limpiar
+        if (pagos.transferencia <= 0 && !formData.requiere_factura) {
+          setConfigTransferencia(null)
+          return
+        }
+
+        setLoadingConfig(true)
+
+        const params = new URLSearchParams()
+
+        if (pagos.transferencia > 0) {
+          params.append('tipo_pago', 'TRANSFERENCIA')
+        }
+
+        if (formData.requiere_factura) {
+          params.append('requiere_factura', 'true')
+        }
+
+        const res = await fetch(
+          `${API_URL}/api/configuracionPagos/config?${params.toString()}`,
+          {
+            credentials: 'include'
+          }
+        )
+
+        if (!res.ok) {
+          setConfigTransferencia(null)
+          return
+        }
+
+        const data = await res.json()
+
+        // 🔥 Siempre toma solo el primero
+        setConfigTransferencia(data || null)
+
+      } catch (error) {
+        console.error("Error obteniendo config transferencia:", error)
+        setConfigTransferencia(null)
+      } finally {
+        setLoadingConfig(false)
+      }
+    }
+
+    obtenerConfig()
+  }, [pagos.transferencia, formData.requiere_factura])
 
   const IVA = 0.16
 
@@ -689,6 +741,37 @@ export default function SalesForm() {
             </div>
           )}
         </div>
+
+        {pagos.transferencia > 0 && (
+          <div className="border rounded-md p-3 bg-purple-50 mt-3 input-minimal">
+            <h4 className="text-sm font-semibold text-purple-700 mb-2">
+              Datos para transferencia
+            </h4>
+
+            {loadingConfig && (
+              <p className="text-xs text-gray-500">Cargando información bancaria...</p>
+            )}
+
+            {!loadingConfig && configTransferencia && (
+              <div className="text-sm text-gray-700 space-y-1">
+                <p><b>Banco:</b> {configTransferencia.banco}</p>
+                <p><b>Titular:</b> {configTransferencia.titular}</p>
+                <p><b>Cuenta:</b> {configTransferencia.numero_cuenta}</p>
+                <p><b>CLABE:</b> {configTransferencia.clabe}</p>
+
+                {configTransferencia.referencia && (
+                  <p><b>Referencia:</b> {configTransferencia.referencia}</p>
+                )}
+              </div>
+            )}
+
+            {!loadingConfig && !configTransferencia && (
+              <p className="text-xs text-red-500">
+                No hay configuración disponible para este tipo de pago.
+              </p>
+            )}
+          </div>
+        )}
 
         <button
           type="submit"
