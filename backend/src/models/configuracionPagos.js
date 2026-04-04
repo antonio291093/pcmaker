@@ -17,8 +17,7 @@ async function obtenerConfiguracionPago(tipo_pago, requiere_factura) {
   if (requiere_factura !== undefined) {
     params.push(requiere_factura);
     query += ` AND requiere_factura = $${params.length}`;
-  } else {
-    params.push(requiere_factura);
+  } else {    
     query += ` AND requiere_factura = false`;
   }
 
