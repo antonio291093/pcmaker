@@ -126,6 +126,7 @@ export default function InventoryHardwareSection() {
   const [categorias, setCategorias] = useState<Categoria[]>([]);  
   const [editandoRecepcionDirecta, setEditandoRecepcionDirecta] =useState<RecepcionDirectaItem | null>(null);
   const [vistaTabla, setVistaTabla] = useState(false);
+  const [soloDisponibles, setSoloDisponibles] = useState(true);
   
   const normalizarRecepcionDirecta = useCallback((items: any[]) => {
     return items.map(i => ({
@@ -1283,6 +1284,18 @@ export default function InventoryHardwareSection() {
     return <div className="text-center text-gray-500 py-6">Cargando inventario...</div>;
   }
 
+  const inventarioFinal = soloDisponibles
+  ? inventarioFiltrado.filter(item => item.cantidad > 0)
+  : inventarioFiltrado;
+
+  const equiposFinal = soloDisponibles
+  ? equiposFiltrados.filter(eq => eq.cantidad > 0)
+  : equiposFiltrados;
+
+  const equiposAgrupadosFinal = soloDisponibles
+  ? equiposAgrupados.filter(eq => eq.cantidad > 0)
+  : equiposAgrupados;
+
   return (
     <motion.div
       initial={{ y: 30, opacity: 0 }}
@@ -1290,14 +1303,14 @@ export default function InventoryHardwareSection() {
       transition={{ type: 'spring', stiffness: 70 }}
       className="bg-white p-6 rounded-xl shadow w-full"
     >
-      {/* === INVENTARIO GENERAL === */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
-
         {/* Título */}
         <h2 className="font-semibold text-lg text-gray-700">
           Inventario de Hardware y Accesorios
         </h2>        
-
+      </div>
+      {/* === INVENTARIO GENERAL === */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">        
         {/* Acciones */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full">
 
@@ -1348,11 +1361,37 @@ export default function InventoryHardwareSection() {
             {vistaTabla ? 'Vista Cards' : 'Vista Tabla'}
           </button>
 
+          {/* Toggle inventario disponible */}
+          <label className="inline-flex items-center cursor-pointer gap-2 w-full sm:w-auto">
+            <span className="text-xs text-gray-600">
+              {soloDisponibles ? 'Inventario disponible' : 'Mostrar todo'}
+            </span>
+
+            <input
+              type="checkbox"
+              checked={soloDisponibles}
+              onChange={() => setSoloDisponibles(!soloDisponibles)}
+              className="sr-only"
+            />
+
+            <div
+              className={`w-11 h-6 rounded-full transition ${
+                soloDisponibles ? 'bg-green-500' : 'bg-gray-400'
+              }`}
+            >
+              <div
+                className={`w-5 h-5 bg-white rounded-full shadow transform transition ${
+                  soloDisponibles ? 'translate-x-5' : 'translate-x-1'
+                }`}
+              />
+            </div>
+          </label>
+
         </div>
       </div>      
 
       {/* Mensaje cuando no hay coincidencias en inventario */}
-      {skuBusqueda && inventarioFiltrado.length === 0 && (
+      {skuBusqueda && equiposFinal.length === 0 && (
         <p className="text-sm text-gray-500 mb-4">
           No se encontró inventario con ese SKU
         </p>
@@ -1360,7 +1399,7 @@ export default function InventoryHardwareSection() {
 
       {!vistaTabla && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-          {inventarioFiltrado.map((item) => (
+          {inventarioFinal.map((item) => (
             <motion.div
               key={item.id}
               whileHover={{ scale: 1.02 }}
@@ -1459,7 +1498,7 @@ export default function InventoryHardwareSection() {
             </thead>
 
             <tbody>
-              {inventarioFiltrado.map((item) => (
+              {inventarioFinal.map((item) => (
                 <tr key={item.id} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">                  
 
                   <td className="px-3 py-2">
@@ -1526,7 +1565,7 @@ export default function InventoryHardwareSection() {
       </h2>
 
       {/* Mensaje cuando no hay coincidencias en equipos armados */}
-      {skuBusqueda && equiposFiltrados.length === 0 && (
+      {skuBusqueda && equiposFinal.length === 0 && (
         <p className="text-sm text-gray-500 mb-4">
           No se encontraron equipos armados con esa serie
         </p>
@@ -1540,7 +1579,7 @@ export default function InventoryHardwareSection() {
             </p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-              {equiposFiltrados.map((eq) => (
+              {equiposFinal.map((eq) => (
                 <motion.div
                   key={eq.id}
                   whileHover={{ scale: 1.02 }}
@@ -1711,7 +1750,7 @@ export default function InventoryHardwareSection() {
             </thead>
 
             <tbody>
-              {equiposAgrupados.map((eq) => (
+              {equiposAgrupadosFinal.map((eq) => (
                 <tr
                   key={eq.id}
                   className={`border-t border-gray-100 hover:bg-gray-50 transition-colors
