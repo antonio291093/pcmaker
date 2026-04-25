@@ -5,22 +5,28 @@ import { FaCheckCircle, FaTimesCircle } from 'react-icons/fa'
 
 type Props = {
   data: {
+    id: number
     sucursal: string
     fecha: string
     ingresos: number
     gastos: number
     corteRealizado: boolean
   }
+  isActive: boolean
+  onSelect: () => void
 }
 
-export default function SucursalCard({ data }: Props) {
+export default function SucursalCard({ data, isActive, onSelect }: Props) {
   const neto = data.ingresos - data.gastos
 
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="bg-gray-50 border rounded-xl p-5 shadow-sm hover:shadow-md transition input-minimal"
+      className={`
+        bg-gray-50 border rounded-xl p-5 shadow-sm transition input-minimal
+        ${isActive ? 'ring-2 ring-indigo-500' : 'hover:shadow-md'}
+      `}
     >
       {/* Header */}
       <div className="flex justify-between items-center mb-3">
@@ -59,7 +65,7 @@ export default function SucursalCard({ data }: Props) {
 
       </div>
 
-      {/* Estado corte */}
+      {/* Estado corte + botón */}
       <div className="mt-4 flex items-center justify-between">
 
         <div className="flex items-center gap-2 text-sm">
@@ -80,9 +86,20 @@ export default function SucursalCard({ data }: Props) {
           )}
         </div>
 
-        <button className="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-md hover:bg-indigo-700">
-          Ver detalle
+        {/* 🔥 BOTÓN CLAVE */}
+        <button
+          onClick={onSelect}
+          className={`
+            text-xs px-3 py-1.5 rounded-md transition
+            ${isActive
+              ? 'bg-gray-300 text-gray-700'
+              : 'bg-indigo-600 text-white hover:bg-indigo-700'
+            }
+          `}
+        >
+          {isActive ? 'Ocultar detalle' : 'Ver detalle'}
         </button>
+
       </div>
     </motion.div>
   )

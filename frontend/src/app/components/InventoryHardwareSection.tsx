@@ -243,28 +243,36 @@ export default function InventoryHardwareSection() {
   }, [])
 
   const eliminarRecepcionDirecta = async (id: number) => {
-    const confirm = await Swal.fire({
+    const { value: motivo } = await Swal.fire({
       title: "¿Eliminar equipo?",
       text: "Esta acción eliminará el inventario de recepción directa.",
       icon: "warning",
+      input: "textarea",
+      inputPlaceholder: "Escribe el motivo de eliminación...",
       showCancelButton: true,
       confirmButtonColor: "#dc2626",
       cancelButtonColor: "#6b7280",
       confirmButtonText: "Sí, eliminar",
       cancelButtonText: "Cancelar",
+      inputValidator: (value) => {
+        if (!value) {
+          return "Debes escribir un motivo";
+        }
+      }
     });
 
-    if (!confirm.isConfirmed) return;
+    if (!motivo) return;
 
     try {
       const res = await fetch(
         `${API_URL}/api/inventario/recepcion-directa/${id}`,
         {
           method: "DELETE",
-          credentials: "include", // 🔑 CLAVE
+          credentials: "include",
           headers: {
             "Content-Type": "application/json",
           },
+          body: JSON.stringify({ motivo }),
         }
       );
 
@@ -958,27 +966,42 @@ export default function InventoryHardwareSection() {
     }
   };
 
-  // 🔸 Eliminar artículo
+  // 🔸 Eliminar artículo (soft delete con motivo)
   const eliminarInventario = async (id: number) => {
-    const confirm = await Swal.fire({
+    const { value: motivo } = await Swal.fire({
       title: '¿Eliminar artículo?',
       text: 'Esta acción no se puede deshacer',
       icon: 'warning',
+      input: 'textarea',
+      inputPlaceholder: 'Escribe el motivo de eliminación...',
       showCancelButton: true,
       confirmButtonText: 'Sí, eliminar',
       cancelButtonText: 'Cancelar',
+      inputValidator: (value) => {
+        if (!value) {
+          return 'Debes escribir un motivo';
+        }
+      }
     });
 
-    if (!confirm.isConfirmed) return;
+    if (!motivo) return;
 
     try {
       const resp = await fetch(`${API_URL}/api/inventario/${id}`, {
         method: 'DELETE',
         credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ motivo }),
       });
+
       if (!resp.ok) throw new Error('Error eliminando artículo');
+
       setInventario((prev) => prev.filter((i) => i.id !== id));
+
       Swal.fire('Eliminado', 'Artículo eliminado correctamente', 'success');
+
     } catch (err) {
       console.error(err);
       Swal.fire('Error', 'No se pudo eliminar el artículo', 'error');
@@ -1711,16 +1734,14 @@ export default function InventoryHardwareSection() {
                               Visible catálogo
                             </span>
                           </div>
-
-                          {user.rol_id === 1 && (
-                            <button
-                              onClick={() => eliminarRecepcionDirecta(eq.id)}
-                              className="text-red-500 hover:text-red-700"
-                              title="Eliminar inventario"
-                            >
-                              <FaTrash />
-                            </button>
-                          )}
+                          
+                          <button
+                            onClick={() => eliminarRecepcionDirecta(eq.id)}
+                            className="text-red-500 hover:text-red-700"
+                            title="Eliminar inventario"
+                          >
+                            <FaTrash />
+                          </button>                          
                         </>
                       )}
                     </div>

@@ -26,6 +26,7 @@ const {
 exports.eliminarRecepcionDirecta = async (req, res) => {
   try {
     const { id } = req.params;
+    const { motivo } = req.body;
 
     if (!id) {
       return res.status(400).json({
@@ -33,11 +34,17 @@ exports.eliminarRecepcionDirecta = async (req, res) => {
       });
     }
 
-    const eliminado = await eliminarInventarioRecepcionDirecta(id);
+    if (!motivo) {
+      return res.status(400).json({
+        message: "El motivo de eliminación es obligatorio"
+      });
+    }
+
+    const eliminado = await eliminarInventarioRecepcionDirecta(id, motivo);
 
     if (!eliminado) {
       return res.status(404).json({
-        message: "Inventario no encontrado o no es de recepción directa"
+        message: "Inventario no encontrado, ya eliminado o no es de recepción directa"
       });
     }
 
@@ -45,6 +52,7 @@ exports.eliminarRecepcionDirecta = async (req, res) => {
       success: true,
       message: "Inventario de recepción directa eliminado correctamente"
     });
+
   } catch (error) {
     console.error("Error al eliminar recepción directa:", error);
     res.status(500).json({
@@ -413,17 +421,22 @@ exports.actualizarInventario = async (req, res) => {
 
 exports.eliminarInventario = async (req, res) => {
   const id = parseInt(req.params.id);
+  const { motivo } = req.body;
+
   try {
-    const itemEliminado = await eliminarInventario(id);
+    const itemEliminado = await eliminarInventario(id, motivo);
+
     if (!itemEliminado) {
       return res.status(404).json({ message: "Ítem no encontrado" });
     }
+
     res.json({ message: "Ítem eliminado correctamente" });
+
   } catch (error) {
-    console.error("Error al eliminar inventario:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
+
 
 exports.validarStockInventario = async (req, res) => {
   try {

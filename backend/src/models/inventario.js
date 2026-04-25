@@ -1,18 +1,18 @@
 const pool = require("../config/db");
-const { generarBarcodeBase64 } = require('../utils/barcode');
+const { generarBarcodeBase64 } = require("../utils/barcode");
 
-async function eliminarInventarioRecepcionDirecta(inventarioId) {
+async function eliminarInventarioRecepcionDirecta(inventarioId, motivo) {
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
 
-    // 🔍 Validar que exista y sea de recepción directa
     const checkQuery = `
       SELECT id
       FROM inventario
       WHERE id = $1
         AND origen = 'recepcion_directa'
+        AND eliminado = FALSE
       FOR UPDATE;
     `;
 
@@ -23,22 +23,19 @@ async function eliminarInventarioRecepcionDirecta(inventarioId) {
       return false;
     }
 
-    // 1️⃣ Eliminar especificaciones
-    await client.query(
-      `
-      DELETE FROM inventario_especificaciones
-      WHERE inventario_id = $1;
-      `,
-      [inventarioId]
-    );
+    // 🔴 YA NO BORRES especificaciones
+    // (porque el inventario sigue existiendo)
 
-    // 2️⃣ Eliminar inventario
     await client.query(
       `
-      DELETE FROM inventario
+      UPDATE inventario
+      SET 
+        eliminado = TRUE,
+        motivo_eliminacion = $2,
+        fecha_eliminacion = NOW()
       WHERE id = $1;
       `,
-      [inventarioId]
+      [inventarioId, motivo],
     );
 
     await client.query("COMMIT");
@@ -52,11 +49,9 @@ async function eliminarInventarioRecepcionDirecta(inventarioId) {
 }
 
 async function traspasarInventario(id, sucursal_id) {
-
   const client = await pool.connect();
 
   try {
-
     await client.query("BEGIN");
 
     const updateInventario = `
@@ -80,10 +75,7 @@ async function traspasarInventario(id, sucursal_id) {
         es_codigo_generado;
     `;
 
-    const { rows } = await client.query(updateInventario, [
-      sucursal_id,
-      id
-    ]);
+    const { rows } = await client.query(updateInventario, [sucursal_id, id]);
 
     if (!rows[0]) {
       await client.query("ROLLBACK");
@@ -94,28 +86,24 @@ async function traspasarInventario(id, sucursal_id) {
 
     // 🔵 Sincronizar equipos solo si existe
     if (equipo_id) {
-
-      await client.query(`
+      await client.query(
+        `
         UPDATE equipos
         SET sucursal_id = $1
         WHERE id = $2
-      `, [sucursal_id, equipo_id]);
-
+      `,
+        [sucursal_id, equipo_id],
+      );
     }
 
     await client.query("COMMIT");
 
     return rows[0];
-
   } catch (error) {
-
     await client.query("ROLLBACK");
     throw error;
-
   } finally {
-
     client.release();
-
   }
 }
 
@@ -123,11 +111,11 @@ async function generarSkuYBarcode({ sucursal_id }) {
   const fecha = new Date();
 
   const yyyy = fecha.getFullYear();
-  const mm = String(fecha.getMonth() + 1).padStart(2, '0');
-  const dd = String(fecha.getDate()).padStart(2, '0');
-  const hh = String(fecha.getHours()).padStart(2, '0');
-  const mi = String(fecha.getMinutes()).padStart(2, '0');
-  const ss = String(fecha.getSeconds()).padStart(2, '0');
+  const mm = String(fecha.getMonth() + 1).padStart(2, "0");
+  const dd = String(fecha.getDate()).padStart(2, "0");
+  const hh = String(fecha.getHours()).padStart(2, "0");
+  const mi = String(fecha.getMinutes()).padStart(2, "0");
+  const ss = String(fecha.getSeconds()).padStart(2, "0");
 
   // 🔢 consecutivo por segundo y sucursal
   const { rows } = await pool.query(
@@ -135,10 +123,10 @@ async function generarSkuYBarcode({ sucursal_id }) {
     SELECT COUNT(*) FROM inventario
     WHERE sku LIKE $1 AND sucursal_id = $2
     `,
-    [`${yyyy}${mm}${dd}${hh}${mi}${ss}%`, sucursal_id]
+    [`${yyyy}${mm}${dd}${hh}${mi}${ss}%`, sucursal_id],
   );
 
-  const consecutivo = String(Number(rows[0].count) + 1).padStart(3, '0');
+  const consecutivo = String(Number(rows[0].count) + 1).padStart(3, "0");
 
   const skuFinal = `${yyyy}${mm}${dd}${hh}${mi}${ss}${consecutivo}`;
 
@@ -148,7 +136,7 @@ async function generarSkuYBarcode({ sucursal_id }) {
   return {
     sku: skuFinal,
     barcode,
-    es_codigo_generado: true
+    es_codigo_generado: true,
   };
 }
 
@@ -168,7 +156,6 @@ async function obtenerStockEquipo(equipoId) {
 
 // 🔹 Obtener memorias RAM disponibles
 async function obtenerMemoriasRamDisponibles({ tipo, sucursal_id }) {
-
   let query = `
     SELECT 
       cmr.id,
@@ -217,7 +204,14 @@ async function obtenerAlmacenamientosDisponibles() {
 }
 
 async function actualizarEquipoArmado(id, data) {
-  const { nombre, procesador, precio, memorias_ram_ids, almacenamientos_ids, categoria_catalogo_id } = data;
+  const {
+    nombre,
+    procesador,
+    precio,
+    memorias_ram_ids,
+    almacenamientos_ids,
+    categoria_catalogo_id,
+  } = data;
 
   console.log("🧠 [INICIO ACTUALIZAR EQUIPO ARMADO]");
   console.log("📦 ID de inventario:", id);
@@ -228,11 +222,13 @@ async function actualizarEquipoArmado(id, data) {
 
     const { rows } = await pool.query(
       `SELECT equipo_id FROM inventario WHERE id = $1`,
-      [id]
+      [id],
     );
 
     if (!rows.length || !rows[0].equipo_id) {
-      throw new Error("No se encontró equipo_id para el inventario proporcionado");
+      throw new Error(
+        "No se encontró equipo_id para el inventario proporcionado",
+      );
     }
 
     const equipoId = rows[0].equipo_id;
@@ -250,19 +246,25 @@ async function actualizarEquipoArmado(id, data) {
       LEFT JOIN equipos_almacenamiento ea ON e.id = ea.equipo_id
       WHERE e.id = $1
     `,
-      [equipoId]
+      [equipoId],
     );
 
-    const ramsActuales = actuales.map(r => r.memoria_ram_id).filter(Boolean);
-    const almacActuales = actuales.map(a => a.almacenamiento_id).filter(Boolean);
+    const ramsActuales = actuales.map((r) => r.memoria_ram_id).filter(Boolean);
+    const almacActuales = actuales
+      .map((a) => a.almacenamiento_id)
+      .filter(Boolean);
 
     console.log("💾 RAMs actuales:", ramsActuales);
     console.log("💾 Almacenamientos actuales:", almacActuales);
 
     // 🔹 Solo si el frontend envió las memorias RAM
     if (Array.isArray(memorias_ram_ids)) {
-      const ramsRemovidas = ramsActuales.filter(r => !memorias_ram_ids.includes(r));
-      const ramsAgregadas = memorias_ram_ids.filter(r => !ramsActuales.includes(r));
+      const ramsRemovidas = ramsActuales.filter(
+        (r) => !memorias_ram_ids.includes(r),
+      );
+      const ramsAgregadas = memorias_ram_ids.filter(
+        (r) => !ramsActuales.includes(r),
+      );
 
       console.log("🧩 RAMs removidas:", ramsRemovidas);
       console.log("🧩 RAMs agregadas:", ramsAgregadas);
@@ -272,7 +274,7 @@ async function actualizarEquipoArmado(id, data) {
         console.log(`🔼 Reponiendo stock de RAM ID ${ramId}`);
         await pool.query(
           `UPDATE inventario SET cantidad = cantidad + 1 WHERE memoria_ram_id = $1`,
-          [ramId]
+          [ramId],
         );
       }
 
@@ -281,27 +283,35 @@ async function actualizarEquipoArmado(id, data) {
         console.log(`🔽 Descontando stock de nueva RAM ID ${ramId}`);
         await pool.query(
           `UPDATE inventario SET cantidad = cantidad - 1 WHERE memoria_ram_id = $1 AND cantidad > 0`,
-          [ramId]
+          [ramId],
         );
       }
 
       // Limpiar e insertar nuevas RAM
-      await pool.query(`DELETE FROM equipos_ram WHERE equipo_id = $1`, [equipoId]);
+      await pool.query(`DELETE FROM equipos_ram WHERE equipo_id = $1`, [
+        equipoId,
+      ]);
       for (const ramId of memorias_ram_ids) {
         console.log(`➕ Insertando RAM ID ${ramId} en equipos_ram`);
         await pool.query(
           `INSERT INTO equipos_ram (equipo_id, memoria_ram_id) VALUES ($1, $2)`,
-          [equipoId, ramId]
+          [equipoId, ramId],
         );
       }
     } else {
-      console.log("⚠️ No se enviaron cambios de RAM, se mantienen las actuales.");
+      console.log(
+        "⚠️ No se enviaron cambios de RAM, se mantienen las actuales.",
+      );
     }
 
     // 🔹 Solo si el frontend envió los almacenamientos
     if (Array.isArray(almacenamientos_ids)) {
-      const almacRemovidos = almacActuales.filter(a => !almacenamientos_ids.includes(a));
-      const almacAgregados = almacenamientos_ids.filter(a => !almacActuales.includes(a));
+      const almacRemovidos = almacActuales.filter(
+        (a) => !almacenamientos_ids.includes(a),
+      );
+      const almacAgregados = almacenamientos_ids.filter(
+        (a) => !almacActuales.includes(a),
+      );
 
       console.log("💽 Almacenamientos removidos:", almacRemovidos);
       console.log("💽 Almacenamientos agregados:", almacAgregados);
@@ -311,7 +321,7 @@ async function actualizarEquipoArmado(id, data) {
         console.log(`🔼 Reponiendo stock de almacenamiento ID ${alId}`);
         await pool.query(
           `UPDATE inventario SET cantidad = cantidad + 1 WHERE almacenamiento_id = $1`,
-          [alId]
+          [alId],
         );
       }
 
@@ -320,31 +330,38 @@ async function actualizarEquipoArmado(id, data) {
         console.log(`🔽 Descontando stock de nuevo almacenamiento ID ${alId}`);
         await pool.query(
           `UPDATE inventario SET cantidad = cantidad - 1 WHERE almacenamiento_id = $1 AND cantidad > 0`,
-          [alId]
+          [alId],
         );
       }
 
       // Limpiar e insertar nuevos almacenamientos
-      await pool.query(`DELETE FROM equipos_almacenamiento WHERE equipo_id = $1`, [equipoId]);
+      await pool.query(
+        `DELETE FROM equipos_almacenamiento WHERE equipo_id = $1`,
+        [equipoId],
+      );
       for (const alId of almacenamientos_ids) {
-        console.log(`➕ Insertando almacenamiento ID ${alId} en equipos_almacenamiento`);
+        console.log(
+          `➕ Insertando almacenamiento ID ${alId} en equipos_almacenamiento`,
+        );
         await pool.query(
           `INSERT INTO equipos_almacenamiento (equipo_id, almacenamiento_id) VALUES ($1, $2)`,
-          [equipoId, alId]
+          [equipoId, alId],
         );
       }
     } else {
-      console.log("⚠️ No se enviaron cambios de almacenamiento, se mantienen los actuales.");
+      console.log(
+        "⚠️ No se enviaron cambios de almacenamiento, se mantienen los actuales.",
+      );
     }
 
     // 🔹 Actualizar datos del equipo
     console.log("✏️ Actualizando datos básicos del equipo...");
     await pool.query(
       `UPDATE equipos SET nombre = $1, procesador = $2 WHERE id = $3`,
-      [nombre, procesador, equipoId]
+      [nombre, procesador, equipoId],
     );
 
-    console.log("💰 Actualizando precio del inventario del equipo...");    
+    console.log("💰 Actualizando precio del inventario del equipo...");
 
     await pool.query(
       `
@@ -353,13 +370,16 @@ async function actualizarEquipoArmado(id, data) {
           categoria_catalogo_id = $2
       WHERE equipo_id = $3
       `,
-      [precio, categoria_catalogo_id || null, equipoId]
+      [precio, categoria_catalogo_id || null, equipoId],
     );
 
     await pool.query("COMMIT");
     console.log("✅ [COMMIT] Equipo armado actualizado correctamente");
 
-    return { success: true, message: "Equipo armado actualizado correctamente" };
+    return {
+      success: true,
+      message: "Equipo armado actualizado correctamente",
+    };
   } catch (error) {
     await pool.query("ROLLBACK");
     console.error("❌ [ROLLBACK] Error al actualizar equipo armado:", error);
@@ -374,7 +394,7 @@ async function insertarEquipoEnInventario(
   equipo_id,
   sucursal_id = null,
   precio = 0,
-  disponibilidad = true
+  disponibilidad = true,
 ) {
   const query = `
     INSERT INTO inventario (equipo_id, sucursal_id, tipo, cantidad, estado, disponibilidad, fecha_creacion, precio, origen)
@@ -401,7 +421,7 @@ async function insertarInventarioRecepcionDirecta({
   ram_tipo,
   almacenamiento_gb,
   almacenamiento_tipo,
-  observaciones
+  observaciones,
 }) {
   const client = await pool.connect();
 
@@ -411,8 +431,9 @@ async function insertarInventarioRecepcionDirecta({
     await client.query("BEGIN");
 
     // 🧠 SKU + Barcode
-    const { sku, barcode, es_codigo_generado } =
-      await generarSkuYBarcode({ sucursal_id });
+    const { sku, barcode, es_codigo_generado } = await generarSkuYBarcode({
+      sucursal_id,
+    });
 
     // 1️⃣ Inventario
     const inventarioQuery = `
@@ -451,7 +472,7 @@ async function insertarInventarioRecepcionDirecta({
       precio,
       sku,
       barcode,
-      es_codigo_generado
+      es_codigo_generado,
     ]);
 
     const inventario = inventarioResult.rows[0];
@@ -480,7 +501,7 @@ async function insertarInventarioRecepcionDirecta({
       ram_tipo,
       almacenamiento_gb,
       almacenamiento_tipo,
-      observaciones || null
+      observaciones || null,
     ]);
 
     await client.query("COMMIT");
@@ -497,9 +518,19 @@ async function insertarInventarioRecepcionDirecta({
 /** ----------------------------------------------------
  * ELIMINAR INVENTARIO
  * ---------------------------------------------------- */
-async function eliminarInventario(id) {
-  const query = `DELETE FROM inventario WHERE id = $1 RETURNING *;`;
-  const { rows } = await pool.query(query, [id]);
+async function eliminarInventario(id, motivo) {
+  const query = `
+    UPDATE inventario
+    SET 
+      eliminado = TRUE,
+      motivo_eliminacion = $2,
+      fecha_eliminacion = NOW()
+    WHERE id = $1
+      AND eliminado = FALSE
+    RETURNING *;
+  `;
+
+  const { rows } = await pool.query(query, [id, motivo]);
   return rows[0];
 }
 
@@ -664,6 +695,7 @@ async function obtenerInventario(sucursalId = null) {
     LEFT JOIN catalogo_almacenamiento ca ON i.almacenamiento_id = ca.id
     WHERE i.equipo_id IS NULL
     AND i.origen <> 'recepcion_directa'
+    and i.eliminado = FALSE
   `;
 
   const values = [];
@@ -719,6 +751,7 @@ async function obtenerEquiposArmados(sucursalId = null) {
     JOIN lotes_etiquetas le ON e.lote_etiqueta_id = le.id
     LEFT JOIN sucursales s ON e.sucursal_id = s.id
     WHERE e.estado_id = 4 -- Armado
+    and i.eliminado = FALSE
   `;
 
   const values = [];
@@ -755,10 +788,10 @@ async function actualizarInventario(
     memoria_ram_id = null,
     almacenamiento_id = null,
     sucursal_id = null,
-    sku = null,                     
-    es_codigo_generado = false,    
+    sku = null,
+    es_codigo_generado = false,
     categoria_catalogo_id = null,
-  }
+  },
 ) {
   // 🧩 Si no hay especificacion pero sí descripcion, úsala
   if (!especificacion && descripcion) {
@@ -825,15 +858,6 @@ async function actualizarInventario(
   `;
 
   const { rows } = await pool.query(selectQuery, [id]);
-  return rows[0];
-}
-
-/** ----------------------------------------------------
- * ELIMINAR INVENTARIO
- * ---------------------------------------------------- */
-async function eliminarInventario(id) {
-  const query = `DELETE FROM inventario WHERE id = $1 RETURNING *;`;
-  const { rows } = await pool.query(query, [id]);
   return rows[0];
 }
 
@@ -980,7 +1004,7 @@ async function crearInventarioGeneral({
       AND sucursal_id = $2
       AND equipo_id IS NULL
     `,
-    [skuFinal, sucursal_id]
+    [skuFinal, sucursal_id],
   );
 
   // 🔁 3. Si existe, solo sumar cantidad
@@ -991,12 +1015,12 @@ async function crearInventarioGeneral({
       SET cantidad = cantidad + $1
       WHERE id = $2
       `,
-      [cantidad, existe.rows[0].id]
+      [cantidad, existe.rows[0].id],
     );
 
     const { rows } = await pool.query(
       `SELECT * FROM inventario WHERE id = $1`,
-      [existe.rows[0].id]
+      [existe.rows[0].id],
     );
 
     return rows[0];
@@ -1032,7 +1056,7 @@ async function crearInventarioGeneral({
     skuFinal,
     esGenerado,
     barcode,
-    categoria_catalogo_id
+    categoria_catalogo_id,
   ];
 
   const { rows } = await pool.query(insertQuery, values);
@@ -1099,6 +1123,7 @@ async function obtenerInventarioRecepcionDirecta(sucursalId = null) {
       ON s.id = i.sucursal_id
 
     WHERE i.origen = 'recepcion_directa'
+    and i.eliminado = FALSE
   `;
 
   const values = [];
@@ -1121,7 +1146,6 @@ async function obtenerInventarioRecepcionDirecta(sucursalId = null) {
   const { rows } = await pool.query(query, values);
   return rows;
 }
-
 
 async function obtenerEquipoPorInventario(inventarioId) {
   // 1️⃣ Intentar EQUIPO ARMADO
@@ -1160,12 +1184,14 @@ async function obtenerEquipoPorInventario(inventarioId) {
     LEFT JOIN sucursales cs ON e.sucursal_id = cs.id
     WHERE i.id = $1
     LIMIT 1;
-  `
+  `;
 
-  const equipoArmadoResult = await pool.query(equipoArmadoQuery, [inventarioId])
+  const equipoArmadoResult = await pool.query(equipoArmadoQuery, [
+    inventarioId,
+  ]);
 
   if (equipoArmadoResult.rows.length > 0) {
-    return equipoArmadoResult.rows[0]
+    return equipoArmadoResult.rows[0];
   }
 
   // 2️⃣ Fallback → RECEPCIÓN DIRECTA
@@ -1191,31 +1217,28 @@ async function obtenerEquipoPorInventario(inventarioId) {
     LEFT JOIN sucursales cs ON inv.sucursal_id = cs.id
     WHERE i.inventario_id = $1
     LIMIT 1;
-  `
+  `;
 
-  const recepcionDirectaResult = await pool.query(
-    recepcionDirectaQuery,
-    [inventarioId]
-  )
+  const recepcionDirectaResult = await pool.query(recepcionDirectaQuery, [
+    inventarioId,
+  ]);
 
   if (recepcionDirectaResult.rows.length > 0) {
-    return recepcionDirectaResult.rows[0]
+    return recepcionDirectaResult.rows[0];
   }
 
-  return null
+  return null;
 }
 
 async function actualizarRecepcionDirecta({
   id,
   cantidad,
   precio,
-  categoria_catalogo_id
+  categoria_catalogo_id,
 }) {
-
   const client = await pool.connect();
 
   try {
-
     await client.query("BEGIN");
 
     await client.query(
@@ -1228,30 +1251,19 @@ async function actualizarRecepcionDirecta({
       WHERE id = $4
       AND origen = 'recepcion_directa'
       `,
-      [
-        cantidad,
-        precio,
-        categoria_catalogo_id,
-        id
-      ]
+      [cantidad, precio, categoria_catalogo_id, id],
     );
 
     await client.query("COMMIT");
-
   } catch (error) {
-
     await client.query("ROLLBACK");
 
     console.error("Error actualizarRecepcionDirecta:", error);
 
     throw error;
-
   } finally {
-
     client.release();
-
   }
-
 }
 
 async function actualizarVisibleCatalogo(id, visible_catalogo) {
@@ -1262,10 +1274,7 @@ async function actualizarVisibleCatalogo(id, visible_catalogo) {
     RETURNING id, visible_catalogo;
   `;
 
-  const { rows } = await pool.query(query, [
-    visible_catalogo,
-    id,
-  ]);
+  const { rows } = await pool.query(query, [visible_catalogo, id]);
 
   return rows[0];
 }
@@ -1282,7 +1291,6 @@ module.exports = {
   crearInventarioGeneral,
   descontarStockVenta,
   insertarEquipoEnInventario,
-  eliminarInventario,
   obtenerEquiposArmados,
   actualizarEquipoArmado,
   obtenerMemoriasRamDisponibles,
