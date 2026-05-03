@@ -27,36 +27,41 @@ exports.eliminarRecepcionDirecta = async (req, res) => {
   try {
     const { id } = req.params;
     const { motivo } = req.body;
+    const usuarioId = req.userId;
 
     if (!id) {
       return res.status(400).json({
-        message: "ID de inventario es obligatorio"
+        message: "ID de inventario es obligatorio",
       });
     }
 
     if (!motivo) {
       return res.status(400).json({
-        message: "El motivo de eliminación es obligatorio"
+        message: "El motivo de eliminación es obligatorio",
       });
     }
 
-    const eliminado = await eliminarInventarioRecepcionDirecta(id, motivo);
+    const eliminado = await eliminarInventarioRecepcionDirecta(
+      id,
+      motivo,
+      usuarioId,
+    );
 
     if (!eliminado) {
       return res.status(404).json({
-        message: "Inventario no encontrado, ya eliminado o no es de recepción directa"
+        message:
+          "Inventario no encontrado, ya eliminado o no es de recepción directa",
       });
     }
 
     res.json({
       success: true,
-      message: "Inventario de recepción directa eliminado correctamente"
+      message: "Inventario de recepción directa eliminado correctamente",
     });
-
   } catch (error) {
     console.error("Error al eliminar recepción directa:", error);
     res.status(500).json({
-      message: "Error al eliminar recepción directa"
+      message: "Error al eliminar recepción directa",
     });
   }
 };
@@ -66,7 +71,7 @@ exports.obtenerEquipoPorInventario = async (req, res) => {
 
   if (isNaN(inventarioId)) {
     return res.status(400).json({
-      message: "Parámetro 'inventario_id' inválido"
+      message: "Parámetro 'inventario_id' inválido",
     });
   }
 
@@ -75,7 +80,7 @@ exports.obtenerEquipoPorInventario = async (req, res) => {
 
     if (!equipo) {
       return res.status(404).json({
-        message: "No se encontró equipo para este inventario"
+        message: "No se encontró equipo para este inventario",
       });
     }
 
@@ -85,7 +90,6 @@ exports.obtenerEquipoPorInventario = async (req, res) => {
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
-
 
 exports.obtenerInventarioRecepcionDirecta = async (req, res) => {
   try {
@@ -103,16 +107,10 @@ exports.obtenerInventarioRecepcionDirecta = async (req, res) => {
 };
 
 exports.actualizarRecepcionDirecta = async (req, res) => {
-
   try {
-
     const { id } = req.params;
 
-    const {
-      cantidad,
-      precio,
-      categoria_catalogo_id
-    } = req.body;
+    const { cantidad, precio, categoria_catalogo_id } = req.body;
 
     if (
       cantidad === undefined ||
@@ -120,7 +118,7 @@ exports.actualizarRecepcionDirecta = async (req, res) => {
       !categoria_catalogo_id
     ) {
       return res.status(400).json({
-        message: "Datos incompletos"
+        message: "Datos incompletos",
       });
     }
 
@@ -128,23 +126,19 @@ exports.actualizarRecepcionDirecta = async (req, res) => {
       id,
       cantidad,
       precio,
-      categoria_catalogo_id
+      categoria_catalogo_id,
     });
 
     res.json({
-      message: "Recepción directa actualizada"
+      message: "Recepción directa actualizada",
     });
-
   } catch (error) {
-
     console.error("Error actualizarRecepcionDirecta:", error);
 
     res.status(500).json({
-      message: "Error al actualizar recepción directa"
+      message: "Error al actualizar recepción directa",
     });
-
   }
-
 };
 
 exports.actualizarVisibleCatalogo = async (req, res) => {
@@ -189,12 +183,12 @@ exports.registrarRecepcionDirecta = async (req, res) => {
       ram_tipo,
       almacenamiento_gb,
       almacenamiento_tipo,
-      observaciones
+      observaciones,
     } = req.body;
 
     if (!modelo || !procesador) {
       return res.status(400).json({
-        message: "Modelo y procesador son obligatorios"
+        message: "Modelo y procesador son obligatorios",
       });
     }
 
@@ -209,17 +203,17 @@ exports.registrarRecepcionDirecta = async (req, res) => {
       ram_tipo,
       almacenamiento_gb,
       almacenamiento_tipo,
-      observaciones
+      observaciones,
     });
 
     res.status(201).json({
       success: true,
-      data: nuevo
+      data: nuevo,
     });
   } catch (error) {
     console.error("Error en recepción directa:", error);
     res.status(500).json({
-      message: "Error al registrar recepción directa"
+      message: "Error al registrar recepción directa",
     });
   }
 };
@@ -243,7 +237,7 @@ exports.obtenerMemoriasRamDisponibles = async (req, res) => {
 
     if (!sucursal_id) {
       return res.status(400).json({
-        message: "sucursal_id es requerido"
+        message: "sucursal_id es requerido",
       });
     }
 
@@ -252,16 +246,15 @@ exports.obtenerMemoriasRamDisponibles = async (req, res) => {
     if (tipo) {
       tipo = tipo.toUpperCase();
 
-      if (!['DIMM', 'SODIMM'].includes(tipo)) {
+      if (!["DIMM", "SODIMM"].includes(tipo)) {
         return res.status(400).json({
-          message: "tipo debe ser DIMM o SODIMM"
+          message: "tipo debe ser DIMM o SODIMM",
         });
       }
     }
 
     const rams = await obtenerMemoriasRamDisponibles({ tipo, sucursal_id });
     res.json(rams);
-
   } catch (error) {
     console.error("Error al obtener memorias RAM disponibles:", error);
     res.status(500).json({ message: "Error en el servidor" });
@@ -291,7 +284,7 @@ exports.registrarEquipo = async (req, res) => {
     const nuevoRegistro = await insertarEquipoEnInventario(
       equipo_id,
       sucursal_id,
-      precio
+      precio,
     );
 
     res.status(201).json({
@@ -359,10 +352,10 @@ exports.crearInventarioGeneral = async (req, res) => {
 
 exports.obtenerInventario = async (req, res) => {
   try {
-     const { sucursal_id } = req.query;
+    const { sucursal_id } = req.query;
 
     const items = await obtenerInventario(sucursal_id);
-    res.json(items);    
+    res.json(items);
   } catch (error) {
     console.error("Error al obtener inventario:", error);
     res.status(500).json({ message: "Error en el servidor" });
@@ -424,19 +417,27 @@ exports.eliminarInventario = async (req, res) => {
   const { motivo } = req.body;
 
   try {
-    const itemEliminado = await eliminarInventario(id, motivo);
+    const usuarioId = req.userId;
+
+    const itemEliminado = await eliminarInventario(id, motivo, usuarioId);
 
     if (!itemEliminado) {
-      return res.status(404).json({ message: "Ítem no encontrado" });
+      return res.status(404).json({
+        message: "Ítem no encontrado",
+      });
     }
 
-    res.json({ message: "Ítem eliminado correctamente" });
-
+    res.json({
+      message: "Ítem eliminado correctamente",
+    });
   } catch (error) {
-    res.status(500).json({ message: "Error en el servidor" });
+    console.error("Error al eliminar inventario:", error);
+
+    res.status(500).json({
+      message: "Error en el servidor",
+    });
   }
 };
-
 
 exports.validarStockInventario = async (req, res) => {
   try {
@@ -463,7 +464,7 @@ exports.validarStockInventario = async (req, res) => {
 exports.descontarStockVenta = async (req, res) => {
   try {
     const { productos, sucursal_id } = req.body;
-    
+
     if (!sucursal_id || !Array.isArray(productos) || productos.length === 0) {
       return res.status(400).json({
         message: "sucursal_id y al menos un producto son requeridos",
@@ -471,7 +472,7 @@ exports.descontarStockVenta = async (req, res) => {
     }
 
     const resultados = [];
-   
+
     for (const item of productos) {
       const { producto_id, cantidad_vendida } = item;
 
@@ -503,7 +504,6 @@ exports.descontarStockVenta = async (req, res) => {
   }
 };
 
-
 exports.traspasarInventario = async (req, res) => {
   try {
     const { id } = req.params;
@@ -518,9 +518,7 @@ exports.traspasarInventario = async (req, res) => {
     const actualizado = await traspasarInventario(id, sucursal_id);
 
     if (!actualizado) {
-      return res
-        .status(404)
-        .json({ message: "Inventario no encontrado" });
+      return res.status(404).json({ message: "Inventario no encontrado" });
     }
 
     res.json(actualizado);
@@ -529,4 +527,3 @@ exports.traspasarInventario = async (req, res) => {
     res.status(500).json({ message: "Error al traspasar inventario" });
   }
 };
-

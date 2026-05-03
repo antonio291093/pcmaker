@@ -23,7 +23,7 @@ app.use(
       }
     },
     credentials: true,
-  })
+  }),
 );
 
 app.use(cookieParser());
@@ -63,6 +63,7 @@ const garantiasRoutes = require("./routes/garantiaRutas");
 const catalogoRoutes = require("./routes/catalogoRutas");
 const catalogoCategoriasRoutes = require("./routes/categoriaInventarioRutas");
 const configuracionPagos = require("./routes/configuracionPagosRutas");
+const reportesRoutes = require("./routes/reportesRutas");
 
 // Usa las rutas
 app.use("/api/usuarios", usuariosRoutes);
@@ -86,5 +87,6 @@ app.use("/api/catalogo", catalogoRoutes);
 app.use("/catalogo-img", express.static("uploads/catalogo"));
 app.use("/api/catalogo-categorias", catalogoCategoriasRoutes);
 app.use("/api/configuracionPagos", configuracionPagos);
+app.use("/api/reportes", reportesRoutes);
 
 module.exports = { app, pool };

@@ -1,10 +1,10 @@
-const { registrarVenta, obtenerReporteVentas } = require("../models/ventas");
-const { generarTicketVentaPDF } = require('../utils/pdf/generarTicketVenta')
-const pool = require('../config/db')
+const { registrarVenta } = require("../models/ventas");
+const { generarTicketVentaPDF } = require("../utils/pdf/generarTicketVenta");
+const pool = require("../config/db");
 
 exports.generarTicketVenta = async (req, res) => {
   try {
-    const { ventaId } = req.params
+    const { ventaId } = req.params;
 
     // 1️⃣ Venta (fuente única)
     const ventaResult = await pool.query(
@@ -25,14 +25,14 @@ exports.generarTicketVenta = async (req, res) => {
       LEFT JOIN usuarios u ON v.user_venta = u.id
       WHERE v.id = $1
       `,
-      [ventaId]
-    )
+      [ventaId],
+    );
 
     if (!ventaResult.rows.length) {
-      return res.status(404).json({ message: 'Venta no encontrada' })
+      return res.status(404).json({ message: "Venta no encontrada" });
     }
 
-    const venta = ventaResult.rows[0]
+    const venta = ventaResult.rows[0];
 
     //console.log('🧾 VENTA OBTENIDA:', venta)
 
@@ -75,33 +75,30 @@ exports.generarTicketVenta = async (req, res) => {
 
       WHERE d.venta_id = $1
       `,
-      [ventaId]
-    )
-    
+      [ventaId],
+    );
 
     if (!productosResult.rows.length) {
-      return res
-        .status(404)
-        .json({ message: 'La venta no tiene productos' })
+      return res.status(404).json({ message: "La venta no tiene productos" });
     }
 
     //console.log('📦 PRODUCTOS RAW:', productosResult.rows)
 
-    const items = productosResult.rows.map(p => ({
+    const items = productosResult.rows.map((p) => ({
       descripcion: p.descripcion,
       cantidad: p.cantidad,
       precio_unitario: Number(p.precio),
       total: Number(p.precio) * p.cantidad,
-    }))
+    }));
 
     //console.log('🧮 ITEMS NORMALIZADOS:', items)
 
     // 4️⃣ Fecha formateada
-    const fecha = new Date(venta.fecha_venta).toLocaleDateString('es-MX', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    })
+    const fecha = new Date(venta.fecha_venta).toLocaleDateString("es-MX", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
 
     // 5️⃣ Generar PDF
     const pdfBytes = await generarTicketVentaPDF({
@@ -109,32 +106,31 @@ exports.generarTicketVenta = async (req, res) => {
       sucursal_id: venta.sucursal_id,
       fecha,
       cliente: venta.cliente,
-      telefono: venta.telefono || '',
-      email: venta.correo || '',
-      vendedor: venta.vendedor || '',
+      telefono: venta.telefono || "",
+      email: venta.correo || "",
+      vendedor: venta.vendedor || "",
       items,
       subtotal: venta.subtotal,
       iva: venta.iva,
       total: venta.total,
-      requiere_factura: venta.requiere_factura
-    })
+      requiere_factura: venta.requiere_factura,
+    });
 
     // 6️⃣ Respuesta
-    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
-      'Content-Disposition',
-      `inline; filename=ticket_venta_${ventaId}.pdf`
-    )
+      "Content-Disposition",
+      `inline; filename=ticket_venta_${ventaId}.pdf`,
+    );
 
-    res.send(Buffer.from(pdfBytes))
-
+    res.send(Buffer.from(pdfBytes));
   } catch (error) {
-    console.error('Error al generar ticket:', error)
+    console.error("Error al generar ticket:", error);
     res.status(500).json({
-      message: 'Error al generar ticket de venta',
-    })
+      message: "Error al generar ticket de venta",
+    });
   }
-}
+};
 
 exports.crearVenta = async (req, res) => {
   try {
@@ -151,24 +147,24 @@ exports.crearVenta = async (req, res) => {
       subtotal,
       iva,
       total,
-      requiere_factura
+      requiere_factura,
     } = req.body;
 
     if (!cliente) {
       return res.status(400).json({
-        message: "El cliente es obligatorio"
+        message: "El cliente es obligatorio",
       });
     }
 
     if (productos.length === 0 && servicios.length === 0) {
       return res.status(400).json({
-        message: "Debes registrar al menos un producto o un servicio"
+        message: "Debes registrar al menos un producto o un servicio",
       });
     }
 
     if (!pagos.length) {
       return res.status(400).json({
-        message: "Debes registrar al menos un método de pago"
+        message: "Debes registrar al menos un método de pago",
       });
     }
 
@@ -185,43 +181,17 @@ exports.crearVenta = async (req, res) => {
       subtotal,
       iva,
       total,
-      requiere_factura
+      requiere_factura,
     });
 
     res.status(201).json({
       message: "Venta registrada correctamente",
-      ...venta
+      ...venta,
     });
-
   } catch (error) {
     console.error("Error al registrar venta:", error);
     res.status(500).json({
-      message: error.message || "Error al registrar venta"
+      message: error.message || "Error al registrar venta",
     });
-  }
-};
-
-exports.reporteVentas = async (req, res) => {
-  try {
-
-    const { from, to } = req.query;
-    
-    const sucursal_id = Number(req.query.sucursal_id) || null;
-
-    if (!from || !to) {
-      return res.status(400).json({ message: 'Fechas requeridas' });
-    }
-
-    const data = await obtenerReporteVentas({
-      from,
-      to,
-      sucursal_id
-    });
-
-    res.json(data);
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error al generar reporte' });
   }
 };

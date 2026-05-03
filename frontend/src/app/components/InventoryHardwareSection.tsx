@@ -110,7 +110,7 @@ export default function InventoryHardwareSection() {
   const [editandoInventario, setEditandoInventario] = useState<InventarioItem | null>(null);
   const [editandoEquipo, setEditandoEquipo] = useState<EquipoArmado | null>(null);  
   const [sucursalId, setSucursalId] = useState<number | null>(null);
-  const { user, loading: userLoading } = useUser();  
+  const { user, loading: userLoading, sucursalActiva } = useUser();  
   const [sucursalSeleccionada, setSucursalSeleccionada] = useState<number | null>(null)
   const [sucursales, setSucursales] = useState<{ id: number; nombre: string }[]>([])
   const [openImpresion, setOpenImpresion] = useState(false);
@@ -189,15 +189,22 @@ export default function InventoryHardwareSection() {
     }
   };
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;  
 
   useEffect(() => {
     if (userLoading) return
     if (!user) return
 
-    setSucursalId(user.sucursal_id)
-    setSucursalSeleccionada(user.sucursal_id)
-  }, [user, userLoading])
+    // 🔥 PRIORIDAD: sucursal seleccionada dinámicamente
+    if (sucursalActiva) {
+      setSucursalId(sucursalActiva)
+      setSucursalSeleccionada(sucursalActiva)
+    } else {
+      // fallback (por si no es admin)
+      setSucursalId(user.sucursal_id)
+      setSucursalSeleccionada(user.sucursal_id)
+    }
+  }, [user, userLoading, sucursalActiva])
 
   if (userLoading) return null
   if (!user) return null     

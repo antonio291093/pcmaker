@@ -28,10 +28,9 @@ export default function SucursalCard({ data, isActive, onSelect }: Props) {
         ${isActive ? 'ring-2 ring-indigo-500' : 'hover:shadow-md'}
       `}
     >
-      {/* Header */}
       <div className="flex justify-between items-center mb-3">
         <h3 className="text-lg font-semibold text-gray-700">
-          Sucursal {data.sucursal}
+          {data.sucursal}
         </h3>
 
         <span className="text-xs text-gray-500">
@@ -39,7 +38,6 @@ export default function SucursalCard({ data, isActive, onSelect }: Props) {
         </span>
       </div>
 
-      {/* Datos */}
       <div className="space-y-2 text-sm">
 
         <div className="flex justify-between">
@@ -65,7 +63,6 @@ export default function SucursalCard({ data, isActive, onSelect }: Props) {
 
       </div>
 
-      {/* Estado corte + botón */}
       <div className="mt-4 flex items-center justify-between">
 
         <div className="flex items-center gap-2 text-sm">
@@ -86,7 +83,6 @@ export default function SucursalCard({ data, isActive, onSelect }: Props) {
           )}
         </div>
 
-        {/* 🔥 BOTÓN CLAVE */}
         <button
           onClick={onSelect}
           className={`
@@ -97,7 +93,7 @@ export default function SucursalCard({ data, isActive, onSelect }: Props) {
             }
           `}
         >
-          {isActive ? 'Ocultar detalle' : 'Ver detalle'}
+          {isActive ? 'Ocultar' : 'Ver detalle'}
         </button>
 
       </div>

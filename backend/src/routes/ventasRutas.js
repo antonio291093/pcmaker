@@ -5,11 +5,13 @@ const authMiddleware = require("../middlewares/authMiddleware");
 const corteCajaMiddleware = require("../middlewares/corteCajaMiddleware.js");
 
 // Registrar venta
-router.post("/", authMiddleware, corteCajaMiddleware, ventasController.crearVenta);
+router.post(
+  "/",
+  authMiddleware,
+  corteCajaMiddleware,
+  ventasController.crearVenta,
+);
 
-// Obtener listado de ventas
-router.get("/", authMiddleware, ventasController.reporteVentas);
-
-router.get('/ticket/:ventaId', ventasController.generarTicketVenta)
+router.get("/ticket/:ventaId", ventasController.generarTicketVenta);
 
 module.exports = router;

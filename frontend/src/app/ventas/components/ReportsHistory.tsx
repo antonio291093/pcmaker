@@ -82,7 +82,7 @@ export default function ReportsHistory() {
       setLoading(true)
 
       const resp = await fetch(
-        `${API_URL}/api/ventas?from=${from}&to=${to}&sucursal_id=${sucursalId}`,
+        `${API_URL}/api/reportes?from=${from}&to=${to}&sucursal_id=${sucursalId}`,
         { credentials: 'include' }
       )
 

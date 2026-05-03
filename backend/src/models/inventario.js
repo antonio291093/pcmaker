@@ -1,7 +1,11 @@
 const pool = require("../config/db");
 const { generarBarcodeBase64 } = require("../utils/barcode");
 
-async function eliminarInventarioRecepcionDirecta(inventarioId, motivo) {
+async function eliminarInventarioRecepcionDirecta(
+  inventarioId,
+  motivo,
+  usuarioId,
+) {
   const client = await pool.connect();
 
   try {
@@ -32,10 +36,11 @@ async function eliminarInventarioRecepcionDirecta(inventarioId, motivo) {
       SET 
         eliminado = TRUE,
         motivo_eliminacion = $2,
-        fecha_eliminacion = NOW()
+        fecha_eliminacion = NOW(),
+        eliminado_por = $3
       WHERE id = $1;
       `,
-      [inventarioId, motivo],
+      [inventarioId, motivo, usuarioId],
     );
 
     await client.query("COMMIT");
@@ -518,19 +523,21 @@ async function insertarInventarioRecepcionDirecta({
 /** ----------------------------------------------------
  * ELIMINAR INVENTARIO
  * ---------------------------------------------------- */
-async function eliminarInventario(id, motivo) {
+async function eliminarInventario(id, motivo, usuarioId) {
   const query = `
     UPDATE inventario
     SET 
       eliminado = TRUE,
       motivo_eliminacion = $2,
-      fecha_eliminacion = NOW()
+      fecha_eliminacion = NOW(),
+      eliminado_por = $3
     WHERE id = $1
       AND eliminado = FALSE
     RETURNING *;
   `;
 
-  const { rows } = await pool.query(query, [id, motivo]);
+  const { rows } = await pool.query(query, [id, motivo, usuarioId]);
+
   return rows[0];
 }
 

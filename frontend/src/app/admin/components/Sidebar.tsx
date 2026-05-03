@@ -1,7 +1,16 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { FaUsers, FaBoxOpen, FaFileAlt, FaTasks, FaCog, FaTruck, FaSignOutAlt, FaBars } from 'react-icons/fa'
+import {
+  FaUsers,
+  FaBoxOpen,
+  FaFileAlt,
+  FaCog,
+  FaTruck,
+  FaSignOutAlt,
+  FaBars,
+  FaBuilding
+} from 'react-icons/fa'
 import { useUser } from '@/context/UserContext'
 import { useRouter } from "next/navigation"
 
@@ -18,38 +27,64 @@ const navItems = [
   { label: 'Reportes', icon: <FaFileAlt />, path: 'reportes' },  
   { label: 'Configuración', icon: <FaCog />, path: 'configuracion' },
   { label: 'Recibir lote', icon: <FaTruck />, path: 'lote' },
-  { label: 'Recepción directa', icon: <FaTruck />, path: 'recepcion' },
-  { label: 'Cerrar sesión', icon: <FaSignOutAlt />, path: 'logout' }
+  { label: 'Recepción directa', icon: <FaTruck />, path: 'recepcion' },  
 ]
 
 export default function Sidebar({ active, setActive }: SidebarProps) {
-  const [open, setOpen] = useState(false); // móvil: estado del sidebar abierto/cerrado
-  const [isDesktop, setIsDesktop] = useState(false);
-  const { logout } = useUser()  
-  const router = useRouter();
+  const [open, setOpen] = useState(false)
+  const [isDesktop, setIsDesktop] = useState(false)
+  const [sucursalNombre, setSucursalNombre] = useState<string>('')
 
-  // Detectar si estamos en escritorio
+  const { logout, user, sucursalActiva, setSucursalActiva } = useUser()
+  const router = useRouter()
+
   useEffect(() => {
-    const checkDesktop = () => setIsDesktop(window.innerWidth >= 1024);
-    checkDesktop();
-    window.addEventListener('resize', checkDesktop);
-    return () => window.removeEventListener('resize', checkDesktop);
-  }, []);
+    const checkDesktop = () => setIsDesktop(window.innerWidth >= 1024)
+    checkDesktop()
+    window.addEventListener('resize', checkDesktop)
+    return () => window.removeEventListener('resize', checkDesktop)
+  }, [])
+
+  // Obtener nombre sucursal
+  useEffect(() => {
+    const fetchSucursal = async () => {
+      if (!sucursalActiva) return
+
+      try {
+        const res = await fetch(`${API_URL}/api/sucursales/${sucursalActiva}`, {
+          credentials: 'include'
+        })
+        const data = await res.json()
+        setSucursalNombre(data.nombre)
+      } catch (err) {
+        console.error(err)
+      }
+    }
+
+    if (user?.rol_id === 1 && sucursalActiva) {
+      fetchSucursal()
+    }
+  }, [sucursalActiva, user])
 
   const handleNavClick = async (path: string) => {
     if (path === 'logout') {
-      await logout()                 // 🔥 limpia cookie + estado
-      router.replace('/login')       // 👈 importante
+      await logout()
+      router.replace('/login')
       return
     }
 
     setActive(path)
-    setOpen(false) // cerrar sidebar en móvil
+    setOpen(false)
+  }
+
+  // 🔥 SIN RELOAD
+  const handleChangeSucursal = () => {
+    setSucursalActiva(null) // 👈 esto dispara el modal automáticamente
   }
 
   return (
     <>
-      {/* Botón hamburguesa solo visible en móviles */}
+      {/* Botón hamburguesa */}
       <button
         className="lg:hidden fixed top-5 left-5 z-40 bg-indigo-600 text-white p-2 rounded-full shadow"
         onClick={() => setOpen(true)}
@@ -60,7 +95,7 @@ export default function Sidebar({ active, setActive }: SidebarProps) {
       {/* Sidebar */}
       <motion.aside
         initial={false}
-        animate={{ x: isDesktop ? 0 : open ? 0 : -140 }} // fijo en escritorio, animado en móvil
+        animate={{ x: isDesktop ? 0 : open ? 0 : -140 }}
         transition={{ type: 'spring', stiffness: 80, delay: 0.15 }}
         className={`
           sidebar-scroll
@@ -70,14 +105,26 @@ export default function Sidebar({ active, setActive }: SidebarProps) {
           overflow-y-auto
           overflow-x-hidden
           w-24
-          ${open ? 'block' : 'hidden'}  // móvil
-          lg:flex                       // escritorio siempre visible
+          ${open ? 'block' : 'hidden'}
+          lg:flex
         `}
         style={open && !isDesktop ? { boxShadow: "0 0 0 100vmax rgba(0,0,0,0.4)" } : {}}
       >
-        <div className="mb-8 flex justify-center">
+        {/* Logo + sucursal */}
+        <div className="mb-6 flex flex-col items-center gap-2">
           <img src="/pcmaker.png" alt="Logo" className="h-20 w-20 rounded-full shadow" />
+
+          {user?.rol_id === 1 && sucursalActiva && (
+            <div className="text-center">
+              <p className="text-[10px] text-gray-400">Sucursal</p>
+              <p className="text-[11px] font-semibold text-indigo-600 leading-tight">
+                {sucursalNombre || `ID: ${sucursalActiva}`}
+              </p>
+            </div>
+          )}
         </div>
+
+        {/* Navegación */}
         <nav className="flex-1 flex flex-col space-y-1 items-center">
           {navItems.map(item => (
             <motion.button
@@ -95,8 +142,36 @@ export default function Sidebar({ active, setActive }: SidebarProps) {
               <span className="text-[11px] mt-1 font-medium">{item.label}</span>
             </motion.button>
           ))}
+
+          {/* 🔥 Cambiar sucursal */}
+          {user?.rol_id === 1 && (
+            <motion.button
+              onClick={handleChangeSucursal}
+              whileHover={{ scale: 1.08 }}
+              className="flex flex-col items-center w-full py-3 rounded-xl text-xl px-2 transition-colors text-gray-400 hover:bg-gray-100 hover:text-indigo-600"
+              title="Cambiar sucursal"
+            >
+              <FaBuilding />
+              <span className="text-[11px] mt-1 font-medium">
+                Cambiar
+              </span>
+            </motion.button>            
+          )}
+
+           <motion.button
+            onClick={() => handleNavClick('logout')}
+            whileHover={{ scale: 1.08 }}
+            className="flex flex-col items-center w-full py-3 rounded-xl text-xl px-2 transition-colors text-red-400 hover:bg-red-50 hover:text-red-600"
+            title="Cerrar sesión"
+          >
+            <FaSignOutAlt />
+            <span className="text-[11px] mt-1 font-medium">
+              Salir
+            </span>
+          </motion.button>
         </nav>
-        {/* Botón cerrar solo visible en móvil */}
+
+        {/* Cerrar móvil */}
         <button
           className="lg:hidden mt-8 bg-gray-200 text-gray-600 px-4 py-2 rounded"
           onClick={() => setOpen(false)}
@@ -105,7 +180,7 @@ export default function Sidebar({ active, setActive }: SidebarProps) {
         </button>
       </motion.aside>
 
-      {/* Overlay oscuro al abrir en móvil */}
+      {/* Overlay móvil */}
       {open && !isDesktop && (
         <div
           className="fixed inset-0 bg-white bg-opacity-40 z-20 lg:hidden"
@@ -113,5 +188,6 @@ export default function Sidebar({ active, setActive }: SidebarProps) {
         />
       )}
     </>
-  );
+  )
 }
+
