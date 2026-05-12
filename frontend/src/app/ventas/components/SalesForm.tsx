@@ -10,6 +10,8 @@ import { useUser } from '@/context/UserContext'
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
 
 export default function SalesForm() {
+  const { user, loading: userLoading } = useUser()
+
   const [formData, setFormData] = useState({
     cliente: '',
     observaciones: '',
@@ -25,14 +27,13 @@ export default function SalesForm() {
   })
 
   const [productosSeleccionados, setProductosSeleccionados] = useState<any[]>([])
-
-  const equiposVendidos = productosSeleccionados.filter(
-    (p) => p.es_equipo === true
-  )
-
-  const [mostrarModal, setMostrarModal] = useState(false)  
+  const [mostrarModal, setMostrarModal] = useState(false)
   const [loading, setLoading] = useState(false)
-  const { user, loading: userLoading } = useUser()
+  const [serviciosSeleccionados, setServiciosSeleccionados] = useState<any[]>([])
+  const [mostrarModalServicios, setMostrarModalServicios] = useState(false)
+  const [configTransferencia, setConfigTransferencia] = useState<any>(null)
+  const [loadingConfig, setLoadingConfig] = useState(false)
+
   if (userLoading) {
     return <p>Cargando usuario...</p>
   }
@@ -43,10 +44,11 @@ export default function SalesForm() {
 
   const usuarioId = user.id
   const sucursalId = user.sucursal_id
-  const [serviciosSeleccionados, setServiciosSeleccionados] = useState<any[]>([])
-  const [mostrarModalServicios, setMostrarModalServicios] = useState(false)
-  const [configTransferencia, setConfigTransferencia] = useState<any>(null)
-  const [loadingConfig, setLoadingConfig] = useState(false)
+
+  const equiposVendidos = productosSeleccionados.filter(
+    (p) => p.es_equipo === true
+  )
+
   const usaTransferencia = pagos.transferencia > 0
 
   useEffect(() => {

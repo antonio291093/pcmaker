@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir C:\\\\Users\\\\thebl\\\\OneDrive\\\\Documentos\\\\ReactProjects\\\\pcmaker *)",
+      "Bash(dir \"C:\\\\Users\\\\thebl\\\\OneDrive\\\\Documentos\\\\ReactProjects\\\\pcmaker\\\\backend\")",
+      "Bash(dir \"C:\\\\Users\\\\thebl\\\\OneDrive\\\\Documentos\\\\ReactProjects\\\\pcmaker\\\\frontend\")",
+      "Bash(dir \"C:\\\\Users\\\\thebl\\\\OneDrive\\\\Documentos\\\\ReactProjects\\\\pcmaker\\\\nginx\")",
+      "Bash(dir \"C:\\\\Users\\\\thebl\\\\OneDrive\\\\Documentos\\\\ReactProjects\\\\pcmaker\\\\catalogo\")",
+      "Bash(dir \"C:\\\\Users\\\\thebl\\\\OneDrive\\\\Documentos\\\\ReactProjects\\\\pcmaker\\\\backend\\\\src\")",
+      "Bash(dir \"C:\\\\Users\\\\thebl\\\\OneDrive\\\\Documentos\\\\ReactProjects\\\\pcmaker\\\\frontend\\\\src\")",
+      "Bash(dir \"C:\\\\Users\\\\thebl\\\\OneDrive\\\\Documentos\\\\ReactProjects\\\\pcmaker\\\\backend\\\\src\\\\routes\")",
+      "Bash(dir \"C:\\\\Users\\\\thebl\\\\OneDrive\\\\Documentos\\\\ReactProjects\\\\pcmaker\\\\backend\\\\src\\\\controllers\")",
+      "Bash(dir \"C:\\\\Users\\\\thebl\\\\OneDrive\\\\Documentos\\\\ReactProjects\\\\pcmaker\\\\backend\\\\src\\\\models\")",
+      "Bash(dir \"C:\\\\Users\\\\thebl\\\\OneDrive\\\\Documentos\\\\ReactProjects\\\\pcmaker\\\\backend\\\\src\\\\middlewares\")",
+      "Bash(dir \"C:\\\\Users\\\\thebl\\\\OneDrive\\\\Documentos\\\\ReactProjects\\\\pcmaker\\\\backend\\\\src\\\\config\")",
+      "Bash(dir \"C:\\\\Users\\\\thebl\\\\OneDrive\\\\Documentos\\\\ReactProjects\\\\pcmaker\\\\frontend\\\\src\\\\app\")",
+      "Bash(dir \"C:\\\\Users\\\\thebl\\\\OneDrive\\\\Documentos\\\\ReactProjects\\\\pcmaker\\\\frontend\\\\src\\\\context\")",
+      "Bash(dir \"C:\\\\Users\\\\thebl\\\\OneDrive\\\\Documentos\\\\ReactProjects\\\\pcmaker\\\\frontend\\\\src\\\\utils\")",
+      "Bash(dir \"C:\\\\Users\\\\thebl\\\\OneDrive\\\\Documentos\\\\ReactProjects\\\\pcmaker\\\\frontend\\\\src\\\\app\\\\admin\")",
+      "Bash(dir \"C:\\\\Users\\\\thebl\\\\OneDrive\\\\Documentos\\\\ReactProjects\\\\pcmaker\\\\frontend\\\\src\\\\app\\\\ventas\")",
+      "Bash(dir \"C:\\\\Users\\\\thebl\\\\OneDrive\\\\Documentos\\\\ReactProjects\\\\pcmaker\\\\frontend\\\\src\\\\app\\\\tecnico\")",
+      "Bash(dir \"C:\\\\Users\\\\thebl\\\\OneDrive\\\\Documentos\\\\ReactProjects\\\\pcmaker\\\\frontend\\\\src\\\\app\\\\login\")",
+      "Bash(dir \"C:\\\\Users\\\\thebl\\\\OneDrive\\\\Documentos\\\\ReactProjects\\\\pcmaker\\\\frontend\\\\src\\\\app\\\\components\")",
+      "Bash(dir \"C:\\\\Users\\\\thebl\\\\OneDrive\\\\Documentos\\\\ReactProjects\\\\pcmaker\\\\frontend\\\\src\\\\app\\\\admin\\\\components\")",
+      "Bash(dir \"C:\\\\Users\\\\thebl\\\\OneDrive\\\\Documentos\\\\ReactProjects\\\\pcmaker\\\\frontend\\\\src\\\\app\\\\ventas\\\\components\")",
+      "Bash(dir \"C:\\\\Users\\\\thebl\\\\OneDrive\\\\Documentos\\\\ReactProjects\\\\pcmaker\\\\frontend\\\\src\\\\app\\\\tecnico\\\\components\")",
+      "Bash(dir \"C:\\\\Users\\\\thebl\\\\OneDrive\\\\Documentos\\\\ReactProjects\\\\pcmaker\\\\backend\\\\src\\\\utils\\\\pdf\")"
+    ]
+  }
+}
