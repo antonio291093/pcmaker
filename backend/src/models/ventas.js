@@ -263,7 +263,60 @@ async function obtenerTotalesPorMetodo(fecha, sucursal_id) {
   return rows[0];
 }
 
+async function obtenerDatosTicket(ventaId) {
+  const ventaResult = await pool.query(
+    `
+    SELECT
+      v.id,
+      v.cliente,
+      v.telefono,
+      v.correo,
+      v.subtotal,
+      v.iva,
+      v.total,
+      v.requiere_factura,
+      v.fecha_venta,
+      v.sucursal_id,
+      u.nombre AS vendedor
+    FROM ventas v
+    LEFT JOIN usuarios u ON v.user_venta = u.id
+    WHERE v.id = $1
+    `,
+    [ventaId],
+  );
+
+  if (!ventaResult.rows.length) return null;
+
+  const venta = ventaResult.rows[0];
+
+  const itemsResult = await pool.query(
+    `
+    SELECT
+      d.cantidad,
+      d.precio_unitario AS precio,
+      CASE
+        WHEN i.equipo_id IS NOT NULL THEN e.nombre
+        WHEN ie.inventario_id IS NOT NULL THEN ie.modelo
+        WHEN i.id IS NOT NULL THEN i.especificacion
+        ELSE cm.descripcion
+      END AS descripcion
+    FROM venta_detalle d
+    JOIN ventas v ON v.id = d.venta_id
+    LEFT JOIN inventario i ON i.id = d.producto_id
+    LEFT JOIN equipos e ON e.id = i.equipo_id
+    LEFT JOIN inventario_especificaciones ie ON ie.inventario_id = d.producto_id
+    LEFT JOIN mantenimientos m ON m.id = d.mantenimiento_id
+    LEFT JOIN catalogo_mantenimiento cm ON cm.id = m.catalogo_id
+    WHERE d.venta_id = $1
+    `,
+    [ventaId],
+  );
+
+  return { venta, items: itemsResult.rows };
+}
+
 module.exports = {
   registrarVenta,
   obtenerTotalesPorMetodo,
+  obtenerDatosTicket,
 };
