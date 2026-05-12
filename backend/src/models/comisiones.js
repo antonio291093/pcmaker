@@ -8,7 +8,7 @@ async function crearComision({
   monto,
   fecha_creacion,
   equipo_id,
-}) {
+}, client = pool) {
   const query = `
     INSERT INTO comisiones (usuario_id, venta_id, mantenimiento_id, monto, fecha_creacion, equipo_id)
     VALUES ($1, $2, $3, $4, $5, $6)
@@ -22,7 +22,7 @@ async function crearComision({
     fecha_creacion,
     equipo_id,
   ];
-  const { rows } = await pool.query(query, values);
+  const { rows } = await client.query(query, values);
   return rows[0];
 }
 

@@ -1,4 +1,7 @@
 const pool = require("../config/db");
+const { descontarStockVenta } = require("./inventario");
+const { registrarMovimiento } = require("./caja");
+const { crearComision } = require("./comisiones");
 
 async function registrarVenta({
   cliente,
@@ -178,6 +181,51 @@ async function registrarVenta({
         `,
         [mantenimientoId],
       );
+    }
+
+    // A) Descontar stock de cada producto
+    for (const producto of productos) {
+      await descontarStockVenta(
+        { producto_id: producto.id, cantidad: producto.cantidad, sucursal_id },
+        client
+      );
+    }
+
+    // B) Registrar movimiento en caja
+    await registrarMovimiento(
+      {
+        tipo: "venta",
+        monto: totalReal,
+        descripcion: `Venta #${ventaId} - Cliente: ${cliente}`,
+        sucursal_id,
+        usuario_id,
+      },
+      client
+    );
+
+    // C) Comisión del vendedor (solo si hay productos)
+    if (productos.length > 0) {
+      const configComision = await client.query(
+        "SELECT valor FROM configuraciones WHERE nombre = 'comision_ventas' LIMIT 1;"
+      );
+      const tasa =
+        configComision.rows.length > 0
+          ? parseFloat(configComision.rows[0].valor)
+          : 0.03;
+      if (!isNaN(tasa) && tasa > 0) {
+        const montoComision = Number((subtotalProductos * tasa).toFixed(2));
+        await crearComision(
+          {
+            usuario_id,
+            venta_id: ventaId,
+            mantenimiento_id: null,
+            monto: montoComision,
+            fecha_creacion: new Date(),
+            equipo_id: null,
+          },
+          client
+        );
+      }
     }
 
     await client.query("COMMIT");

@@ -546,7 +546,7 @@ async function eliminarInventario(id, motivo, usuarioId) {
  * ----------------------------------------
  * Disminuye la cantidad de un producto en inventario según su ID.
  */
-async function descontarStockVenta({ producto_id, cantidad = 1, sucursal_id }) {
+async function descontarStockVenta({ producto_id, cantidad = 1, sucursal_id }, client = pool) {
   if (!producto_id || !sucursal_id)
     throw new Error("Debe proporcionar producto_id y sucursal_id");
 
@@ -556,7 +556,7 @@ async function descontarStockVenta({ producto_id, cantidad = 1, sucursal_id }) {
     WHERE id = $1 AND sucursal_id = $2
     LIMIT 1;
   `;
-  const { rows } = await pool.query(buscarQuery, [producto_id, sucursal_id]);
+  const { rows } = await client.query(buscarQuery, [producto_id, sucursal_id]);
   const producto = rows[0];
 
   if (!producto) throw new Error("Producto no encontrado en inventario");
@@ -573,7 +573,7 @@ async function descontarStockVenta({ producto_id, cantidad = 1, sucursal_id }) {
     WHERE id = $2
     RETURNING *;
   `;
-  const { rows: updateRows } = await pool.query(updateQuery, [
+  const { rows: updateRows } = await client.query(updateQuery, [
     nuevaCantidad,
     producto.id,
   ]);

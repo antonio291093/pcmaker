@@ -171,58 +171,6 @@ export default function SalesForm() {
     setProductosSeleccionados(prev => prev.filter(p => p.id !== id))
   }
 
-  const totalProductos = useMemo(() => {
-    return productosSeleccionados.reduce((acc, p) => {
-      const precio = Number(p.precio) || 0
-      const cantidad = Number(p.cantidadSeleccionada) || 0
-      return acc + precio * cantidad
-    }, 0)
-  }, [productosSeleccionados])
-
-  const generarComisionVenta = async (
-    ventaId: number,
-    vendedorId: number,
-    montoVenta: number
-  ) => {
-    try {
-      //Obtener configuración
-      const respConfig = await fetch(
-        `${API_URL}/api/configuraciones/comision_ventas`,
-        { credentials: 'include' }
-      )
-
-      let tasa = 0.03 // default 3%
-
-      if (respConfig.ok) {
-        const data = await respConfig.json()
-        const parsed = parseFloat(data?.valor)
-        if (!isNaN(parsed)) tasa = parsed
-      }
-
-      //Calcular comisión SOLO sobre productos
-      const comision = montoVenta * tasa
-
-      if (comision <= 0) return
-
-      //Registrar comisión
-      await fetch(`${API_URL}/api/comisiones`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          usuario_id: vendedorId,
-          venta_id: ventaId,
-          mantenimiento_id: null,
-          monto: comision,
-          fecha_creacion: new Date().toISOString(),
-          equipo_id: null,
-        }),
-      })
-    } catch (err) {
-      console.error('Error generando comisión de venta:', err)
-    }
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -326,7 +274,6 @@ export default function SalesForm() {
 
       const ventaData = await ventaResp.json()
       const ventaId = ventaData.venta_id;
-      const totalVenta = ventaData.total;
 
       const ticketResult = await Swal.fire({
         title: 'Venta generada',
@@ -356,58 +303,6 @@ export default function SalesForm() {
 
         if (garantiaResult.isConfirmed) {
           window.open(`${API_URL}/api/garantia/${ventaId}`, '_blank')
-        }
-      }
-
-      //Generar comisión SOLO si hay productos
-      if (productosSeleccionados.length > 0) {
-        await generarComisionVenta(
-          ventaId,
-          usuarioId,
-          totalProductos
-        )
-      }
-
-      //Registrar movimiento en caja
-      const cajaResp = await fetch(`${API_URL}/api/caja/movimiento`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tipo: 'venta',
-          monto: totalVenta,
-          descripcion: `Venta #${ventaId} - Cliente: ${formData.cliente}`,
-          usuario_id: usuarioId,
-          sucursal_id: sucursalId,
-          referencia_id: ventaId
-        })
-      })
-
-      if (!cajaResp.ok) {
-        const errData = await cajaResp.json()
-        throw new Error(errData.message || 'Error al registrar movimiento en caja.')
-      }
-
-      if (tieneProductos) {
-        const inventarioResp = await fetch(
-          `${API_URL}/api/inventario/descontar-venta`,
-          {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              sucursal_id: sucursalId,
-              productos: productosSeleccionados.map(p => ({
-                producto_id: p.id,
-                cantidad_vendida: p.cantidadSeleccionada
-              }))
-            })
-          }
-        )
-
-        if (!inventarioResp.ok) {
-          const errData = await inventarioResp.json()
-          throw new Error(errData.message || 'Error al descontar stock.')
         }
       }
 

@@ -8,15 +8,15 @@ async function registrarMovimiento({
   monto,
   descripcion,
   sucursal_id,
-  usuario_id  
-}) {
+  usuario_id
+}, client = pool) {
   const query = `
     INSERT INTO caja_movimientos (
       tipo,
       monto,
       descripcion,
       sucursal_id,
-      usuario_id      
+      usuario_id
     )
     VALUES ($1, $2, $3, $4, $5)
     RETURNING *;
@@ -26,10 +26,10 @@ async function registrarMovimiento({
     monto,
     descripcion,
     sucursal_id,
-    usuario_id    
+    usuario_id
   ]
 
-  const { rows } = await pool.query(query, values)
+  const { rows } = await client.query(query, values)
   return rows[0]
 }
 
