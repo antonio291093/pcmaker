@@ -1,4 +1,5 @@
 const pool = require("../config/db");
+const { CASE_DESCRIPCION_VENTA, CASE_ESPECIFICACIONES_VENTA } = require("../utils/sqlFragments");
 
 async function obtenerResumenSucursales({ fecha }) {
   const query = `
@@ -55,56 +56,8 @@ async function obtenerReporteVentas({ from, to, sucursal_id }) {
       -- ✅ Subtotal calculado (CLAVE)
       (d.cantidad * d.precio_unitario) AS subtotal,
 
-      -- 🔹 DESCRIPCIÓN UNIFICADA
-      CASE
-        -- Equipo armado
-        WHEN i.equipo_id IS NOT NULL THEN e.nombre
-
-        -- Recepción directa
-        WHEN ie.inventario_id IS NOT NULL THEN ie.modelo
-
-        -- Inventario simple
-        WHEN i.id IS NOT NULL THEN i.especificacion
-
-        -- Servicios
-        ELSE cm.descripcion
-      END AS descripcion,
-
-      -- 🔹 ESPECIFICACIONES
-      CASE
-        -- Equipo armado
-        WHEN i.equipo_id IS NOT NULL THEN
-          CONCAT(
-            e.procesador, ' | ',
-            (
-              SELECT string_agg(
-                substring(cmr.descripcion FROM '([0-9]+[ ]*GB)'),
-                ' + '
-              )
-              FROM equipos_ram er
-              JOIN catalogo_memoria_ram cmr ON cmr.id = er.memoria_ram_id
-              WHERE er.equipo_id = e.id
-            ),
-            ' | ',
-            (
-              SELECT string_agg(ca.descripcion, ' + ')
-              FROM equipos_almacenamiento ea
-              JOIN catalogo_almacenamiento ca ON ca.id = ea.almacenamiento_id
-              WHERE ea.equipo_id = e.id
-            )
-          )
-
-        -- Recepción directa
-        WHEN ie.inventario_id IS NOT NULL THEN
-          CONCAT(
-            ie.procesador, ' | ',
-            ie.ram_gb, 'GB ', ie.ram_tipo, ' | ',
-            ie.almacenamiento_gb, 'GB ', ie.almacenamiento_tipo
-          )
-
-        -- Inventario simple → opcional
-        ELSE NULL
-      END AS especificaciones
+      ${CASE_DESCRIPCION_VENTA} AS descripcion,
+      ${CASE_ESPECIFICACIONES_VENTA} AS especificaciones
 
     FROM ventas v
     JOIN venta_detalle d ON d.venta_id = v.id
@@ -229,44 +182,8 @@ async function obtenerDetalleDiario({ sucursal_id, fecha }) {
 
       (d.cantidad * d.precio_unitario) AS subtotal,
 
-      CASE
-        WHEN i.equipo_id IS NOT NULL THEN e.nombre
-        WHEN ie.inventario_id IS NOT NULL THEN ie.modelo
-        WHEN i.id IS NOT NULL THEN i.especificacion
-        ELSE cm.descripcion
-      END AS descripcion,
-
-      CASE
-        WHEN i.equipo_id IS NOT NULL THEN
-          CONCAT(
-            e.procesador, ' | ',
-            (
-              SELECT string_agg(
-                substring(cmr.descripcion FROM '([0-9]+[ ]*GB)'),
-                ' + '
-              )
-              FROM equipos_ram er
-              JOIN catalogo_memoria_ram cmr ON cmr.id = er.memoria_ram_id
-              WHERE er.equipo_id = e.id
-            ),
-            ' | ',
-            (
-              SELECT string_agg(ca.descripcion, ' + ')
-              FROM equipos_almacenamiento ea
-              JOIN catalogo_almacenamiento ca ON ca.id = ea.almacenamiento_id
-              WHERE ea.equipo_id = e.id
-            )
-          )
-
-        WHEN ie.inventario_id IS NOT NULL THEN
-          CONCAT(
-            ie.procesador, ' | ',
-            ie.ram_gb, 'GB ', ie.ram_tipo, ' | ',
-            ie.almacenamiento_gb, 'GB ', ie.almacenamiento_tipo
-          )
-
-        ELSE NULL
-      END AS especificaciones
+      ${CASE_DESCRIPCION_VENTA} AS descripcion,
+      ${CASE_ESPECIFICACIONES_VENTA} AS especificaciones
 
     FROM ventas v
     JOIN venta_detalle d ON d.venta_id = v.id

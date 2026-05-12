@@ -1,4 +1,5 @@
 const pool = require("../config/db");
+const { CASE_DESCRIPCION_VENTA } = require("../utils/sqlFragments");
 const { descontarStockVenta } = require("./inventario");
 const { registrarMovimiento } = require("./caja");
 const { crearComision } = require("./comisiones");
@@ -294,12 +295,7 @@ async function obtenerDatosTicket(ventaId) {
     SELECT
       d.cantidad,
       d.precio_unitario AS precio,
-      CASE
-        WHEN i.equipo_id IS NOT NULL THEN e.nombre
-        WHEN ie.inventario_id IS NOT NULL THEN ie.modelo
-        WHEN i.id IS NOT NULL THEN i.especificacion
-        ELSE cm.descripcion
-      END AS descripcion
+      ${CASE_DESCRIPCION_VENTA} AS descripcion
     FROM venta_detalle d
     JOIN ventas v ON v.id = d.venta_id
     LEFT JOIN inventario i ON i.id = d.producto_id
