@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import SucursalCard from './SucursalCard'
 import DetailSection from './DetailSection'
+import { API_URL } from '@/utils/api'
 
 type SucursalResumen = {
   id: number
@@ -30,8 +31,6 @@ export default function DailySummaryTab() {
 
   const [loading, setLoading] = useState(true)
   const [sucursales, setSucursales] = useState<SucursalResumen[]>([])
-
-  const API_URL = process.env.NEXT_PUBLIC_API_URL
 
   const cargarResumen = async () => {
     try {

@@ -10,6 +10,7 @@ import {
   FaUser,
   FaCalendarAlt,
 } from 'react-icons/fa'
+import { API_URL } from '@/utils/api'
 
 type DeletedItem = {
   id: number
@@ -26,8 +27,6 @@ type DeletedItem = {
 }
 
 export default function DeletedItemTabs() {
-
-  const API_URL = process.env.NEXT_PUBLIC_API_URL
 
   const [items, setItems] = useState<DeletedItem[]>([])
   const [loading, setLoading] = useState(true)

@@ -5,7 +5,7 @@ import EquipoTraspasoModal from "./EquiposTraspasoModal";
 import { Equipo } from './Types';
 import ModalSeleccionEquiposPedido from './CrearPedidoModal'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+import { API_URL } from '@/utils/api'
 
 const statusCatalog = [
   { id: 1, nombre: "Por revisar", icon: <FaQuestion className="text-yellow-500 text-2xl" /> },

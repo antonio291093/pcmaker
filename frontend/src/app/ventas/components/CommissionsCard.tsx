@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useUser } from '@/context/UserContext'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+import { API_URL } from '@/utils/api'
 
 export default function CommissionsCard() {
   const { user, loading: userLoading } = useUser()

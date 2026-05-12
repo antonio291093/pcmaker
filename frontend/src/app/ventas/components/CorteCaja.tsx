@@ -15,7 +15,7 @@ import {
   FaChevronDown
 } from 'react-icons/fa'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+import { API_URL } from '@/utils/api'
 
 interface DetalleMovimiento {
   concepto: string;

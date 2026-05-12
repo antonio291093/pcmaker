@@ -9,6 +9,7 @@ import Configurations from './components/Configurations'
 import RecibirLote from '../components/RecibirLote'
 import RecepcionDirecta from '../components/RecepcionDirecta'
 import { useUser } from '@/context/UserContext'
+import { API_URL } from '@/utils/api'
 import SucursalSelectorModal from './components/SucursalSelectorModal'
 
 export default function AdminDashboard() {
@@ -36,7 +37,7 @@ export default function AdminDashboard() {
   const fetchSucursales = async () => {
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/sucursales`,
+        `${API_URL}/api/sucursales`,
         { credentials: 'include' }
       )
 

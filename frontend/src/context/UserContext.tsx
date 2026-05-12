@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState } from 'react'
+import { API_URL } from '@/utils/api'
 
 type User = {
   id: number
@@ -32,7 +33,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   // 🔐 Cargar usuario
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/usuarios/me`, {
+    fetch(`${API_URL}/api/usuarios/me`, {
       credentials: 'include',
       cache: 'no-store'
     })
@@ -75,7 +76,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   // 🚪 Logout
   const logout = async () => {
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/usuarios/logout`, {
+      await fetch(`${API_URL}/api/usuarios/logout`, {
         method: 'POST',
         credentials: 'include'
       })

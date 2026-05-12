@@ -6,8 +6,7 @@ import Swal from 'sweetalert2'
 import ModalSeleccionarProducto from '../../components/SeleccionarProductoModal'
 import ModalSeleccionarServicios from '../../components/ModalSeleccionarServicios'
 import { useUser } from '@/context/UserContext'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+import { API_URL } from '@/utils/api'
 
 export default function SalesForm() {
   const { user, loading: userLoading } = useUser()

@@ -7,7 +7,7 @@ import 'sweetalert2/dist/sweetalert2.min.css'
 type User = { id: number; nombre: string; email: string; rol_id: number; activo: boolean; sucursal_id?: number }
 type Sucursal = { id: number; nombre: string }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+import { API_URL } from '@/utils/api'
 
 const rolNombre = (rol_id: number) =>
   rol_id === 1 ? "Administrador" : rol_id === 2 ? "Técnico" : "Ventas";

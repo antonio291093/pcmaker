@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import Swal from 'sweetalert2';
 import { useUser } from '@/context/UserContext'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+import { API_URL } from '@/utils/api'
 
 export default function LoginClient() {
   const [email, setEmail] = useState('');

@@ -7,7 +7,7 @@ import { exportCaptura } from '@/utils/exportCaptura'
 import { useRef } from 'react'
 import { useUser } from '@/context/UserContext'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL
+import { API_URL } from '@/utils/api'
 
 type VentaRow = {
   detalle_id: number

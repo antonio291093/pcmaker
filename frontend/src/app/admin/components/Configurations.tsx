@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import Swal from 'sweetalert2';
 import { FaPlus, FaTrash, FaSave, FaSync } from 'react-icons/fa';
 import ConfiguracionPagosAdmin from '../components/ConfiguracionPagosAdmin';
+import { API_URL } from '@/utils/api'
 
 type Config = {
   id: number;
@@ -16,8 +17,7 @@ type Config = {
 export default function Configurations() {
   const [configs, setConfigs] = useState<Config[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'general' | 'pagos'>('general');  
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
+  const [tab, setTab] = useState<'general' | 'pagos'>('general');
 
   // 🔹 Cargar configuraciones desde el backend
   const cargarConfiguraciones = async () => {

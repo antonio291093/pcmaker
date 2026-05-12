@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
+import { API_URL } from '@/utils/api'
 
 type Props = {
   sucursalId: number
@@ -13,8 +14,6 @@ export default function DetailSection({ sucursalId, fecha }: Props) {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'ventas' | 'movimientos'>('ventas')
-
-  const API_URL = process.env.NEXT_PUBLIC_API_URL
 
   const obtenerDetalle = async () => {
     try {

@@ -14,7 +14,7 @@ interface SelectorRamModalProps {
   onCancel?: () => void;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+import { API_URL } from '@/utils/api'
 
 export default async function SelectorRamModal({
   sucursalId,

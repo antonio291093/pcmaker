@@ -3,6 +3,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import Swal from "sweetalert2";
 import { useUser } from '@/context/UserContext'
+import { API_URL } from '@/utils/api'
 import {
   FaMemory, FaHdd, FaMouse, FaKeyboard, FaHeadphones, FaUsb,
   FaGamepad, FaWifi, FaCamera, FaTools, FaMicrochip, FaQuestionCircle,
@@ -58,8 +59,6 @@ export default function ModalSeleccionarProducto({
   const [recepcionDirecta, setRecepcionDirecta] = useState<any[]>([]);  
   const [equiposFiltrados, setEquiposFiltrados] = useState<any[]>([]);
   const { user, loading: userLoading } = useUser()
-
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
   useEffect(() => {
     if (userLoading) return

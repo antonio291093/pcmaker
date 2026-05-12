@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { API_URL } from '@/utils/api'
 
 interface HistorialItem {
   equipo: string;
@@ -20,7 +21,7 @@ export default function HistoryTimeline() {
     const fetchHistorial = async () => {
       try {
         const resp = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/historial-tecnico?page=${page}&limit=5`,
+          `${API_URL}/api/historial-tecnico?page=${page}&limit=5`,
           { credentials: 'include' }
         );
         if (!resp.ok) throw new Error("Error obteniendo historial");
