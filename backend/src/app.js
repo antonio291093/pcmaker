@@ -2,7 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
-const { Pool } = require("pg");
+const pool = require("./config/db");
 
 const app = express();
 const allowedOrigins = [
@@ -29,10 +29,6 @@ app.use(
 app.use(cookieParser());
 
 app.use(express.json());
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
 
 pool
   .connect()
@@ -89,4 +85,4 @@ app.use("/api/catalogo-categorias", catalogoCategoriasRoutes);
 app.use("/api/configuracionPagos", configuracionPagos);
 app.use("/api/reportes", reportesRoutes);
 
-module.exports = { app, pool };
+module.exports = { app };
