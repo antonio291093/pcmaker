@@ -14,7 +14,7 @@ exports.resumenSucursales = async (req, res) => {
     res.json(data);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Error obteniendo resumen de sucursales" });
+    res.status(500).json({ message: "Error obteniendo resumen de sucursales" });
   }
 };
 
@@ -46,7 +46,7 @@ exports.detalleDiario = async (req, res) => {
     const { sucursal_id, fecha } = req.query;
 
     if (!sucursal_id) {
-      return res.status(400).json({ error: "sucursal_id es requerido" });
+      return res.status(400).json({ message: "sucursal_id es requerido" });
     }
 
     const fechaFinal = fecha || new Date().toISOString().split("T")[0];
@@ -59,7 +59,7 @@ exports.detalleDiario = async (req, res) => {
     res.json(data);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Error obteniendo detalle diario" });
+    res.status(500).json({ message: "Error obteniendo detalle diario" });
   }
 };
 

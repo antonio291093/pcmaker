@@ -278,7 +278,7 @@ exports.registrarEquipo = async (req, res) => {
     if (!equipo_id) {
       return res
         .status(400)
-        .json({ error: "El campo equipo_id es obligatorio." });
+        .json({ message: "El campo equipo_id es obligatorio." });
     }
 
     const nuevoRegistro = await insertarEquipoEnInventario(
@@ -294,7 +294,7 @@ exports.registrarEquipo = async (req, res) => {
     });
   } catch (error) {
     console.error("Error registrando equipo en inventario:", error);
-    res.status(500).json({ error: "Error registrando equipo en inventario." });
+    res.status(500).json({ message: "Error registrando equipo en inventario." });
   }
 };
 
@@ -444,7 +444,7 @@ exports.validarStockInventario = async (req, res) => {
     const { memoria_ram_id, almacenamiento_id, cantidad, sucursal_id } =
       req.query;
     if (!cantidad)
-      return res.status(400).json({ error: "Debe indicar cantidad a validar" });
+      return res.status(400).json({ message: "Debe indicar cantidad a validar" });
 
     const cantidadNum = parseInt(cantidad);
     const tieneStock = await validarStockInventario({
@@ -457,7 +457,7 @@ exports.validarStockInventario = async (req, res) => {
     res.json({ tieneStock });
   } catch (error) {
     console.error("Error validando stock:", error);
-    res.status(500).json({ error: "Error interno al validar stock" });
+    res.status(500).json({ message: "Error interno al validar stock" });
   }
 };
 
