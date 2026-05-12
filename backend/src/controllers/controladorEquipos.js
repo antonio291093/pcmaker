@@ -11,6 +11,7 @@ const {
   asignarAlmacenamientoAEquipo,
   obtenerEquiposPorEstado,
   obtenerEquiposParaPedido,
+  obtenerConteosPorEstado,
 } = require("../models/equipos");
 
 exports.crearEquipo = async (req, res) => {
@@ -194,6 +195,16 @@ exports.obtenerEquiposParaPedido = async (req, res) => {
     res.json(equipos);
   } catch (error) {
     console.error('Error al obtener equipos para pedido:', error);
+    res.status(500).json({ message: 'Error en el servidor' });
+  }
+};
+
+exports.obtenerConteosPorEstado = async (req, res) => {
+  try {
+    const conteos = await obtenerConteosPorEstado();
+    res.json(conteos);
+  } catch (error) {
+    console.error('Error al obtener conteos por estado:', error);
     res.status(500).json({ message: 'Error en el servidor' });
   }
 };

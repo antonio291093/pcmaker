@@ -27,6 +27,12 @@ router.get(
   equiposController.obtenerEquiposParaPedido
 );
 
+router.get(
+  '/conteos',
+  authMiddleware,
+  equiposController.obtenerConteosPorEstado
+);
+
 // Obtener equipo por ID (protegida)
 router.get("/:id", authMiddleware, equiposController.obtenerEquipoPorId);
 

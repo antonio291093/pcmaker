@@ -32,21 +32,10 @@ export default function InventoryEquiposSection() {
   const [busquedaPedido, setBusquedaPedido] = useState('')
 
   useEffect(() => {
-    Promise.all(statusCatalog.map(st =>
-      fetch(`${API_URL}/api/equipos/estado/${st.id}`, {
-        credentials: 'include',
-        headers: { "Content-Type": "application/json" }
-      })
-        .then(res => res.json())
-        .then(data => ({ id: st.id, count: data.length }))
-        .catch(() => ({ id: st.id, count: 0 }))
-    )).then(results => {
-      const obj: Record<number, number> = {};
-      results.forEach(r => {
-        obj[r.id] = r.count;
-      });
-      setCounts(obj);
-    });
+    fetch(`${API_URL}/api/equipos/conteos`, { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => setCounts(data))
+      .catch(() => setCounts({}));
   }, []);
 
   useEffect(() => {
