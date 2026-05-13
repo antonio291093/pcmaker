@@ -167,6 +167,86 @@ ORDER BY cs.fecha_creacion ASC;
   return rows;
 }
 
+async function obtenerResumenComisiones({ fecha_inicio, fecha_fin, sucursal_id }) {
+  const { rows } = await pool.query(
+    `SELECT
+       u.id                                                                     AS usuario_id,
+       u.nombre,
+       r.nombre                                                                 AS rol,
+       COUNT(c.id)::int                                                         AS cantidad,
+       COALESCE(SUM(c.monto), 0)                                               AS total_comisiones,
+       COALESCE(SUM(c.monto) FILTER (WHERE c.venta_id         IS NOT NULL), 0) AS por_venta,
+       COALESCE(SUM(c.monto) FILTER (WHERE c.equipo_id        IS NOT NULL), 0) AS por_armado,
+       COALESCE(SUM(c.monto) FILTER (WHERE c.mantenimiento_id IS NOT NULL), 0) AS por_mantenimiento
+     FROM comisiones c
+     JOIN usuarios u ON u.id = c.usuario_id
+     JOIN roles r    ON r.id = u.rol_id
+     WHERE c.fecha_creacion BETWEEN $1 AND $2
+       AND ($3::int IS NULL OR u.sucursal_id = $3)
+     GROUP BY u.id, u.nombre, r.nombre
+     ORDER BY total_comisiones DESC;`,
+    [fecha_inicio, fecha_fin, sucursal_id ?? null]
+  );
+  return rows;
+}
+
+async function obtenerDetalleComisiones({ fecha_inicio, fecha_fin, sucursal_id }) {
+  const { rows } = await pool.query(
+    `WITH comisiones_rango AS (
+       SELECT
+         c.id,
+         c.venta_id,
+         c.equipo_id,
+         c.mantenimiento_id,
+         c.monto,
+         c.fecha_creacion,
+         u.nombre AS vendedor,
+         CASE
+           WHEN c.venta_id         IS NOT NULL THEN 'venta'
+           WHEN c.equipo_id        IS NOT NULL THEN 'armado'
+           WHEN c.mantenimiento_id IS NOT NULL THEN 'mantenimiento'
+         END AS tipo
+       FROM comisiones c
+       JOIN usuarios u ON u.id = c.usuario_id
+       WHERE c.fecha_creacion BETWEEN $1 AND $2
+         AND ($3::int IS NULL OR u.sucursal_id = $3)
+     )
+     SELECT
+       cr.id,
+       cr.tipo,
+       cr.monto,
+       cr.fecha_creacion,
+       cr.vendedor,
+       CASE WHEN cr.tipo = 'venta' THEN json_build_object(
+         'id',          v.id,
+         'cliente',     v.cliente,
+         'total_venta', v.total
+       ) END AS venta,
+       CASE WHEN cr.tipo = 'armado' THEN json_build_object(
+         'nombre', eq.nombre,
+         'precio', inv_arm.precio
+       ) END AS equipo,
+       CASE WHEN cr.tipo = 'mantenimiento' THEN json_build_object(
+         'id',          m.id,
+         'descripcion', COALESCE(cm.descripcion, m.detalle)
+       ) END AS mantenimiento
+     FROM comisiones_rango cr
+     LEFT JOIN ventas v                  ON v.id  = cr.venta_id
+     LEFT JOIN equipos eq                ON eq.id = cr.equipo_id
+     LEFT JOIN inventario inv_arm        ON inv_arm.equipo_id = eq.id
+     LEFT JOIN mantenimientos m          ON m.id  = cr.mantenimiento_id
+     LEFT JOIN catalogo_mantenimiento cm ON cm.id = m.catalogo_id
+     GROUP BY
+       cr.id, cr.tipo, cr.monto, cr.fecha_creacion, cr.vendedor,
+       v.id, v.cliente, v.total,
+       eq.nombre, inv_arm.precio,
+       m.id, m.detalle, cm.descripcion
+     ORDER BY cr.fecha_creacion DESC;`,
+    [fecha_inicio, fecha_fin, sucursal_id ?? null]
+  );
+  return rows;
+}
+
 module.exports = {
   crearComision,
   obtenerComisiones,
@@ -175,4 +255,6 @@ module.exports = {
   obtenerComisionPorEquipo,
   obtenerComisionesSemanaActualPorUsuario,
   obtenerComisionPorVenta,
+  obtenerResumenComisiones,
+  obtenerDetalleComisiones,
 };
