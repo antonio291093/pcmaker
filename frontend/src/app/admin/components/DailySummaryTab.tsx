@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import SucursalCard from './SucursalCard'
 import DetailSection from './DetailSection'
 import { API_URL } from '@/utils/api'
+import { toDateString } from '@/utils/fecha'
 
 type SucursalResumen = {
   id: number
@@ -17,17 +18,7 @@ type SucursalResumen = {
 export default function DailySummaryTab() {
   const [selected, setSelected] = useState<number | null>(null)
 
-  const [fecha, setFecha] = useState(() => {
-
-    const today = new Date()
-
-    const year = today.getFullYear()
-    const month = String(today.getMonth() + 1).padStart(2, '0')
-    const day = String(today.getDate()).padStart(2, '0')
-
-    return `${year}-${month}-${day}`
-
-  })
+  const [fecha, setFecha] = useState(() => toDateString())
 
   const [loading, setLoading] = useState(true)
   const [sucursales, setSucursales] = useState<SucursalResumen[]>([])
