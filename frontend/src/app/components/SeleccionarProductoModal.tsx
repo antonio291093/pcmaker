@@ -9,7 +9,7 @@ import {
   FaGamepad, FaWifi, FaCamera, FaTools, FaMicrochip, FaQuestionCircle,
 } from "react-icons/fa";
 
-interface Producto {
+export interface Producto {
   id: number;
   tipo: string;
   descripcion?: string;
@@ -17,7 +17,7 @@ interface Producto {
   cantidad: number;
   estado: string;
   precio?: number | null;
-  sku?: string; // 👈 AÑADIR
+  sku?: string;
 }
 
 interface EquipoArmado {
@@ -33,7 +33,7 @@ interface EquipoArmado {
   almacenamientos: string[];
 }
 
-interface ProductoSeleccionado extends Producto {
+export interface ProductoSeleccionado extends Producto {
   cantidadSeleccionada: number;
   es_equipo: boolean;
   memorias_ram?: string[];

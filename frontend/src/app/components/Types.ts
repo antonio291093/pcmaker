@@ -36,3 +36,16 @@ export type ItemEtiqueta = Partial<{
   descripcion: string
   especificacion: string
 }>
+
+export type ConfiguracionPago = {
+  banco: string
+  titular: string
+  numero_cuenta: string
+  clabe: string
+  referencia?: string
+}
+
+export type IdNombre = {
+  id: number
+  nombre: string
+}

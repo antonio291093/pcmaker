@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 import { FaMoneyBill, FaCheck, FaTimes, FaQuestion } from "react-icons/fa";
 import EquipoTraspasoModal from "./EquiposTraspasoModal";
-import { Equipo } from './Types';
+import { Equipo, IdNombre } from './Types';
 import ModalSeleccionEquiposPedido from './CrearPedidoModal'
 
 import { API_URL } from '@/utils/api'
@@ -27,8 +27,8 @@ export default function InventoryEquiposSection() {
   const [modalEquiposOpen, setModalEquiposOpen] = useState(false)
   const [sucursalDestino, setSucursalDestino] = useState<number | null>(null)
   const [tecnicoId, setTecnicoId] = useState<number | null>(null)
-  const [sucursales, setSucursales] = useState<any[]>([])
-  const [tecnicos, setTecnicos] = useState<any[]>([])
+  const [sucursales, setSucursales] = useState<IdNombre[]>([])
+  const [tecnicos, setTecnicos] = useState<IdNombre[]>([])
   const [busquedaPedido, setBusquedaPedido] = useState('')
 
   useEffect(() => {

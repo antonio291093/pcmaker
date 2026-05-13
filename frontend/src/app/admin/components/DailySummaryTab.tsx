@@ -50,7 +50,7 @@ export default function DailySummaryTab() {
       const data = await resp.json()
 
       setSucursales(
-        data.map((s: any) => ({
+        data.map((s: SucursalResumen) => ({
           ...s,
           ingresos: Number(s.ingresos),
           gastos: Number(s.gastos),

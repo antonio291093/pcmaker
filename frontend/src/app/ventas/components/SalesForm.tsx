@@ -3,10 +3,11 @@ import { useState, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { FaShoppingCart } from 'react-icons/fa'
 import Swal from 'sweetalert2'
-import ModalSeleccionarProducto from '../../components/SeleccionarProductoModal'
-import ModalSeleccionarServicios from '../../components/ModalSeleccionarServicios'
+import ModalSeleccionarProducto, { ProductoSeleccionado } from '../../components/SeleccionarProductoModal'
+import ModalSeleccionarServicios, { ServicioPendiente } from '../../components/ModalSeleccionarServicios'
 import { useUser } from '@/context/UserContext'
 import { API_URL } from '@/utils/api'
+import { ConfiguracionPago } from '../../components/Types'
 
 export default function SalesForm() {
   const { user, loading: userLoading } = useUser()
@@ -25,12 +26,12 @@ export default function SalesForm() {
     transferencia: 0,
   })
 
-  const [productosSeleccionados, setProductosSeleccionados] = useState<any[]>([])
+  const [productosSeleccionados, setProductosSeleccionados] = useState<ProductoSeleccionado[]>([])
   const [mostrarModal, setMostrarModal] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [serviciosSeleccionados, setServiciosSeleccionados] = useState<any[]>([])
+  const [serviciosSeleccionados, setServiciosSeleccionados] = useState<ServicioPendiente[]>([])
   const [mostrarModalServicios, setMostrarModalServicios] = useState(false)
-  const [configTransferencia, setConfigTransferencia] = useState<any>(null)
+  const [configTransferencia, setConfigTransferencia] = useState<ConfiguracionPago | null>(null)
   const [loadingConfig, setLoadingConfig] = useState(false)
 
   if (userLoading) {

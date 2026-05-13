@@ -6,7 +6,7 @@ import { FaTools, FaUserCog } from "react-icons/fa";
 import { useUser } from '@/context/UserContext'
 import { API_URL } from '@/utils/api'
 
-interface ServicioPendiente {
+export interface ServicioPendiente {
   id: number;
   tipo_mantenimiento: string;
   detalle: string;
