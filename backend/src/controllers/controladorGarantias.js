@@ -23,12 +23,8 @@ exports.generarGarantiaPorVenta = async (req, res) => {
       cantidad: e.cantidad,
       descripcion: e.descripcion,
       procesador: e.procesador || '',
-      ram: Array.isArray(e.memorias_ram)
-        ? e.memorias_ram.join(', ')
-        : e.ram || '',
-      disco: Array.isArray(e.almacenamientos)
-        ? e.almacenamientos.join(', ')
-        : e.disco || '',
+      ram: e.ram || '',
+      disco: e.disco || '',
       precio: Number(e.precio)
     }))
 
