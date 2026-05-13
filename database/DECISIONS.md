@@ -118,3 +118,18 @@ async function descontarStockVenta(params, client = pool) { ... }
 - Los precios ya están en el frontend (vienen del modal de selección de productos). El cálculo es determinístico: `sum(precio × cantidad) + IVA condicional`.
 
 **Riesgo aceptado:** Un cliente malicioso podría manipular los valores antes del POST. Para este sistema (ERP interno, acceso autenticado con roles, no e-commerce público), este riesgo se considera aceptable. Si se necesitara mayor seguridad, el backend debería recalcular los totales desde los IDs de productos recibidos.
+
+---
+
+## 10. Permisos de PostgreSQL al crear tablas nuevas
+
+Cuando se crea una tabla nueva directamente en psql o pgAdmin con un usuario distinto al de la app, el usuario de la aplicación (`pcmaker_user`) no hereda permisos automáticamente.
+
+Después de cualquier `CREATE TABLE` ejecutar siempre:
+
+```sql
+GRANT INSERT, SELECT, UPDATE, DELETE ON TABLE nombre_tabla TO pcmaker_user;
+GRANT USAGE, SELECT ON SEQUENCE nombre_tabla_id_seq TO pcmaker_user;
+```
+
+Tablas donde ya se aplicó: `clientes` (Mayo 2026)
