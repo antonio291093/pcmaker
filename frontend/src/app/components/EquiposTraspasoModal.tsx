@@ -3,7 +3,7 @@ import Swal from "sweetalert2";
 import 'sweetalert2/dist/sweetalert2.min.css';
 import { Equipo } from './Types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+import { API_URL } from '@/utils/api'
 
 // Interfaz mínima para sucursal
 interface Sucursal {

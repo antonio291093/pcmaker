@@ -6,7 +6,7 @@ import { useUser } from '@/context/UserContext'
 import EtiquetaA4Modal from '../../components/EtiquetaA4Modal';
 import type { Etiqueta } from '../../components/Types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+import { API_URL } from '@/utils/api'
 
 interface Lote {
   id: number;

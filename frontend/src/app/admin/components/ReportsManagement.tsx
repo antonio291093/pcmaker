@@ -5,26 +5,20 @@ import { motion, AnimatePresence } from 'framer-motion'
 
 import DailySummaryTab from './DailySummaryTab'
 import DeletedItemTabs from './DeletedItemsTab'
+import ComisionesReporte from './ComisionesReporte'
+import CarteraClientes from './CarteraClientes'
 
 export default function ReportsManagement() {
 
   const [tab, setTab] = useState<
-    'resumen' | 'eliminados' | 'historico'
+    'resumen' | 'eliminados' | 'comisiones' | 'clientes'
   >('resumen')
 
   const tabs = [
-    {
-      key: 'resumen',
-      label: 'Resumen diario'
-    },
-    {
-      key: 'eliminados',
-      label: 'Artículos Eliminados'
-    },
-    {
-      key: 'historico',
-      label: 'Histórico'
-    }
+    { key: 'resumen',    label: 'Resumen diario'       },
+    { key: 'eliminados', label: 'Artículos Eliminados'  },
+    { key: 'comisiones', label: 'Comisiones'            },
+    { key: 'clientes',   label: 'Cartera de clientes'   },
   ]
 
   return (
@@ -54,7 +48,7 @@ export default function ReportsManagement() {
         </div>
 
         {/* TABS */}
-        <div className="flex gap-3 border-b pb-2 flex-wrap">
+        <div className="flex gap-3 border-b border-gray-200 pb-2 flex-wrap">
 
           {tabs.map((t) => (
 
@@ -102,15 +96,9 @@ export default function ReportsManagement() {
             <DeletedItemTabs />
           )}
 
-          {tab === 'historico' && (
-            <div className="
-              border rounded-xl p-10
-              text-center text-gray-500
-              bg-gray-50
-            ">
-              Próximamente historial avanzado de reportes...
-            </div>
-          )}
+          {tab === 'comisiones' && <ComisionesReporte />}
+
+          {tab === 'clientes' && <CarteraClientes />}
 
         </motion.div>
 

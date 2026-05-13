@@ -5,7 +5,7 @@ import { FaBoxOpen, FaTools, FaHistory, FaFileAlt, FaDollarSign, FaCog, FaTruck,
 import { useUser } from '@/context/UserContext'
 import { useRouter } from 'next/navigation'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+import { API_URL } from '@/utils/api'
 
 const navItems = [
   { label: "Inventario", icon: <FaBoxOpen />, path: "inventario" },

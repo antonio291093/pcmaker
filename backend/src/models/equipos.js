@@ -207,6 +207,21 @@ async function obtenerEquiposParaPedido(busqueda = '') {
   return rows;
 }
 
+async function obtenerConteosPorEstado() {
+  const { rows } = await pool.query(`
+    SELECT estado_id, COUNT(*) AS count
+    FROM equipos
+    WHERE estado_id IN (1, 2, 3, 4)
+    GROUP BY estado_id
+  `);
+
+  const conteos = {};
+  rows.forEach((r) => {
+    conteos[r.estado_id] = Number(r.count);
+  });
+  return conteos;
+}
+
 module.exports = {
   crearEquipo,
   obtenerEquipos,
@@ -218,4 +233,5 @@ module.exports = {
   asignarAlmacenamientoAEquipo,
   obtenerEquiposPorEstado,
   obtenerEquiposParaPedido,
+  obtenerConteosPorEstado,
 };

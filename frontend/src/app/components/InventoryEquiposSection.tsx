@@ -2,10 +2,10 @@ import { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 import { FaMoneyBill, FaCheck, FaTimes, FaQuestion } from "react-icons/fa";
 import EquipoTraspasoModal from "./EquiposTraspasoModal";
-import { Equipo } from './Types';
+import { Equipo, IdNombre } from './Types';
 import ModalSeleccionEquiposPedido from './CrearPedidoModal'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+import { API_URL } from '@/utils/api'
 
 const statusCatalog = [
   { id: 1, nombre: "Por revisar", icon: <FaQuestion className="text-yellow-500 text-2xl" /> },
@@ -27,26 +27,15 @@ export default function InventoryEquiposSection() {
   const [modalEquiposOpen, setModalEquiposOpen] = useState(false)
   const [sucursalDestino, setSucursalDestino] = useState<number | null>(null)
   const [tecnicoId, setTecnicoId] = useState<number | null>(null)
-  const [sucursales, setSucursales] = useState<any[]>([])
-  const [tecnicos, setTecnicos] = useState<any[]>([])
+  const [sucursales, setSucursales] = useState<IdNombre[]>([])
+  const [tecnicos, setTecnicos] = useState<IdNombre[]>([])
   const [busquedaPedido, setBusquedaPedido] = useState('')
 
   useEffect(() => {
-    Promise.all(statusCatalog.map(st =>
-      fetch(`${API_URL}/api/equipos/estado/${st.id}`, {
-        credentials: 'include',
-        headers: { "Content-Type": "application/json" }
-      })
-        .then(res => res.json())
-        .then(data => ({ id: st.id, count: data.length }))
-        .catch(() => ({ id: st.id, count: 0 }))
-    )).then(results => {
-      const obj: Record<number, number> = {};
-      results.forEach(r => {
-        obj[r.id] = r.count;
-      });
-      setCounts(obj);
-    });
+    fetch(`${API_URL}/api/equipos/conteos`, { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => setCounts(data))
+      .catch(() => setCounts({}));
   }, []);
 
   useEffect(() => {

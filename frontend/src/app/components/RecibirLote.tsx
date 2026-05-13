@@ -7,7 +7,7 @@ import { useUser } from '@/context/UserContext'
 import EtiquetaA4Modal from './EtiquetaA4Modal';
 import type { EtiquetaDraft, Etiqueta } from './Types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+import { API_URL } from '@/utils/api'
 
 function getLoteLabel() {
   const now = new Date();

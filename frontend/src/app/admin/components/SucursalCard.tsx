@@ -54,7 +54,7 @@ export default function SucursalCard({ data, isActive, onSelect }: Props) {
           </span>
         </div>
 
-        <div className="border-t pt-2 flex justify-between">
+        <div className="border-t border-gray-200 pt-2 flex justify-between">
           <span className="font-medium text-gray-600">Neto</span>
           <span className="font-bold text-indigo-600">
             ${neto.toLocaleString()}

@@ -15,7 +15,8 @@ import {
   FaChevronDown
 } from 'react-icons/fa'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+import { API_URL } from '@/utils/api'
+import { toDateString } from '@/utils/fecha'
 
 interface DetalleMovimiento {
   concepto: string;
@@ -237,7 +238,7 @@ export default function CorteCajaSection() {
   
   const obtenerResumen = async (sucursal_id: number | null) => {
     try {
-      const fecha = new Date().toISOString().split('T')[0] // YYYY-MM-DD
+      const fecha = toDateString()
 
       const resp = await fetch(
         `${API_URL}/api/caja/resumen?sucursal_id=${sucursal_id}&fecha=${fecha}`,

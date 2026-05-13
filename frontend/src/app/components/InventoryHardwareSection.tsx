@@ -31,6 +31,7 @@ import { Categoria } from './Types'
 import { ItemEtiqueta } from './Types'
 
 import { useUser } from '@/context/UserContext'
+import { API_URL } from '@/utils/api'
 
 interface InventarioItem {
   id: number;
@@ -188,8 +189,6 @@ export default function InventoryHardwareSection() {
       cargarRecepcionDirecta();
     }
   };
-
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;  
 
   useEffect(() => {
     if (userLoading) return

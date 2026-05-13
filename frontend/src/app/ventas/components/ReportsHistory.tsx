@@ -7,7 +7,8 @@ import { exportCaptura } from '@/utils/exportCaptura'
 import { useRef } from 'react'
 import { useUser } from '@/context/UserContext'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL
+import { API_URL } from '@/utils/api'
+import { toDateString } from '@/utils/fecha'
 
 type VentaRow = {
   detalle_id: number
@@ -41,8 +42,8 @@ function getWeekRange() {
   saturday.setDate(monday.getDate() + 5)
 
   return {
-    from: monday.toISOString().slice(0, 10),
-    to: saturday.toISOString().slice(0, 10)
+    from: toDateString(monday),
+    to: toDateString(saturday)
   }
 }
 

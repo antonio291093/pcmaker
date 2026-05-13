@@ -3,10 +3,10 @@ const router = express.Router();
 const comisionesController = require("../controllers/controaldorComisiones");
 const authMiddleware = require("../middlewares/authMiddleware");
 
-// Crear comisión
-router.post("/", authMiddleware, comisionesController.crearComision);
+// Rutas estáticas antes de las parametrizadas
+router.get("/reporte", authMiddleware, comisionesController.obtenerReporteComisiones);
 
-// Obtener todas las comisiones
+router.post("/", authMiddleware, comisionesController.crearComision);
 router.get("/", authMiddleware, comisionesController.obtenerComisiones);
 
 // Actualizar comisión

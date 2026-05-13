@@ -1,4 +1,9 @@
 const pool = require("../config/db");
+const { CASE_DESCRIPCION_VENTA } = require("../utils/sqlFragments");
+const { descontarStockVenta } = require("./inventario");
+const { registrarMovimiento } = require("./caja");
+const { crearComision } = require("./comisiones");
+const { resolverOCrearCliente } = require("./clientes");
 
 async function registrarVenta({
   cliente,
@@ -96,6 +101,16 @@ async function registrarVenta({
 
     const ventaId = ventaResult.rows[0].id;
 
+    // D) Resolver o crear cliente y vincular a la venta
+    const clienteId = await resolverOCrearCliente(
+      { nombre: cliente, telefono, correo, sucursal_id },
+      client
+    );
+    await client.query(
+      "UPDATE ventas SET cliente_id = $1 WHERE id = $2",
+      [clienteId, ventaId]
+    );
+
     // 2️⃣ Registrar pagos
     for (const pago of pagos) {
       await client.query(
@@ -180,6 +195,51 @@ async function registrarVenta({
       );
     }
 
+    // A) Descontar stock de cada producto
+    for (const producto of productos) {
+      await descontarStockVenta(
+        { producto_id: producto.id, cantidad: producto.cantidad, sucursal_id },
+        client
+      );
+    }
+
+    // B) Registrar movimiento en caja
+    await registrarMovimiento(
+      {
+        tipo: "venta",
+        monto: totalReal,
+        descripcion: `Venta #${ventaId} - Cliente: ${cliente}`,
+        sucursal_id,
+        usuario_id,
+      },
+      client
+    );
+
+    // C) Comisión del vendedor (solo si hay productos)
+    if (productos.length > 0) {
+      const configComision = await client.query(
+        "SELECT valor FROM configuraciones WHERE nombre = 'comision_ventas' LIMIT 1;"
+      );
+      const tasa =
+        configComision.rows.length > 0
+          ? parseFloat(configComision.rows[0].valor)
+          : 0.03;
+      if (!isNaN(tasa) && tasa > 0) {
+        const montoComision = Number((subtotalProductos * tasa).toFixed(2));
+        await crearComision(
+          {
+            usuario_id,
+            venta_id: ventaId,
+            mantenimiento_id: null,
+            monto: montoComision,
+            fecha_creacion: new Date(),
+            equipo_id: null,
+          },
+          client
+        );
+      }
+    }
+
     await client.query("COMMIT");
 
     return {
@@ -215,7 +275,55 @@ async function obtenerTotalesPorMetodo(fecha, sucursal_id) {
   return rows[0];
 }
 
+async function obtenerDatosTicket(ventaId) {
+  const ventaResult = await pool.query(
+    `
+    SELECT
+      v.id,
+      v.cliente,
+      v.telefono,
+      v.correo,
+      v.subtotal,
+      v.iva,
+      v.total,
+      v.requiere_factura,
+      v.fecha_venta,
+      v.sucursal_id,
+      u.nombre AS vendedor
+    FROM ventas v
+    LEFT JOIN usuarios u ON v.user_venta = u.id
+    WHERE v.id = $1
+    `,
+    [ventaId],
+  );
+
+  if (!ventaResult.rows.length) return null;
+
+  const venta = ventaResult.rows[0];
+
+  const itemsResult = await pool.query(
+    `
+    SELECT
+      d.cantidad,
+      d.precio_unitario AS precio,
+      ${CASE_DESCRIPCION_VENTA} AS descripcion
+    FROM venta_detalle d
+    JOIN ventas v ON v.id = d.venta_id
+    LEFT JOIN inventario i ON i.id = d.producto_id
+    LEFT JOIN equipos e ON e.id = i.equipo_id
+    LEFT JOIN inventario_especificaciones ie ON ie.inventario_id = d.producto_id
+    LEFT JOIN mantenimientos m ON m.id = d.mantenimiento_id
+    LEFT JOIN catalogo_mantenimiento cm ON cm.id = m.catalogo_id
+    WHERE d.venta_id = $1
+    `,
+    [ventaId],
+  );
+
+  return { venta, items: itemsResult.rows };
+}
+
 module.exports = {
   registrarVenta,
   obtenerTotalesPorMetodo,
+  obtenerDatosTicket,
 };

@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import { useUser } from '@/context/UserContext'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+import { API_URL } from '@/utils/api'
+import { toDateString } from '@/utils/fecha'
 
 export default function MaintenanceForm() {
   const [data, setData] = useState({
@@ -27,15 +28,9 @@ export default function MaintenanceForm() {
   useEffect(() => {
     if (!user) return
 
-    const today = new Date()
-    const yyyy = today.getFullYear()
-    const mm = String(today.getMonth() + 1).padStart(2, '0')
-    const dd = String(today.getDate()).padStart(2, '0')
-    const formattedDate = `${yyyy}-${mm}-${dd}`
-
     setData(prev => ({
       ...prev,
-      fecha: formattedDate,
+      fecha: toDateString(),
       tecnico: user.nombre
     }))
 

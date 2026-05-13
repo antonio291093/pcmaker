@@ -6,6 +6,8 @@ const {
   obtenerComisionPorEquipo,
   obtenerComisionesSemanaActualPorUsuario,
   obtenerComisionPorVenta,
+  obtenerResumenComisiones,
+  obtenerDetalleComisiones,
 } = require("../models/comisiones");
 
 exports.crearComision = async (req, res) => {
@@ -122,6 +124,34 @@ exports.obtenerComisionPorEquipo = async (req, res) => {
   } catch (error) {
     console.error("Error al obtener comisión por equipo:", error);
     res.status(500).json({ message: "Error en el servidor" });
+  }
+};
+
+exports.obtenerReporteComisiones = async (req, res) => {
+  const { fecha_inicio, fecha_fin, sucursal_id } = req.query;
+
+  if (!fecha_inicio || !fecha_fin) {
+    return res.status(400).json({ message: "fecha_inicio y fecha_fin son requeridos" });
+  }
+
+  try {
+    const [resumen, detalle] = await Promise.all([
+      obtenerResumenComisiones({
+        fecha_inicio,
+        fecha_fin,
+        sucursal_id: sucursal_id ? Number(sucursal_id) : null,
+      }),
+      obtenerDetalleComisiones({
+        fecha_inicio,
+        fecha_fin,
+        sucursal_id: sucursal_id ? Number(sucursal_id) : null,
+      }),
+    ]);
+
+    res.json({ resumen, detalle });
+  } catch (error) {
+    console.error("Error al obtener reporte de comisiones:", error);
+    res.status(500).json({ message: "Error al obtener reporte de comisiones" });
   }
 };
 

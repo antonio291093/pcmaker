@@ -10,6 +10,8 @@ import {
   FaUser,
   FaCalendarAlt,
 } from 'react-icons/fa'
+import { API_URL } from '@/utils/api'
+import { toDateString } from '@/utils/fecha'
 
 type DeletedItem = {
   id: number
@@ -27,8 +29,6 @@ type DeletedItem = {
 
 export default function DeletedItemTabs() {
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL
-
   const [items, setItems] = useState<DeletedItem[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -41,22 +41,10 @@ export default function DeletedItemTabs() {
     const d = new Date()
     d.setDate(d.getDate() - 30)
 
-    const year = d.getFullYear()
-    const month = String(d.getMonth() + 1).padStart(2, '0')
-    const day = String(d.getDate()).padStart(2, '0')
-
-    return `${year}-${month}-${day}`
+    return toDateString(d)
   })
 
-  const [to, setTo] = useState(() => {
-    const d = new Date()
-
-    const year = d.getFullYear()
-    const month = String(d.getMonth() + 1).padStart(2, '0')
-    const day = String(d.getDate()).padStart(2, '0')
-
-    return `${year}-${month}-${day}`
-  })
+  const [to, setTo] = useState(() => toDateString())
 
   const obtenerItems = async () => {
     try {

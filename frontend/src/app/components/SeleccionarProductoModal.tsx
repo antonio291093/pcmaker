@@ -3,12 +3,13 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import Swal from "sweetalert2";
 import { useUser } from '@/context/UserContext'
+import { API_URL } from '@/utils/api'
 import {
   FaMemory, FaHdd, FaMouse, FaKeyboard, FaHeadphones, FaUsb,
   FaGamepad, FaWifi, FaCamera, FaTools, FaMicrochip, FaQuestionCircle,
 } from "react-icons/fa";
 
-interface Producto {
+export interface Producto {
   id: number;
   tipo: string;
   descripcion?: string;
@@ -16,7 +17,7 @@ interface Producto {
   cantidad: number;
   estado: string;
   precio?: number | null;
-  sku?: string; // 👈 AÑADIR
+  sku?: string;
 }
 
 interface EquipoArmado {
@@ -32,7 +33,7 @@ interface EquipoArmado {
   almacenamientos: string[];
 }
 
-interface ProductoSeleccionado extends Producto {
+export interface ProductoSeleccionado extends Producto {
   cantidadSeleccionada: number;
   es_equipo: boolean;
   memorias_ram?: string[];
@@ -58,8 +59,6 @@ export default function ModalSeleccionarProducto({
   const [recepcionDirecta, setRecepcionDirecta] = useState<any[]>([]);  
   const [equiposFiltrados, setEquiposFiltrados] = useState<any[]>([]);
   const { user, loading: userLoading } = useUser()
-
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
   useEffect(() => {
     if (userLoading) return

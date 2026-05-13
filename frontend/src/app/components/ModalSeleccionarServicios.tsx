@@ -4,8 +4,9 @@ import { motion } from "framer-motion";
 import Swal from "sweetalert2";
 import { FaTools, FaUserCog } from "react-icons/fa";
 import { useUser } from '@/context/UserContext'
+import { API_URL } from '@/utils/api'
 
-interface ServicioPendiente {
+export interface ServicioPendiente {
   id: number;
   tipo_mantenimiento: string;
   detalle: string;
@@ -28,8 +29,6 @@ export default function ModalSeleccionarServicios({
   const [loading, setLoading] = useState(true);
   const [sucursalId, setSucursalId] = useState<number | null>(null);  
   const { user, loading: userLoading } = useUser()
-
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
   useEffect(() => {
     if (userLoading) return
