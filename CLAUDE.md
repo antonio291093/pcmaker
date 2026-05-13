@@ -85,22 +85,91 @@ Las llamadas al API usan la variable de entorno `NEXT_PUBLIC_API_URL` (inyectada
 | 2 | Técnico | `/tecnico` |
 | 3 | Ventas | `/ventas` |
 
-### Backend MVC
+### Backend — Estructura detallada
 
 ```
-routes/     → define endpoints, aplica middlewares
-controllers/ → lógica HTTP (parseo de req, respuesta)
-models/     → SQL puro con parameterized queries (pg Pool)
+backend/src/
+├── routes/       → define endpoints, aplica middlewares
+├── controllers/  → lógica HTTP (parseo de req, res.json)
+├── models/       → SQL puro con pg Pool; una función por operación
+│   ├── ventas.js         → registrarVenta (transacción completa)
+│   ├── garantias.js      → obtenerDatosGarantia (query unificada)
+│   ├── reportes.js       → obtenerReporteVentas, obtenerDetalleDiario
+│   ├── inventario.js     → descontarStockVenta (acepta client externo)
+│   ├── caja.js           → registrarMovimiento (acepta client externo)
+│   ├── comisiones.js     → crearComision (acepta client externo)
+│   └── equipos.js        → obtenerConteosPorEstado
+├── utils/
+│   ├── sqlFragments.js   → CASE_DESCRIPCION_VENTA, CASE_ESPECIFICACIONES_VENTA
+│   └── pdf/              → generadores PDF con pdf-lib
+└── config/
+    └── db.js             → pool de PostgreSQL (único, compartido por todos los modelos)
 ```
 
 Las operaciones multi-tabla usan transacciones explícitas:
 ```js
 const client = await pool.connect()
-await client.query('BEGIN') / client.query('COMMIT') / client.query('ROLLBACK')
-client.release()
+try {
+  await client.query('BEGIN')
+  // ...operaciones...
+  await client.query('COMMIT')
+} catch (e) {
+  await client.query('ROLLBACK')
+  throw e
+} finally {
+  client.release()
+}
 ```
 
-El `pool` en `app.js` y `config/db.js` son instancias distintas. Los modelos importan `config/db.js`; `app.js` crea su propio pool solo para test de conexión al iniciar.
+El `pool` en `app.js` y `config/db.js` son instancias distintas. Los modelos siempre importan `config/db.js`; nunca crear un `new Pool()` adicional.
+
+#### Patrón `client = pool` para transacciones compartidas
+
+Las funciones de modelo que participan en transacciones externas aceptan un `client` opcional:
+
+```js
+async function descontarStockVenta({ producto_id, cantidad, sucursal_id }, client = pool) {
+  await client.query(...)
+}
+```
+
+Llamadas sin argumento usan el pool directamente. Llamadas dentro de una transacción reciben el `client` activo.
+
+#### SQL compartido — `backend/src/utils/sqlFragments.js`
+
+Los fragmentos `CASE WHEN` reutilizados en múltiples queries (descripción e especificaciones de ítems de venta) están centralizados aquí:
+
+```js
+const { CASE_DESCRIPCION_VENTA, CASE_ESPECIFICACIONES_VENTA } = require('../utils/sqlFragments')
+// uso: `SELECT ${CASE_DESCRIPCION_VENTA} AS descripcion ...`
+```
+
+Usados en `models/reportes.js` (2 queries) y `models/ventas.js` (ticket).
+
+### Frontend ERP — Estructura de utilidades y hooks
+
+```
+frontend/src/
+├── utils/
+│   ├── api.ts              → exporta API_URL (NEXT_PUBLIC_API_URL)
+│   ├── fecha.ts            → exporta toDateString(date?) → "YYYY-MM-DD"
+│   ├── exportVentasExcel.ts
+│   └── exportCaptura.ts
+├── context/
+│   └── UserContext.tsx     → useUser() — { id, rol_id, sucursal_id, nombre }
+└── app/
+    ├── components/
+    │   ├── Types.ts                    → interfaces compartidas (ConfiguracionPago, IdNombre, ...)
+    │   ├── SeleccionarProductoModal.tsx → exporta Producto, ProductoSeleccionado
+    │   └── ModalSeleccionarServicios.tsx → exporta ServicioPendiente
+    └── ventas/
+        ├── hooks/
+        │   └── useVenta.ts → todo el estado, efectos, memos y handlers del form de venta
+        └── components/
+            ├── SalesForm.tsx       → esqueleto del form (JSX + wiring, ~115 líneas)
+            ├── ListaItems.tsx      → listas de productos y servicios + bloque de totales
+            └── PanelPagos.tsx      → grid de pagos (3 métodos) + tarjeta de transferencia
+```
 
 ### Nginx Routing
 
@@ -124,50 +193,25 @@ NEXT_PUBLIC_API_URL=https://erp.pcmaker.mx
 API_URL=http://backend_app:5000
 ```
 
-## Database Schema (tablas principales)
+## Base de datos
 
-```sql
-usuarios          (id, nombre, email, contraseña, rol_id, activo, sucursal_id)
-sucursales        (id, nombre, ...)
+El esquema completo con todas las tablas, columnas, PKs, FKs, CHECK constraints e índices está en **`database/schema.sql`**. Leerlo antes de crear cualquier endpoint o tabla nueva.
 
--- Flujo de recepción de equipos
-lotes             (id, etiqueta, fecha_recibo, total_equipos, usuario_recibio)
-lotes_etiquetas   (id, lote_id, etiqueta, serie, barcode)
-equipos           (id, nombre, descripcion, tipo, procesador, lote_etiqueta_id, estado_id, sucursal_id, tecnico_id)
-equipos_ram       (equipo_id, memoria_ram_id, cantidad)
-equipos_almacenamiento (equipo_id, almacenamiento_id, rol)
+### Tablas principales y relaciones clave
 
--- Catálogos
-catalogo_estados         (id, nombre, visual_color)
-catalogo_memoria_ram     (id, descripcion, tipo_modulo)
-catalogo_almacenamiento  (id, descripcion)
-catalogo_mantenimiento   (id, descripcion, costo)
-catalogo_categorias      (id, descripcion)
-
--- Inventario
-inventario        (id, equipo_id, tipo, especificacion, cantidad, disponibilidad, estado,
-                   precio, memoria_ram_id, almacenamiento_id, sucursal_id, fecha_creacion,
-                   sku, barcode, es_codigo_generado, origen, eliminado, motivo_eliminacion,
-                   fecha_eliminacion, eliminado_por, categoria_catalogo_id, visible_catalogo)
-inventario_especificaciones (inventario_id, modelo, procesador, ram_gb, ram_tipo,
-                             almacenamiento_gb, almacenamiento_tipo, observaciones)
-
--- Ventas
-ventas            (id, cliente, telefono, correo, observaciones, user_venta, sucursal_id,
-                   subtotal, iva, total, requiere_factura, fecha_venta)
-venta_detalle     (venta_id, tipo[producto|servicio], producto_id, mantenimiento_id, equipo_id,
-                   cantidad, precio_unitario, subtotal)
-ventas_pagos      (venta_id, metodo_pago[efectivo|transferencia|terminal|facturacion], monto)
-
--- Caja
-caja_movimientos  (id, tipo[venta|gasto|ingreso], monto, descripcion, sucursal_id, usuario_id, fecha)
-caja_dias         (sucursal_id, fecha, estado[abierto|cerrado], usuario_id) UNIQUE(sucursal_id, fecha)
-caja_cortes       (fecha, sucursal_id, usuario_id, total_ventas, total_ingresos, total_gastos,
-                   balance_final, total_efectivo, total_transferencia, total_terminal, total_facturacion)
-
-mantenimientos    (id, fecha_mantenimiento, detalle, tecnico_id, sucursal_id, catalogo_id,
-                   costo_personalizado, estado[pendiente|cobrado])
-```
+| Tabla | Relaciones importantes |
+|-------|----------------------|
+| `usuarios` | `rol_id → roles`, `sucursal_id → sucursales` |
+| `equipos` | `lote_etiqueta_id → lotes_etiquetas`, `estado_id → catalogo_estados`, `sucursal_id`, `tecnico_id → usuarios` |
+| `inventario` | `equipo_id → equipos` (NULL si no es equipo), `sucursal_id`, soft-delete con `eliminado` |
+| `inventario_especificaciones` | `inventario_id → inventario` (1:1, para recepción directa) |
+| `equipos_ram` / `equipos_almacenamiento` | PK compuesta `(equipo_id, componente_id)` |
+| `ventas` | `user_venta → usuarios`, `sucursal_id` |
+| `venta_detalle` | `venta_id → ventas`, `producto_id → inventario` (NULL si servicio), `mantenimiento_id → mantenimientos` |
+| `ventas_pagos` | `venta_id → ventas`, `metodo_pago ∈ {efectivo, transferencia, terminal, facturacion}` |
+| `caja_dias` | UNIQUE `(sucursal_id, fecha)` |
+| `comisiones` | FK nullable a `ventas`, `mantenimientos` o `equipos` — el tipo se infiere por cuál no es NULL |
+| `pedidos` / `pedido_equipos` | Traslado de equipos entre sucursales |
 
 ### Patrones clave en inventario
 
@@ -185,3 +229,57 @@ mantenimientos    (id, fecha_mantenimiento, detalle, tecnico_id, sucursal_id, ca
 - **PDF**: `@react-pdf/renderer` en frontend para etiquetas/recibos; `pdf-lib` en backend para reportes
 - **Imágenes de catálogo**: subidas con multer a `backend/uploads/catalogo/`, servidas por nginx en `/catalogo-img/`
 - La `sucursal_activa` del admin se persiste en `localStorage` y se pasa explícitamente en cada request; los usuarios de ventas/técnico usan su `sucursal_id` del JWT
+
+## Reglas establecidas — no romper
+
+### Frontend
+
+| Regla | Detalle |
+|-------|---------|
+| `API_URL` | Siempre desde `import { API_URL } from '@/utils/api'` — nunca hardcodear la URL |
+| Fechas YYYY-MM-DD | Siempre `toDateString(date?)` desde `@/utils/fecha` — nunca `getFullYear/getMonth/getDate` inline ni `toISOString().split('T')[0]` |
+| Errores del backend | Leer siempre `error.message` — el backend responde `{ message: '...' }` en todos los endpoints |
+| IVA sobre servicios | **Nunca.** El IVA (16%) aplica solo sobre productos. `subtotalServicios` no entra en la base del IVA |
+| Tipos TypeScript | No usar `any`. Los tipos compartidos entre componentes van en `frontend/src/app/components/Types.ts` |
+
+### Backend
+
+| Regla | Detalle |
+|-------|---------|
+| Respuestas de error | Siempre `res.status(4xx/5xx).json({ message: '...' })` — nunca `{ error: }` |
+| Pool de BD | Siempre importar desde `config/db.js` — nunca instanciar `new Pool()` en otro archivo |
+| SQL compartido | CASE WHEN reutilizables van en `backend/src/utils/sqlFragments.js`, no duplicados en cada modelo |
+| Flujo de venta | Stock, movimiento de caja y comisión se registran **dentro de la misma transacción** que la venta (`registrarVenta` en `models/ventas.js`) — nunca como llamadas HTTP separadas desde el frontend |
+| SQL en controladores | Los controladores no deben tener `pool.query` directos — la lógica SQL va en el modelo correspondiente |
+| Rutas estáticas vs parametrizadas | En Express, las rutas estáticas (`/conteos`) deben declararse **antes** que las parametrizadas (`/:id`) en el mismo router |
+
+## Archivos clave por módulo
+
+Leer `database/schema.sql` antes de crear cualquier endpoint o tabla nueva.
+
+### Ventas
+
+| Archivo | Qué contiene |
+|---------|-------------|
+| `backend/src/models/ventas.js` | `registrarVenta` — transacción completa: venta, detalle, pagos, stock, caja, comisión |
+| `backend/src/controllers/controladorVentas.js` | Llama a `obtenerDatosTicket` de models/ventas.js |
+| `frontend/src/app/ventas/hooks/useVenta.ts` | Todo el estado, efectos, memos y `handleSubmit` |
+| `frontend/src/app/ventas/components/SalesForm.tsx` | Esqueleto del form — solo JSX + wiring hacia el hook |
+| `frontend/src/app/ventas/components/ListaItems.tsx` | Listas de productos/servicios seleccionados + totales |
+| `frontend/src/app/ventas/components/PanelPagos.tsx` | Grid de 3 métodos de pago + tarjeta de transferencia |
+
+### Reportes
+
+| Archivo | Qué contiene |
+|---------|-------------|
+| `backend/src/utils/sqlFragments.js` | `CASE_DESCRIPCION_VENTA`, `CASE_ESPECIFICACIONES_VENTA` |
+| `backend/src/models/reportes.js` | `obtenerReporteVentas`, `obtenerDetalleDiario` — usan los fragmentos SQL |
+| `backend/src/controllers/controladorReportes.js` | Endpoints de reportes y resúmenes por sucursal |
+
+### Garantías y tickets
+
+| Archivo | Qué contiene |
+|---------|-------------|
+| `backend/src/models/garantias.js` | `obtenerDatosGarantia` — query unificada (equipos armados + recepción directa + inventario genérico en un solo JOIN) |
+| `backend/src/models/ventas.js` | `obtenerDatosTicket` — cabecera de venta + ítems con descripción y especificaciones |
+| `backend/src/utils/pdf/generarGarantia.js` | Genera el PDF de garantía con pdf-lib |
