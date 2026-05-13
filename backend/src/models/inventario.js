@@ -958,19 +958,23 @@ async function validarStockInventario({
 
   let query, id;
   if (memoria_ram_id) {
-    query = `SELECT cantidad FROM inventario WHERE memoria_ram_id = $1 AND sucursal_id = $2 LIMIT 1`;
+    query = `SELECT COALESCE(SUM(cantidad), 0) AS cantidad
+             FROM inventario
+             WHERE memoria_ram_id = $1 AND sucursal_id = $2 AND eliminado = FALSE`;
     id = memoria_ram_id;
   } else if (almacenamiento_id) {
-    query = `SELECT cantidad FROM inventario WHERE almacenamiento_id = $1 AND sucursal_id = $2 LIMIT 1`;
+    query = `SELECT COALESCE(SUM(cantidad), 0) AS cantidad
+             FROM inventario
+             WHERE almacenamiento_id = $1 AND sucursal_id = $2 AND eliminado = FALSE`;
     id = almacenamiento_id;
   } else {
     throw new Error("Debe proporcionar memoria_ram_id o almacenamiento_id");
   }
 
   const { rows } = await pool.query(query, [id, sucursal_id]);
-  if (!rows.length) throw new Error("Item de inventario no encontrado");
 
-  return rows[0].cantidad >= cantidad;
+  // SUM siempre devuelve una fila; COALESCE cubre el caso sin registros
+  return Number(rows[0].cantidad) >= cantidad;
 }
 
 async function crearInventarioGeneral({
