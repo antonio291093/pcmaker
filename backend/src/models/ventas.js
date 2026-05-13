@@ -3,6 +3,7 @@ const { CASE_DESCRIPCION_VENTA } = require("../utils/sqlFragments");
 const { descontarStockVenta } = require("./inventario");
 const { registrarMovimiento } = require("./caja");
 const { crearComision } = require("./comisiones");
+const { resolverOCrearCliente } = require("./clientes");
 
 async function registrarVenta({
   cliente,
@@ -99,6 +100,16 @@ async function registrarVenta({
     );
 
     const ventaId = ventaResult.rows[0].id;
+
+    // D) Resolver o crear cliente y vincular a la venta
+    const clienteId = await resolverOCrearCliente(
+      { nombre: cliente, telefono, correo, sucursal_id },
+      client
+    );
+    await client.query(
+      "UPDATE ventas SET cliente_id = $1 WHERE id = $2",
+      [clienteId, ventaId]
+    );
 
     // 2️⃣ Registrar pagos
     for (const pago of pagos) {
