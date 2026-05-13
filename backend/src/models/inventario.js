@@ -601,14 +601,14 @@ async function agregarOActualizarInventario({
     buscarQuery = `
       SELECT * FROM inventario
       WHERE memoria_ram_id = $1 AND especificacion = $2 AND sucursal_id = $3
-      LIMIT 1;
+      ORDER BY cantidad DESC LIMIT 1;
     `;
     buscarValues = [memoria_ram_id, especificacion, sucursal_id];
   } else if (almacenamiento_id) {
     buscarQuery = `
       SELECT * FROM inventario
       WHERE almacenamiento_id = $1 AND especificacion = $2 AND sucursal_id = $3
-      LIMIT 1;
+      ORDER BY cantidad DESC LIMIT 1;
     `;
     buscarValues = [almacenamiento_id, especificacion, sucursal_id];
   } else {
@@ -881,10 +881,10 @@ async function descontarStockInventario({
 
   let query, id;
   if (memoria_ram_id) {
-    query = `SELECT * FROM inventario WHERE memoria_ram_id = $1 AND sucursal_id = $2`;
+    query = `SELECT * FROM inventario WHERE memoria_ram_id = $1 AND sucursal_id = $2 ORDER BY cantidad DESC LIMIT 1`;
     id = memoria_ram_id;
   } else if (almacenamiento_id) {
-    query = `SELECT * FROM inventario WHERE almacenamiento_id = $1 AND sucursal_id = $2`;
+    query = `SELECT * FROM inventario WHERE almacenamiento_id = $1 AND sucursal_id = $2 ORDER BY cantidad DESC LIMIT 1`;
     id = almacenamiento_id;
   } else {
     throw new Error("Debe proporcionar memoria_ram_id o almacenamiento_id");
@@ -921,10 +921,10 @@ async function aumentarStockInventario({
 
   let query, id;
   if (memoria_ram_id) {
-    query = `SELECT * FROM inventario WHERE memoria_ram_id = $1 AND sucursal_id = $2`;
+    query = `SELECT * FROM inventario WHERE memoria_ram_id = $1 AND sucursal_id = $2 ORDER BY cantidad DESC LIMIT 1`;
     id = memoria_ram_id;
   } else if (almacenamiento_id) {
-    query = `SELECT * FROM inventario WHERE almacenamiento_id = $1 AND sucursal_id = $2`;
+    query = `SELECT * FROM inventario WHERE almacenamiento_id = $1 AND sucursal_id = $2 ORDER BY cantidad DESC LIMIT 1`;
     id = almacenamiento_id;
   } else {
     throw new Error("Debe proporcionar memoria_ram_id o almacenamiento_id");

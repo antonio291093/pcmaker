@@ -133,3 +133,19 @@ GRANT USAGE, SELECT ON SEQUENCE nombre_tabla_id_seq TO pcmaker_user;
 ```
 
 Tablas donde ya se aplicó: `clientes` (Mayo 2026)
+
+---
+
+## 11. Bug conocido — `actualizarEquipoArmado` sin `sucursal_id`
+
+Las queries de reponer/descontar stock en `actualizarEquipoArmado`
+(`inventario.js` líneas ~281, 290, 328, 337) no filtran por
+`sucursal_id` y pueden afectar registros de otras sucursales.
+Pendiente de corregir en una sesión futura.
+
+```js
+// Ejemplo del problema:
+UPDATE inventario SET cantidad = cantidad - 1
+WHERE memoria_ram_id = $1 AND cantidad > 0
+-- Falta: AND sucursal_id = $2
+```
