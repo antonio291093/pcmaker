@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { API_URL } from '@/utils/api'
+import { exportCarteraClientes } from '@/utils/exportReportes'
 
 // ── tipos ──────────────────────────────────────────────────────────────────
 
@@ -188,6 +189,8 @@ export default function CarteraClientes() {
   const [data,        setData]        = useState<PaginaData | null>(null)
   const [loading,     setLoading]     = useState(false)
 
+  const [exportando,          setExportando]          = useState(false)
+
   const [panelAbierto,       setPanelAbierto]       = useState(false)
   const [loadingDetalle,     setLoadingDetalle]     = useState(false)
   const [clienteSeleccionado, setClienteSeleccionado] = useState<ClienteDetalle | null>(null)
@@ -241,6 +244,24 @@ export default function CarteraClientes() {
     setClienteSeleccionado(null)
   }
 
+  const handleExportar = async () => {
+    setExportando(true)
+    try {
+      const params = new URLSearchParams({ pagina: '1', por_pagina: '10000' })
+      if (busqueda)   params.append('busqueda',    busqueda)
+      if (sucursalId) params.append('sucursal_id', String(sucursalId))
+
+      const resp = await fetch(`${API_URL}/api/clientes?${params}`, { credentials: 'include' })
+      if (!resp.ok) throw new Error()
+      const resultado = await resp.json()
+      exportCarteraClientes(resultado.clientes)
+    } catch {
+      // silencioso — el fetch de lista ya maneja sus propios errores
+    } finally {
+      setExportando(false)
+    }
+  }
+
   const totalPaginas = data ? Math.ceil(data.total / data.por_pagina) : 1
 
   return (
@@ -273,6 +294,20 @@ export default function CarteraClientes() {
             ))}
           </select>
         </div>
+
+        <button
+          onClick={handleExportar}
+          disabled={!data || data.total === 0 || exportando}
+          className="
+            self-end px-4 py-2 rounded-lg text-sm font-medium
+            bg-emerald-600 text-white
+            hover:bg-emerald-700 transition
+            disabled:opacity-40 disabled:cursor-not-allowed
+            whitespace-nowrap
+          "
+        >
+          {exportando ? 'Exportando...' : 'Exportar Excel'}
+        </button>
 
       </div>
 

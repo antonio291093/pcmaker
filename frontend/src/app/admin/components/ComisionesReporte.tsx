@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { API_URL } from '@/utils/api'
 import { toDateString } from '@/utils/fecha'
+import { exportComisiones } from '@/utils/exportReportes'
 
 // ── tipos ──────────────────────────────────────────────────────────────────
 
@@ -185,6 +186,19 @@ export default function ComisionesReporte() {
           }`}
         >
           {loading ? 'Consultando...' : 'Consultar'}
+        </button>
+
+        <button
+          onClick={() => exportComisiones(resumen, detalle, fechaInicio, fechaFin)}
+          disabled={!consultado || resumen.length === 0}
+          className="
+            px-5 py-2 rounded-lg text-sm font-medium
+            bg-emerald-600 text-white
+            hover:bg-emerald-700 transition
+            disabled:opacity-40 disabled:cursor-not-allowed
+          "
+        >
+          Exportar Excel
         </button>
 
       </div>

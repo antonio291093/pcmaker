@@ -12,6 +12,7 @@ import {
 } from 'react-icons/fa'
 import { API_URL } from '@/utils/api'
 import { toDateString } from '@/utils/fecha'
+import { exportArticulosEliminados } from '@/utils/exportReportes'
 
 type DeletedItem = {
   id: number
@@ -197,6 +198,20 @@ export default function DeletedItemTabs() {
             input-minimal
             "
         />
+
+        <button
+            onClick={() => exportArticulosEliminados(filtered)}
+            disabled={!filtered.length || loading}
+            className="
+            px-4 py-2.5 rounded-xl text-sm font-medium
+            bg-emerald-600 text-white
+            hover:bg-emerald-700 transition
+            disabled:opacity-40 disabled:cursor-not-allowed
+            whitespace-nowrap
+            "
+        >
+            Exportar Excel
+        </button>
 
         </div>
 

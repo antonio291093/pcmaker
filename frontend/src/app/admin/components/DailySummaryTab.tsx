@@ -5,6 +5,7 @@ import SucursalCard from './SucursalCard'
 import DetailSection from './DetailSection'
 import { API_URL } from '@/utils/api'
 import { toDateString } from '@/utils/fecha'
+import { exportResumenDiario } from '@/utils/exportReportes'
 
 type SucursalResumen = {
   id: number
@@ -76,7 +77,7 @@ export default function DailySummaryTab() {
           </p>
         </div>
 
-        {/* DatePicker */}
+        {/* DatePicker + Exportar */}
         <div className="flex items-center gap-3">
 
           <label className="text-sm font-medium text-gray-600">
@@ -97,6 +98,19 @@ export default function DailySummaryTab() {
               input-minimal
             "
           />
+
+          <button
+            onClick={() => exportResumenDiario(sucursales, fecha)}
+            disabled={!sucursales.length || loading}
+            className="
+              px-4 py-2 rounded-lg text-sm font-medium
+              bg-emerald-600 text-white
+              hover:bg-emerald-700 transition
+              disabled:opacity-40 disabled:cursor-not-allowed
+            "
+          >
+            Exportar Excel
+          </button>
 
         </div>
 
