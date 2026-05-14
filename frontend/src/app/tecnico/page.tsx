@@ -6,7 +6,7 @@ import InventoryCard from '../components/InventorySelectorCard'
 import MaintenanceForm from './components/MaintenanceForm'
 import HistoryTimeline from './components/HistoryTimeline'
 import SpecsCard from './components/SpecsCard'
-import CommissionCard from './components/CommissionCard'
+import ComisionesCard from '@/app/components/ComisionesCard'
 import RecibirLote from '../components/RecibirLote'
 import RecepcionDirecta from '../components/RecepcionDirecta'
 import { useUser } from '@/context/UserContext'
@@ -33,7 +33,7 @@ export default function DashboardPage() {
         {active === 'mantenimientos' && <MaintenanceForm />}
         {active === 'historial' && <HistoryTimeline />}
         {active === 'especificaciones' && <SpecsCard />}
-        {active === 'comisiones' && <CommissionCard />}
+        {active === 'comisiones' && <ComisionesCard />}
         {active === 'lote' && <RecibirLote />}
         {active === 'recepcion' && <RecepcionDirecta />}
       </main>

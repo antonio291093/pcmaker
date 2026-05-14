@@ -155,18 +155,21 @@ exports.obtenerReporteComisiones = async (req, res) => {
   }
 };
 
-// Obtener comisiones de la semana actual para un usuario
+// Obtener comisiones de la semana actual (o rango) para un usuario
 exports.obtenerComisionesSemanaActual = async (req, res) => {
-  // El usuario_id debe venir de sesión o de request según tu autenticación
   const usuario_id = req.params.usuario_id;
   if (!usuario_id) {
     return res.status(400).json({ message: "Falta el usuario_id" });
   }
 
+  const { fecha_inicio, fecha_fin } = req.query;
+
   try {
-    const comisionesSemana = await obtenerComisionesSemanaActualPorUsuario(
-      usuario_id
-    );
+    const comisionesSemana = await obtenerComisionesSemanaActualPorUsuario({
+      usuario_id,
+      fecha_inicio: fecha_inicio ?? null,
+      fecha_fin: fecha_fin ?? null,
+    });
     res.json(comisionesSemana ?? null);
   } catch (error) {
     console.error("Error al obtener comisiones de la semana:", error);

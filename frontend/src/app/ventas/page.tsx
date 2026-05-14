@@ -5,7 +5,7 @@ import Sidebar from './components/Sidebar'
 import InventoryList from '../components/InventorySelectorCard'
 import SalesForm from './components/SalesForm'
 import ReportsHistory from './components/ReportsHistory'
-import CommissionsCard from './components/CommissionsCard'
+import ComisionesCard from '@/app/components/ComisionesCard'
 import RecepcionDirecta from '../components/RecepcionDirecta'
 import CorteCaja from './components/CorteCaja'
 import { useUser } from '@/context/UserContext'
@@ -31,7 +31,7 @@ export default function DashboardPage() {
         {active === 'inventario' && <InventoryList />}
         {active === 'venta' && <SalesForm />}
         {active === 'reportes' && <ReportsHistory />}
-        {active === 'comisiones' && <CommissionsCard />}        
+        {active === 'comisiones' && <ComisionesCard />}
         {active === 'recepcion' && <RecepcionDirecta />}
         {active === 'caja' && <CorteCaja />}
       </main>
