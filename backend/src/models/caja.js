@@ -1,4 +1,5 @@
 const pool = require('../config/db')
+const { CASE_DESCRIPCION_VENTA } = require('../utils/sqlFragments')
 
 // ==========================
 // MOVIMIENTOS
@@ -150,14 +151,16 @@ async function crearCorteCaja({
 // ==========================
 // HISTORIAL
 // ==========================
-async function obtenerCortes(sucursal_id) {
+async function obtenerCortes({ sucursal_id, fecha_inicio, fecha_fin }) {
   const query = `
     SELECT *
     FROM caja_cortes
     WHERE ($1::INTEGER IS NULL OR sucursal_id = $1)
+      AND ($2::date IS NULL OR fecha >= $2)
+      AND ($3::date IS NULL OR fecha <= $3)
     ORDER BY fecha DESC;
   `
-  const { rows } = await pool.query(query, [sucursal_id])
+  const { rows } = await pool.query(query, [sucursal_id, fecha_inicio ?? null, fecha_fin ?? null])
   return rows
 }
 
@@ -207,6 +210,49 @@ LIMIT 1;
   }
 }
 
+async function obtenerVentasDetalladasPorDia(sucursal_id, fecha) {
+  const query = `
+    SELECT
+      v.id,
+      v.cliente,
+      v.total,
+      v.fecha_venta,
+      (
+        SELECT json_agg(
+          json_build_object(
+            'nombre', CASE
+              WHEN vd.tipo = 'servicio'
+                THEN COALESCE(cm.descripcion, m.detalle, 'Servicio')
+              ELSE ${CASE_DESCRIPCION_VENTA}
+            END,
+            'cantidad',        vd.cantidad,
+            'precio_unitario', vd.precio_unitario,
+            'es_servicio',     (vd.tipo = 'servicio')
+          )
+          ORDER BY vd.id
+        )
+        FROM venta_detalle vd
+        LEFT JOIN inventario                  i  ON i.id  = vd.producto_id
+        LEFT JOIN equipos                     e  ON e.id  = i.equipo_id
+        LEFT JOIN inventario_especificaciones ie  ON ie.inventario_id = i.id
+        LEFT JOIN mantenimientos              m  ON m.id  = vd.mantenimiento_id
+        LEFT JOIN catalogo_mantenimiento      cm ON cm.id = m.catalogo_id
+        WHERE vd.venta_id = v.id
+      ) AS items,
+      (
+        SELECT string_agg(DISTINCT vp.metodo_pago, ' / ')
+        FROM ventas_pagos vp
+        WHERE vp.venta_id = v.id
+      ) AS pagos
+    FROM ventas v
+    WHERE v.sucursal_id = $1
+      AND DATE(v.fecha_venta) = $2::date
+    ORDER BY v.fecha_venta ASC;
+  `
+  const { rows } = await pool.query(query, [sucursal_id, fecha])
+  return rows
+}
+
 async function obtenerMovimientosPorDia(sucursal_id, fecha) {
   const { rows } = await pool.query(
     `
@@ -231,5 +277,6 @@ module.exports = {
   crearCorteCaja,
   obtenerCortes,
   obtenerCortePendiente,
-  obtenerMovimientosPorDia
+  obtenerMovimientosPorDia,
+  obtenerVentasDetalladasPorDia,
 }

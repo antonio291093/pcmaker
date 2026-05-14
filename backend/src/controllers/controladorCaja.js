@@ -8,6 +8,7 @@ const {
   cerrarDiaOperativo,
   obtenerCortePendiente,
   obtenerMovimientosPorDia,
+  obtenerVentasDetalladasPorDia,
 } = require('../models/caja')
 
 const { obtenerTotalesPorMetodo } = require('../models/ventas')
@@ -163,8 +164,12 @@ exports.generarCorte = async (req, res) => {
 // ==========================
 exports.obtenerCortes = async (req, res) => {
   try {
-    const { sucursal_id } = req.query
-    const cortes = await obtenerCortes(sucursal_id)
+    const { sucursal_id, fecha_inicio, fecha_fin } = req.query
+    const cortes = await obtenerCortes({
+      sucursal_id: sucursal_id ? Number(sucursal_id) : null,
+      fecha_inicio: fecha_inicio ?? null,
+      fecha_fin: fecha_fin ?? null,
+    })
     res.json(cortes)
   } catch (error) {
     console.error('Error al obtener cortes:', error)
@@ -199,18 +204,15 @@ exports.obtenerMovimientosPorDia = async (req, res) => {
       })
     }
 
-    const rows = await obtenerMovimientosPorDia(
-      sucursal_id,
-      fecha
-    )
+    const [rows, ventas] = await Promise.all([
+      obtenerMovimientosPorDia(sucursal_id, fecha),
+      obtenerVentasDetalladasPorDia(sucursal_id, fecha),
+    ])
 
-    const ingresos = rows.filter(r =>
-      r.tipo === 'ingreso' || r.tipo === 'venta'
-    )
+    const ingresos = rows.filter(r => r.tipo === 'ingreso')
+    const gastos   = rows.filter(r => r.tipo === 'gasto')
 
-    const gastos = rows.filter(r => r.tipo === 'gasto')
-
-    res.json({ ingresos, gastos })
+    res.json({ ventas, ingresos, gastos })
   } catch (error) {
     console.error('Error obteniendo movimientos del día:', error)
     res.status(500).json({ message: 'Error en el servidor' })

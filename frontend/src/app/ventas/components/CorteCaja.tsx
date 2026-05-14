@@ -11,17 +11,11 @@ import {
   FaFileInvoiceDollar,
   FaPlus,
   FaListUl,
-  FaChevronRight, 
-  FaChevronDown
+  FaChevronRight
 } from 'react-icons/fa'
 
 import { API_URL } from '@/utils/api'
 import { toDateString } from '@/utils/fecha'
-
-interface DetalleMovimiento {
-  concepto: string;
-  monto: number;
-}
 
 interface MovimientoCorte {
   fecha: string;
@@ -29,22 +23,48 @@ interface MovimientoCorte {
   total_gastos: number;
   total_ingresos: number;
   balance_final: number;
-  ingresos?: DetalleMovimiento[];
-  gastos?: DetalleMovimiento[];
 }
 
 interface MovimientoDetalleAPI {
   id: number
-  tipo: 'venta' | 'ingreso' | 'gasto'
+  tipo: 'ingreso' | 'gasto'
   monto: string
   descripcion: string
   fecha: string
   created_at: string
 }
 
+interface ItemVenta {
+  nombre: string | null
+  cantidad: number
+  precio_unitario: string
+  es_servicio: boolean
+}
+
+interface VentaDetalle {
+  id: number
+  cliente: string
+  total: string
+  fecha_venta: string
+  items: ItemVenta[]
+  pagos: string | null
+}
+
 interface DetalleCorteResponse {
+  ventas:   VentaDetalle[]
   ingresos: MovimientoDetalleAPI[]
-  gastos: MovimientoDetalleAPI[]
+  gastos:   MovimientoDetalleAPI[]
+}
+
+function semanaActual(): { inicio: string; fin: string } {
+  const hoy = new Date()
+  const dia = hoy.getDay()
+  const diffLunes = dia === 0 ? -6 : 1 - dia
+  const lunes = new Date(hoy)
+  lunes.setDate(hoy.getDate() + diffLunes)
+  const domingo = new Date(lunes)
+  domingo.setDate(lunes.getDate() + 6)
+  return { inicio: toDateString(lunes), fin: toDateString(domingo) }
 }
 
 function DetalleCorte({
@@ -60,50 +80,92 @@ function DetalleCorte({
     )
   }
 
-  const { ingresos, gastos } = detalle
+  const { ventas, ingresos, gastos } = detalle
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
-      {/* INGRESOS */}
+    <div className="space-y-4 text-sm">
+      {/* VENTAS */}
       <div>
-        <h4 className="font-semibold text-green-700 mb-2">Ingresos</h4>
-
-        {ingresos.length > 0 ? (
-          ingresos.map(m => (
-            <div key={m.id} className="flex justify-between py-1">
-              <span>{m.descripcion}</span>
-              <span className="text-green-600">
-                ${Number(m.monto).toFixed(2)}
-              </span>
-            </div>
-          ))
+        <h4 className="font-semibold text-indigo-700 mb-2">
+          Ventas ({ventas.length})
+        </h4>
+        {ventas.length === 0 ? (
+          <p className="text-gray-400">Sin ventas este día</p>
         ) : (
-          <p className="text-gray-400">Sin ingresos</p>
+          <div className="space-y-3">
+            {ventas.map(v => (
+              <div key={v.id} className="border border-gray-200 rounded-lg p-3">
+                <div className="flex justify-between font-medium">
+                  <span>{v.cliente}</span>
+                  <span className="text-green-700">
+                    ${Number(v.total).toFixed(2)}
+                  </span>
+                </div>
+                {v.pagos && (
+                  <p className="text-xs text-gray-400 mt-0.5 capitalize">{v.pagos}</p>
+                )}
+                {v.items && v.items.length > 0 && (
+                  <ul className="mt-2 space-y-0.5 text-xs text-gray-600">
+                    {v.items.map((item, idx) => (
+                      <li key={idx} className="flex justify-between">
+                        <span className={item.es_servicio ? 'italic' : ''}>
+                          • {item.nombre || 'Producto sin descripción'}
+                          {item.cantidad > 1 && ` ×${item.cantidad}`}
+                        </span>
+                        <span>${Number(item.precio_unitario).toFixed(2)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
-      {/* GASTOS */}
-      <div>
-        <h4 className="font-semibold text-red-700 mb-2">Gastos</h4>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* INGRESOS */}
+        <div>
+          <h4 className="font-semibold text-green-700 mb-2">Ingresos extra</h4>
+          {ingresos.length > 0 ? (
+            ingresos.map(m => (
+              <div key={m.id} className="flex justify-between py-1">
+                <span>{m.descripcion}</span>
+                <span className="text-green-600">
+                  ${Number(m.monto).toFixed(2)}
+                </span>
+              </div>
+            ))
+          ) : (
+            <p className="text-gray-400">Sin ingresos extra</p>
+          )}
+        </div>
 
-        {gastos.length > 0 ? (
-          gastos.map(m => (
-            <div key={m.id} className="flex justify-between py-1">
-              <span>{m.descripcion}</span>
-              <span className="text-red-600">
-                ${Number(m.monto).toFixed(2)}
-              </span>
-            </div>
-          ))
-        ) : (
-          <p className="text-gray-400">Sin gastos</p>
-        )}
+        {/* GASTOS */}
+        <div>
+          <h4 className="font-semibold text-red-700 mb-2">Gastos</h4>
+          {gastos.length > 0 ? (
+            gastos.map(m => (
+              <div key={m.id} className="flex justify-between py-1">
+                <span>{m.descripcion}</span>
+                <span className="text-red-600">
+                  ${Number(m.monto).toFixed(2)}
+                </span>
+              </div>
+            ))
+          ) : (
+            <p className="text-gray-400">Sin gastos</p>
+          )}
+        </div>
       </div>
     </div>
   )
 }
 
 export default function CorteCajaSection() {
+  const semana = semanaActual()
+  const [fechaInicio, setFechaInicio] = useState(semana.inicio)
+  const [fechaFin, setFechaFin]       = useState(semana.fin)
   const [usuarioId, setUsuarioId] = useState<number | null>(null)
   const [sucursalId, setSucursalId] = useState<number | null>(null)
   const [ventas, setVentas] = useState(0)
@@ -402,8 +464,13 @@ export default function CorteCajaSection() {
     if (!sucursal_id) return
 
     try {
+      const params = new URLSearchParams({
+        sucursal_id: String(sucursal_id),
+        fecha_inicio: fechaInicio,
+        fecha_fin:    fechaFin,
+      })
       const resp = await fetch(
-        `${API_URL}/api/caja/cortes?sucursal_id=${sucursal_id}`,
+        `${API_URL}/api/caja/cortes?${params}`,
         { credentials: 'include' }
       )
 
@@ -498,6 +565,35 @@ export default function CorteCajaSection() {
         <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
           <FaListUl className="text-indigo-600" /> Historial de cortes
         </h3>
+
+        {/* Filtro de fechas */}
+        <div className="flex flex-wrap gap-3 mb-4 items-end">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-gray-500">Desde</label>
+            <input
+              type="date"
+              value={fechaInicio}
+              onChange={e => setFechaInicio(e.target.value)}
+              className="border rounded px-2 py-1 text-sm"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-gray-500">Hasta</label>
+            <input
+              type="date"
+              value={fechaFin}
+              onChange={e => setFechaFin(e.target.value)}
+              className="border rounded px-2 py-1 text-sm"
+            />
+          </div>
+          <button
+            onClick={() => obtenerCortes(sucursalId)}
+            className="bg-indigo-600 text-white text-sm px-4 py-1.5 rounded hover:bg-indigo-700"
+          >
+            Consultar
+          </button>
+        </div>
+
         <div className="overflow-x-auto">
          <table className="min-w-full border border-gray-200 rounded-xl overflow-hidden">
           <thead>
