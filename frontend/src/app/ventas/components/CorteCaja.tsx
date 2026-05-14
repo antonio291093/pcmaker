@@ -1,5 +1,5 @@
 'use client'
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { useUser } from '@/context/UserContext'
 import Swal from 'sweetalert2'
 import {
@@ -166,6 +166,7 @@ export default function CorteCajaSection() {
   const semana = semanaActual()
   const [fechaInicio, setFechaInicio] = useState(semana.inicio)
   const [fechaFin, setFechaFin]       = useState(semana.fin)
+  const fechaInicializada             = useRef(toDateString())
   const [usuarioId, setUsuarioId] = useState<number | null>(null)
   const [sucursalId, setSucursalId] = useState<number | null>(null)
   const [ventas, setVentas] = useState(0)
@@ -217,14 +218,37 @@ export default function CorteCajaSection() {
   if (!user) return null  
   
   useEffect(() => {
-    if (!user) return    
+    if (!user) return
     setUsuarioId(user.id)
-    setSucursalId(user.sucursal_id)    
+    setSucursalId(user.sucursal_id)
     obtenerResumen(user.sucursal_id)
-    obtenerCortes(user.sucursal_id)    
+    obtenerCortes(user.sucursal_id)
     verificarCortePendiente(user.sucursal_id)
     abrirDia(user.sucursal_id)
   }, [user])
+
+  // Detecta cambio de día cuando el usuario vuelve a la pestaña
+  useEffect(() => {
+    if (!sucursalId) return
+
+    const handleVisibility = () => {
+      if (document.visibilityState !== 'visible') return
+      const hoy = toDateString()
+      if (hoy === fechaInicializada.current) return
+
+      fechaInicializada.current = hoy
+      const { inicio, fin } = semanaActual()
+      setFechaInicio(inicio)
+      setFechaFin(fin)
+      abrirDia(sucursalId)
+      verificarCortePendiente(sucursalId)
+      obtenerResumen(sucursalId)
+      obtenerCortes(sucursalId)
+    }
+
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [sucursalId])
 
   const cargarDetalleCorte = async (fecha: string) => {
     if (!sucursalId) return
