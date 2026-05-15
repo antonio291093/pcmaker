@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { FaDownload } from 'react-icons/fa'
+import { FaDownload, FaTicketAlt } from 'react-icons/fa'
 import { exportVentasExcel } from '@/utils/exportVentasExcel'
 import { exportCaptura } from '@/utils/exportCaptura'
 import { useRef } from 'react'
@@ -124,6 +124,19 @@ export default function ReportsHistory() {
     window.open(url)
   }
 
+  const descargarTicket = async (ventaId: number) => {
+    const resp = await fetch(
+      `${API_URL}/api/ventas/ticket/${ventaId}`,
+      { credentials: 'include' }
+    )
+
+    if (!resp.ok) return
+
+    const blob = await resp.blob()
+    const url = window.URL.createObjectURL(blob)
+    window.open(url)
+  }
+
   const exportarImagen = async () => {
     if (!capturaRef.current) return
 
@@ -187,6 +200,7 @@ export default function ReportsHistory() {
                 <th className='p-2 text-left text-gray-500'>Pago</th>
                 <th className='p-2 text-right text-gray-500'>Monto</th>                                          
                 <th className='p-2 text-center text-gray-500'>Garantía</th>
+                <th className='p-2 text-center text-gray-500'>Ticket</th>
               </tr>
             </thead>
             <tbody>
@@ -225,12 +239,23 @@ export default function ReportsHistory() {
                         </button>
                       )}
                     </td>
+                    <td className='p-2 text-center'>
+                      {mostrarBoton && (
+                        <button
+                          onClick={() => descargarTicket(v.venta_id)}
+                          className='inline-flex items-center gap-1 px-3 py-1 bg-green-500 text-white rounded-md text-xs hover:bg-green-700 transition'
+                        >
+                          <FaTicketAlt className='text-xs' />
+                          Ticket
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 )
               })}
 
               {!loading && ventas.length === 0 && (
-                <tr><td colSpan={5} className='p-4 text-center text-gray-400'>Sin resultados</td></tr>
+                <tr><td colSpan={9} className='p-4 text-center text-gray-400'>Sin resultados</td></tr>
               )}
             </tbody>
           </table>
