@@ -61,6 +61,7 @@ const catalogoCategoriasRoutes = require("./routes/categoriaInventarioRutas");
 const configuracionPagos = require("./routes/configuracionPagosRutas");
 const reportesRoutes = require("./routes/reportesRutas");
 const clientesRoutes = require("./routes/clientesRutas");
+const apartadosRoutes = require("./routes/apartadosRutas");
 
 // Usa las rutas
 app.use("/api/usuarios", usuariosRoutes);
@@ -86,5 +87,6 @@ app.use("/api/catalogo-categorias", catalogoCategoriasRoutes);
 app.use("/api/configuracionPagos", configuracionPagos);
 app.use("/api/reportes", reportesRoutes);
 app.use("/api/clientes", clientesRoutes);
+app.use("/api/apartados", apartadosRoutes);
 
 module.exports = { app };

@@ -8,6 +8,7 @@ import ReportsHistory from './components/ReportsHistory'
 import ComisionesCard from '@/app/components/ComisionesCard'
 import RecepcionDirecta from '../components/RecepcionDirecta'
 import CorteCaja from './components/CorteCaja'
+import Apartados from './components/Apartados'
 import { useUser } from '@/context/UserContext'
 import { API_URL } from '@/utils/api'
 
@@ -90,6 +91,7 @@ export default function DashboardPage() {
         {active === 'comisiones' && <ComisionesCard />}
         {active === 'recepcion' && <RecepcionDirecta />}
         {active === 'caja' && <CorteCaja />}
+        {active === 'apartados' && <Apartados />}
       </main>
     </>
   )
