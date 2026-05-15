@@ -701,7 +701,7 @@ async function obtenerInventario(sucursalId = null) {
     LEFT JOIN catalogo_memoria_ram cm ON i.memoria_ram_id = cm.id
     LEFT JOIN catalogo_almacenamiento ca ON i.almacenamiento_id = ca.id
     WHERE i.equipo_id IS NULL
-    AND i.origen <> 'recepcion_directa'
+    AND i.origen IS DISTINCT FROM 'recepcion_directa'
     and i.eliminado = FALSE
   `;
 
