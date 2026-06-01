@@ -98,7 +98,11 @@ backend/src/
 │   ├── inventario.js     → descontarStockVenta (acepta client externo)
 │   ├── caja.js           → registrarMovimiento (acepta client externo)
 │   ├── comisiones.js     → crearComision (acepta client externo)
-│   └── equipos.js        → obtenerConteosPorEstado
+│   ├── equipos.js        → obtenerConteosPorEstado
+│   ├── clientes.js       → resolverOCrearCliente, CRUD cartera de clientes
+│   ├── apartados.js      → crearApartado, registrarAbono, liquidar, cancelar
+│   ├── mantenimientos.js → CRUD mantenimientos de equipos
+│   └── pedido.js         → traslado de equipos entre sucursales
 ├── utils/
 │   ├── sqlFragments.js   → CASE_DESCRIPCION_VENTA, CASE_ESPECIFICACIONES_VENTA
 │   └── pdf/              → generadores PDF con pdf-lib
@@ -162,13 +166,20 @@ frontend/src/
     │   ├── Types.ts                    → interfaces compartidas (ConfiguracionPago, IdNombre, ...)
     │   ├── SeleccionarProductoModal.tsx → exporta Producto, ProductoSeleccionado
     │   └── ModalSeleccionarServicios.tsx → exporta ServicioPendiente
-    └── ventas/
-        ├── hooks/
-        │   └── useVenta.ts → todo el estado, efectos, memos y handlers del form de venta
+    ├── ventas/
+    │   ├── hooks/
+    │   │   └── useVenta.ts → todo el estado, efectos, memos y handlers del form de venta
+    │   └── components/
+    │       ├── SalesForm.tsx       → esqueleto del form (JSX + wiring)
+    │       ├── ListaItems.tsx      → listas de productos/servicios + totales
+    │       ├── PanelPagos.tsx      → grid de pagos (3 métodos) + tarjeta de transferencia
+    │       ├── Apartados.tsx       → gestión de apartados: crear, abonar, liquidar, cancelar
+    │       ├── CorteCaja.tsx       → corte de caja diario con detalle de ventas y filtros
+    │       └── ReportsHistory.tsx  → historial de ventas con reimpresión de ticket
+    └── admin/
         └── components/
-            ├── SalesForm.tsx       → esqueleto del form (JSX + wiring, ~115 líneas)
-            ├── ListaItems.tsx      → listas de productos y servicios + bloque de totales
-            └── PanelPagos.tsx      → grid de pagos (3 métodos) + tarjeta de transferencia
+            ├── CarteraClientes.tsx → CRUD cartera de clientes con historial de compras
+            └── ComisionesReporte.tsx → reporte de comisiones filtrable por persona
 ```
 
 ### Nginx Routing
@@ -206,12 +217,15 @@ El esquema completo con todas las tablas, columnas, PKs, FKs, CHECK constraints 
 | `inventario` | `equipo_id → equipos` (NULL si no es equipo), `sucursal_id`, soft-delete con `eliminado` |
 | `inventario_especificaciones` | `inventario_id → inventario` (1:1, para recepción directa) |
 | `equipos_ram` / `equipos_almacenamiento` | PK compuesta `(equipo_id, componente_id)` |
-| `ventas` | `user_venta → usuarios`, `sucursal_id` |
+| `clientes` | `sucursal_id → sucursales`; `telefono` UNIQUE (NULL no viola); índice en `nombre` |
+| `ventas` | `user_venta → usuarios`, `sucursal_id`, `cliente_id → clientes` (nullable) |
 | `venta_detalle` | `venta_id → ventas`, `producto_id → inventario` (NULL si servicio), `mantenimiento_id → mantenimientos` |
 | `ventas_pagos` | `venta_id → ventas`, `metodo_pago ∈ {efectivo, transferencia, terminal, facturacion}` |
 | `caja_dias` | UNIQUE `(sucursal_id, fecha)` |
 | `comisiones` | FK nullable a `ventas`, `mantenimientos` o `equipos` — el tipo se infiere por cuál no es NULL |
 | `pedidos` / `pedido_equipos` | Traslado de equipos entre sucursales |
+| `apartados` | `cliente_id → clientes`, `producto_id → inventario`, `usuario_id → usuarios`, `sucursal_id`; `estado ∈ {activo, liquidado, cancelado}`; `venta_id → ventas` (se llena al liquidar) |
+| `apartado_abonos` | `apartado_id → apartados` (CASCADE), `usuario_id → usuarios`; `metodo_pago ∈ {efectivo, transferencia, terminal}` |
 
 ### Patrones clave en inventario
 
@@ -283,3 +297,25 @@ Leer `database/schema.sql` antes de crear cualquier endpoint o tabla nueva.
 | `backend/src/models/garantias.js` | `obtenerDatosGarantia` — query unificada (equipos armados + recepción directa + inventario genérico en un solo JOIN) |
 | `backend/src/models/ventas.js` | `obtenerDatosTicket` — cabecera de venta + ítems con descripción y especificaciones |
 | `backend/src/utils/pdf/generarGarantia.js` | Genera el PDF de garantía con pdf-lib |
+
+### Cartera de clientes
+
+| Archivo | Qué contiene |
+|---------|-------------|
+| `backend/src/models/clientes.js` | `resolverOCrearCliente` (busca por teléfono o nombre, crea si no existe), CRUD completo |
+| `backend/src/routes/clientesRutas.js` | Endpoints CRUD + historial de compras por cliente |
+| `frontend/src/app/admin/components/CarteraClientes.tsx` | Vista admin: búsqueda, detalle, historial de ventas por cliente |
+| `database/migrations/001_cartera_clientes.sql` | Crea tabla `clientes`, agrega `ventas.cliente_id`, migra histórico |
+
+> `registrarVenta` llama a `resolverOCrearCliente` internamente — el frontend envía `{ cliente, telefono, correo }` y el backend resuelve el `cliente_id` antes de insertar la venta.
+
+### Apartados
+
+| Archivo | Qué contiene |
+|---------|-------------|
+| `backend/src/models/apartados.js` | `crearApartado`, `registrarAbono`, `liquidarApartado` (genera venta), `cancelarApartado` |
+| `backend/src/routes/apartadosRutas.js` | Endpoints: crear, listar, detalle, abonar, liquidar, cancelar |
+| `frontend/src/app/ventas/components/Apartados.tsx` | UI de ventas: crear apartado, ver activos, registrar abono, liquidar |
+| `database/migrations/002_apartados.sql` | Crea tablas `apartados` y `apartado_abonos`; inserta config en `configuraciones` |
+
+> La configuración de apartados (enganche mínimo, días límite) se gestiona en la tabla `configuraciones` con claves `apartados_*`. Editable desde el panel admin sin nueva migración.
