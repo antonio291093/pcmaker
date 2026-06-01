@@ -34,6 +34,19 @@ export default function LoginClient() {
     }
   }, [user, userLoading, router])
 
+  useEffect(() => {
+    fetch(`${API_URL}/api/admin/servicio/status`, { cache: 'no-store' })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.activo !== true) {
+          router.replace('/servicio-inactivo')
+        }
+      })
+      .catch(() => {
+        // Backend no responde — fail open, mostrar login normalmente
+      })
+  }, [router])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 

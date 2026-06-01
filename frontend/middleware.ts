@@ -4,12 +4,30 @@ import type { NextRequest } from 'next/server'
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
-  // Rutas públicas
+  // Siempre pasan sin ninguna verificación
   if (
-    pathname.startsWith('/login') ||
+    pathname.startsWith('/servicio-inactivo') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon')
   ) {
+    return NextResponse.next()
+  }
+
+  // Verificar estado del servicio — afecta todas las rutas incluido /login
+  try {
+    const statusRes = await fetch(`${process.env.API_URL}/api/admin/servicio/status`)
+    if (statusRes.ok) {
+      const { activo } = await statusRes.json()
+      if (!activo) {
+        return NextResponse.redirect(new URL('/servicio-inactivo', req.url))
+      }
+    }
+  } catch {
+    // Backend no responde — deja pasar para no bloquear por error de red
+  }
+
+  // /login pasa si el servicio está activo
+  if (pathname.startsWith('/login')) {
     return NextResponse.next()
   }
 
@@ -44,5 +62,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/tecnico/:path*', '/ventas/:path*']
+  matcher: ['/admin/:path*', '/tecnico/:path*', '/ventas/:path*', '/login']
 }
