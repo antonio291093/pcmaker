@@ -165,7 +165,11 @@ frontend/src/
     ├── components/
     │   ├── Types.ts                    → interfaces compartidas (ConfiguracionPago, IdNombre, ...)
     │   ├── SeleccionarProductoModal.tsx → exporta Producto, ProductoSeleccionado
-    │   └── ModalSeleccionarServicios.tsx → exporta ServicioPendiente
+    │   ├── ModalSeleccionarServicios.tsx → exporta ServicioPendiente
+    │   ├── RolGuard.tsx                → protección de rol client-side; redirige a /login si rol no coincide
+    │   └── ServicioGuard.tsx           → bloquea acceso si servicio_activo = false; redirige a /servicio-inactivo
+    ├── servicio-inactivo/
+    │   └── page.tsx                    → página pública mostrada cuando el servicio está desactivado
     ├── ventas/
     │   ├── hooks/
     │   │   └── useVenta.ts → todo el estado, efectos, memos y handlers del form de venta
@@ -255,6 +259,8 @@ El esquema completo con todas las tablas, columnas, PKs, FKs, CHECK constraints 
 | Errores del backend | Leer siempre `error.message` — el backend responde `{ message: '...' }` en todos los endpoints |
 | IVA sobre servicios | **Nunca.** El IVA (16%) aplica solo sobre productos. `subtotalServicios` no entra en la base del IVA |
 | Tipos TypeScript | No usar `any`. Los tipos compartidos entre componentes van en `frontend/src/app/components/Types.ts` |
+| RolGuard | Todos los layouts de rol deben envolver su contenido con `<RolGuard rolRequerido={X}>` — el middleware de Next.js no protege navegación client-side |
+| ServicioGuard | Va **dentro** de `RolGuard` en cada layout — orden obligatorio: `RolGuard` (afuera) → `ServicioGuard` (adentro) → contenido |
 
 ### Backend
 
@@ -319,3 +325,12 @@ Leer `database/schema.sql` antes de crear cualquier endpoint o tabla nueva.
 | `database/migrations/002_apartados.sql` | Crea tablas `apartados` y `apartado_abonos`; inserta config en `configuraciones` |
 
 > La configuración de apartados (enganche mínimo, días límite) se gestiona en la tabla `configuraciones` con claves `apartados_*`. Editable desde el panel admin sin nueva migración.
+
+### Protección de roles y servicio
+
+| Archivo | Qué contiene |
+|---------|-------------|
+| `frontend/src/app/components/RolGuard.tsx` | Verifica `rol_id` con `useUser()` en cada render; redirige a `/login` si no coincide |
+| `frontend/src/app/components/ServicioGuard.tsx` | Consulta estado del servicio al montar; redirige a `/servicio-inactivo` si está desactivado |
+| `frontend/src/app/servicio-inactivo/page.tsx` | Página pública mostrada cuando el acceso está bloqueado por servicio inactivo |
+| `backend/src/routes/servicioRutas.js` | `POST /api/admin/servicio/toggle` — activa/desactiva servicio; protegido por header `X-Admin-Token` |

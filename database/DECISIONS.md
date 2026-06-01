@@ -136,6 +136,29 @@ Tablas donde ya se aplicó: `clientes` (Mayo 2026)
 
 ---
 
+## 13. Sistema de servicio activo/inactivo
+
+**Decisión:** El estado del servicio vive en `configuraciones` (clave: `servicio_activo`). El toggle se controla vía `POST /api/admin/servicio/toggle`, protegido por el header `X-Admin-Token` definido en el `.env` del VPS (no en el repo — solo en `/var/www/pcmaker/.env`).
+
+**Por qué:**
+- El middleware de Next.js solo actúa en la carga inicial (dev) — no protege navegación client-side en producción con `output: 'export'`.
+- `ServicioGuard` actúa client-side: se ejecuta en cada render del layout y redirige a `/servicio-inactivo` si el servicio está desactivado.
+- `trailingSlash: true` en `next.config.ts` hace que `usePathname()` devuelva rutas con `/` al final — siempre normalizar con `pathname.replace(/\/$/, '')` antes de comparar rutas exactas.
+- El token de admin para el toggle no se versiona en el repo; vive únicamente en el `.env` del servidor de producción.
+
+---
+
+## 14. Protección de roles client-side con RolGuard
+
+**Decisión:** Cada layout de rol (`/admin`, `/ventas`, `/tecnico`) envuelve su contenido con `<RolGuard rolRequerido={X}>`. Dentro de ese wrapper va `<ServicioGuard>`.
+
+**Por qué:**
+- El middleware de Next.js (`middleware.ts`) no protege la navegación client-side en un static export — solo actúa en la carga inicial de la página.
+- `RolGuard` usa `useUser()` para verificar el `rol_id` en cada render y redirige a `/login` si no coincide, cerrando el hueco que deja el middleware en navegaciones SPA.
+- El orden `RolGuard → ServicioGuard → contenido` es obligatorio: primero se verifica identidad y rol, luego disponibilidad del servicio.
+
+---
+
 ## 11. Bug conocido — `actualizarEquipoArmado` sin `sucursal_id`
 
 Las queries de reponer/descontar stock en `actualizarEquipoArmado`

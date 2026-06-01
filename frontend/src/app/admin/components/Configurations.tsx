@@ -189,7 +189,7 @@ export default function Configurations() {
 
       {tab === 'general' && (
         <ul className="space-y-4">
-          {configs.map((c) => (
+          {configs.filter((c) => c.nombre !== 'servicio_activo').map((c) => (
             <li
               key={c.id}
               className="flex flex-col sm:flex-row sm:items-center gap-3 border-b border-gray-100 pb-3"
