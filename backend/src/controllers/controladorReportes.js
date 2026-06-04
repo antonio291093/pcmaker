@@ -23,6 +23,7 @@ exports.reporteVentas = async (req, res) => {
     const { from, to } = req.query;
 
     const sucursal_id = Number(req.query.sucursal_id) || null;
+    const usuario_id = Number(req.query.usuario_id) || null;
 
     if (!from || !to) {
       return res.status(400).json({ message: "Fechas requeridas" });
@@ -32,6 +33,7 @@ exports.reporteVentas = async (req, res) => {
       from,
       to,
       sucursal_id,
+      usuario_id,
     });
 
     res.json(data);

@@ -38,7 +38,7 @@ async function obtenerResumenSucursales({ fecha }) {
   return rows;
 }
 
-async function obtenerReporteVentas({ from, to, sucursal_id }) {
+async function obtenerReporteVentas({ from, to, sucursal_id, usuario_id }) {
   const detalleQuery = `
     SELECT
       d.id AS detalle_id,
@@ -78,6 +78,7 @@ async function obtenerReporteVentas({ from, to, sucursal_id }) {
 
     WHERE v.fecha_venta::date BETWEEN $1 AND $2
       AND ($3::INTEGER IS NULL OR v.sucursal_id = $3)
+      AND ($4::INTEGER IS NULL OR v.user_venta = $4)
 
     ORDER BY v.fecha_venta DESC;
 
@@ -92,6 +93,7 @@ async function obtenerReporteVentas({ from, to, sucursal_id }) {
       ON vp.venta_id = v.id
     WHERE v.fecha_venta::date BETWEEN $1 AND $2
       AND ($3::INTEGER IS NULL OR v.sucursal_id = $3)
+      AND ($4::INTEGER IS NULL OR v.user_venta = $4)
     GROUP BY vp.metodo_pago;
   `;
 
@@ -103,13 +105,16 @@ async function obtenerReporteVentas({ from, to, sucursal_id }) {
     FROM ventas
     WHERE requiere_factura = true
       AND fecha_venta::date BETWEEN $1 AND $2
-      AND ($3::INTEGER IS NULL OR sucursal_id = $3);
+      AND ($3::INTEGER IS NULL OR sucursal_id = $3)
+      AND ($4::INTEGER IS NULL OR user_venta = $4);
   `;
 
+  const params = [from, to, sucursal_id, usuario_id ?? null];
+
   const [detalle, totalesRaw, facturacionRaw] = await Promise.all([
-    pool.query(detalleQuery, [from, to, sucursal_id]),
-    pool.query(totalesQuery, [from, to, sucursal_id]),
-    pool.query(facturacionQuery, [from, to, sucursal_id]),
+    pool.query(detalleQuery, params),
+    pool.query(totalesQuery, params),
+    pool.query(facturacionQuery, params),
   ]);
 
   const totales = {
