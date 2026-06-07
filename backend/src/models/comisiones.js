@@ -109,7 +109,7 @@ SELECT
   -- 🔵 VENTA
   CASE WHEN cs.tipo = 'venta' THEN json_build_object(
     'id', v.id,
-    'total_venta', COALESCE(SUM(i.precio), 0),
+    'total_venta', COALESCE(v.total, 0),
     'items', COALESCE(
       json_agg(
         json_build_object(
