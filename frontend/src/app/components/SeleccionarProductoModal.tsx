@@ -43,15 +43,17 @@ export interface ProductoSeleccionado extends Producto {
 interface ModalSeleccionarProductoProps {
   onClose: () => void;
   onSeleccionar: (productos: ProductoSeleccionado[]) => void;
+  seleccionadosIniciales?: ProductoSeleccionado[];
 }
 
 export default function ModalSeleccionarProducto({
   onClose,
   onSeleccionar,
+  seleccionadosIniciales = [],
 }: ModalSeleccionarProductoProps) {
   const [inventario, setInventario] = useState<Producto[]>([]);
   const [equiposArmados, setEquiposArmados] = useState<EquipoArmado[]>([]);
-  const [seleccionados, setSeleccionados] = useState<ProductoSeleccionado[]>([]);
+  const [seleccionados, setSeleccionados] = useState<ProductoSeleccionado[]>(seleccionadosIniciales);
   const [loading, setLoading] = useState(true);
   const [sucursalId, setSucursalId] = useState<number | null>(null)
   const [skuBusqueda, setSkuBusqueda] = useState('');

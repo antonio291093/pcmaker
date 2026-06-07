@@ -185,6 +185,7 @@ export default function SalesForm() {
             setProductosSeleccionados(productos)
             setMostrarModal(false)
           }}
+          seleccionadosIniciales={productosSeleccionados}
         />
       )}
 
