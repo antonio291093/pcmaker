@@ -113,8 +113,9 @@ SELECT
     'items', COALESCE(
       json_agg(
         json_build_object(
-          'nombre', ${CASE_DESCRIPCION_VENTA},
-          'precio', i.precio
+          'nombre',   ${CASE_DESCRIPCION_VENTA},
+          'precio',   i.precio,
+          'cantidad', vd.cantidad
         )
       ) FILTER (WHERE i.id IS NOT NULL),
       '[]'::json

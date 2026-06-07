@@ -8,6 +8,7 @@ import { toDateString } from '@/utils/fecha'
 interface ItemVenta {
   nombre: string | null
   precio: number
+  cantidad: number
 }
 
 interface Venta {
@@ -165,7 +166,10 @@ export default function ComisionesCard() {
                   <ul className="ml-4 mt-1 text-sm text-gray-600">
                     {c.venta.items.map((item, idx) => (
                       <li key={idx}>
-                        • {item.nombre || 'Producto sin descripción'} (${item.precio})
+                        • {item.nombre || 'Producto sin descripción'}{' '}
+                        {item.cantidad > 1
+                          ? `(${item.cantidad} × $${item.precio} = $${item.cantidad * item.precio})`
+                          : `($${item.precio})`}
                       </li>
                     ))}
                     <li className="font-semibold">Total venta: ${c.venta.total_venta}</li>
