@@ -1,5 +1,6 @@
 const { registrarVenta, obtenerDatosTicket } = require("../models/ventas");
 const { generarTicketVentaPDF } = require("../utils/pdf/generarTicketVenta");
+const { enviarEmailVenta } = require("../utils/email");
 
 exports.generarTicketVenta = async (req, res) => {
   try {
@@ -111,6 +112,14 @@ exports.crearVenta = async (req, res) => {
       total,
       requiere_factura,
     });
+
+    // Envío de ticket + garantía por email (no bloquea la respuesta)
+    if (correo) {
+      console.log('📧 Intentando enviar email a:', correo, 'para venta:', venta.venta_id)
+      enviarEmailVenta(correo, venta.venta_id)
+        .then(() => console.log('✅ Email enviado correctamente a:', correo))
+        .catch((err) => console.error('❌ Error enviando email:', err.message))
+    }
 
     res.status(201).json({
       message: "Venta registrada correctamente",

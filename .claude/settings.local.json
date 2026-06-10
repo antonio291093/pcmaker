@@ -25,7 +25,8 @@
       "Bash(dir \"C:\\\\Users\\\\thebl\\\\OneDrive\\\\Documentos\\\\ReactProjects\\\\pcmaker\\\\frontend\\\\src\\\\app\\\\ventas\\\\components\")",
       "Bash(dir \"C:\\\\Users\\\\thebl\\\\OneDrive\\\\Documentos\\\\ReactProjects\\\\pcmaker\\\\frontend\\\\src\\\\app\\\\tecnico\\\\components\")",
       "Bash(dir \"C:\\\\Users\\\\thebl\\\\OneDrive\\\\Documentos\\\\ReactProjects\\\\pcmaker\\\\backend\\\\src\\\\utils\\\\pdf\")",
-      "Bash(Remove-Item *)"
+      "Bash(Remove-Item *)",
+      "Bash(npm install *)"
     ]
   }
 }
