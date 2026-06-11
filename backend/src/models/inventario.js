@@ -226,7 +226,7 @@ async function actualizarEquipoArmado(id, data) {
     await pool.query("BEGIN");
 
     const { rows } = await pool.query(
-      `SELECT equipo_id FROM inventario WHERE id = $1`,
+      `SELECT equipo_id, sucursal_id FROM inventario WHERE id = $1`,
       [id],
     );
 
@@ -237,6 +237,7 @@ async function actualizarEquipoArmado(id, data) {
     }
 
     const equipoId = rows[0].equipo_id;
+    const sucursalId = rows[0].sucursal_id;
 
     console.log("🧩 equipo_id resuelto:", equipoId);
 
@@ -278,8 +279,8 @@ async function actualizarEquipoArmado(id, data) {
       for (const ramId of ramsRemovidas) {
         console.log(`🔼 Reponiendo stock de RAM ID ${ramId}`);
         await pool.query(
-          `UPDATE inventario SET cantidad = cantidad + 1 WHERE memoria_ram_id = $1`,
-          [ramId],
+          `UPDATE inventario SET cantidad = cantidad + 1 WHERE memoria_ram_id = $1 AND sucursal_id = $2`,
+          [ramId, sucursalId],
         );
       }
 
@@ -287,8 +288,8 @@ async function actualizarEquipoArmado(id, data) {
       for (const ramId of ramsAgregadas) {
         console.log(`🔽 Descontando stock de nueva RAM ID ${ramId}`);
         await pool.query(
-          `UPDATE inventario SET cantidad = cantidad - 1 WHERE memoria_ram_id = $1 AND cantidad > 0`,
-          [ramId],
+          `UPDATE inventario SET cantidad = cantidad - 1 WHERE memoria_ram_id = $1 AND sucursal_id = $2 AND cantidad > 0`,
+          [ramId, sucursalId],
         );
       }
 
@@ -325,8 +326,8 @@ async function actualizarEquipoArmado(id, data) {
       for (const alId of almacRemovidos) {
         console.log(`🔼 Reponiendo stock de almacenamiento ID ${alId}`);
         await pool.query(
-          `UPDATE inventario SET cantidad = cantidad + 1 WHERE almacenamiento_id = $1`,
-          [alId],
+          `UPDATE inventario SET cantidad = cantidad + 1 WHERE almacenamiento_id = $1 AND sucursal_id = $2`,
+          [alId, sucursalId],
         );
       }
 
@@ -334,8 +335,8 @@ async function actualizarEquipoArmado(id, data) {
       for (const alId of almacAgregados) {
         console.log(`🔽 Descontando stock de nuevo almacenamiento ID ${alId}`);
         await pool.query(
-          `UPDATE inventario SET cantidad = cantidad - 1 WHERE almacenamiento_id = $1 AND cantidad > 0`,
-          [alId],
+          `UPDATE inventario SET cantidad = cantidad - 1 WHERE almacenamiento_id = $1 AND sucursal_id = $2 AND cantidad > 0`,
+          [alId, sucursalId],
         );
       }
 
