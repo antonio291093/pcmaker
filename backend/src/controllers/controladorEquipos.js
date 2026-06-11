@@ -14,6 +14,8 @@ const {
   obtenerConteosPorEstado,
 } = require("../models/equipos");
 
+const { crearComisionArmadoSiNoExiste } = require("../models/comisiones");
+
 exports.crearEquipo = async (req, res) => {
   const client = await pool.connect();
   try {
@@ -24,6 +26,10 @@ exports.crearEquipo = async (req, res) => {
 
     // 1. Crear equipo principal con el técnico asignado
     const equipo = await crearEquipo(dataEquipo, client);
+
+    if (req.body.estado_id === 4) {
+      await crearComisionArmadoSiNoExiste(equipo.id, req.userId, client);
+    }
 
     await client.query("COMMIT");
     res.status(201).json(equipo);
@@ -127,6 +133,10 @@ exports.actualizarEquipo = async (req, res) => {
       if (req.body.storages && req.body.storages.length > 0) {
         await asignarAlmacenamientoAEquipo(id, req.body.storages, client);
       }
+    }
+
+    if (req.body.estado_id === 4) {
+      await crearComisionArmadoSiNoExiste(id, req.userId, client);
     }
 
     await client.query("COMMIT");

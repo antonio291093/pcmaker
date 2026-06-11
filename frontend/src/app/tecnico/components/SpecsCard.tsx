@@ -342,65 +342,6 @@ export default function SpecsCard() {
     }
   };  
 
-  const generarComision = async (equipoGuardado: any, usuario_id: number) => {
-    try {
-      // 1️⃣ Validar si ya existe la comisión para este equipo
-      const respExiste = await fetch(`${API_URL}/api/comisiones/equipo/${equipoGuardado.id}`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-      });
-      const existe = await respExiste.json();
-      if (existe && existe.id) {
-        // Ya existe la comisión, no crear
-        return true;
-      }
-
-      // 2️⃣ Obtener configuración de comision_armado desde el backend
-      let monto = 20; // valor por defecto
-      try {
-        const respConfig = await fetch(`${API_URL}/api/configuraciones/comision_armado`, {
-          credentials: "include",
-        });
-        if (respConfig.ok) {
-          const data = await respConfig.json();
-          const parsed = parseFloat(data?.valor);
-          if (!isNaN(parsed)) monto = parsed;
-        } else {
-          console.warn("⚠️ No se pudo obtener comision_armado, usando valor por defecto (20)");
-        }
-      } catch (err) {
-        console.error("Error al obtener configuración de comisión:", err);
-      }
-
-      // 3️⃣ Crear la comisión con el valor obtenido
-      const respCrear = await fetch(`${API_URL}/api/comisiones`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          usuario_id,
-          venta_id: null,
-          mantenimiento_id: null,
-          monto,
-          fecha_creacion: new Date().toISOString(),
-          equipo_id: equipoGuardado.id,
-        }),
-      });
-
-      if (respCrear.ok) {
-        //console.log(`✅ Comisión por armado generada correctamente ($${monto})`);
-        return true;
-      } else {
-        console.error("❌ Error al generar comisión por armado");
-        return false;
-      }
-    } catch (err) {
-      console.error("Error generando comisión:", err);
-      return false;
-    }
-  };
-
   const guardarRevision = async (data:any) => {
     try {
       const loteObjeto = lotes.find(l => l.etiqueta === data.lote);
@@ -597,18 +538,6 @@ export default function SpecsCard() {
     const resultado = await guardarRevision(dataAGuardar);
 
     if (resultado.success) {
-      if (selectedEstadoId === 4) {
-        if (typeof usuarioId === "number") {
-        await generarComision(resultado.equipo, usuarioId);
-        } else {
-          Swal.fire({
-            icon: "error",
-            title: "Usuario inválido",
-            text: "No se puede obtener el identificador del técnico.",
-          });
-          return;
-        }  
-      }          
       Swal.fire({
         icon: "success",
         title: "Guardado",

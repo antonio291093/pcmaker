@@ -164,7 +164,7 @@ Tablas donde ya se aplicó: `clientes` (Mayo 2026)
 Las queries de reponer/descontar stock en `actualizarEquipoArmado`
 (`inventario.js` líneas ~281, 290, 328, 337) no filtran por
 `sucursal_id` y pueden afectar registros de otras sucursales.
-Pendiente de corregir en una sesión futura.
+Pendiente de corregir en una sesión futura. Corregido en Junio 2026.
 
 ```js
 // Ejemplo del problema:

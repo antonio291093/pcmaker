@@ -265,8 +265,27 @@ async function obtenerDetalleComisiones({ fecha_inicio, fecha_fin, sucursal_id }
   return rows;
 }
 
+async function crearComisionArmadoSiNoExiste(equipo_id, usuario_id, client = pool) {
+  const { rows: existente } = await client.query(
+    `SELECT id FROM comisiones WHERE equipo_id = $1 LIMIT 1`,
+    [equipo_id]
+  );
+  if (existente.length > 0) return null;
+
+  const { rows: config } = await client.query(
+    `SELECT valor FROM configuraciones WHERE nombre = 'comision_armado' LIMIT 1`
+  );
+  const monto = config.length > 0 ? (parseFloat(config[0].valor) || 20) : 20;
+
+  return crearComision(
+    { usuario_id, venta_id: null, mantenimiento_id: null, monto, fecha_creacion: new Date(), equipo_id },
+    client
+  );
+}
+
 module.exports = {
   crearComision,
+  crearComisionArmadoSiNoExiste,
   obtenerComisiones,
   actualizarComision,
   eliminarComision,
