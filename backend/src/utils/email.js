@@ -90,14 +90,14 @@ async function enviarEmailVenta(destinatario, ventaId) {
     });
   }
 
-  // ── Transporter (cPanel SMTP / SSL) ─────────────────────
+  // ── Transporter (Resend SMTP) ────────────────────────────
   const transporter = nodemailer.createTransport({
-    host: process.env.MAIL_HOST,
-    port: Number(process.env.MAIL_PORT), // 465
-    secure: true, // SSL
+    host: 'smtp.resend.com',
+    port: 465,
+    secure: true,
     auth: {
-      user: process.env.MAIL_USER,
-      pass: process.env.MAIL_PASS,
+      user: 'resend',
+      pass: process.env.RESEND_API_KEY,
     },
   });
 
