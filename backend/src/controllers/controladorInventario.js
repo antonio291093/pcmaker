@@ -176,6 +176,7 @@ exports.registrarRecepcionDirecta = async (req, res) => {
       sucursal_id,
       cantidad,
       precio,
+      categoria_catalogo_id,
 
       modelo,
       procesador,
@@ -196,6 +197,7 @@ exports.registrarRecepcionDirecta = async (req, res) => {
       sucursal_id,
       cantidad,
       precio,
+      categoria_catalogo_id: categoria_catalogo_id || null,
 
       modelo,
       procesador,

@@ -420,6 +420,7 @@ async function insertarInventarioRecepcionDirecta({
   sucursal_id,
   cantidad,
   precio = 0,
+  categoria_catalogo_id = null,
 
   modelo,
   procesador,
@@ -454,7 +455,8 @@ async function insertarInventarioRecepcionDirecta({
         origen,
         sku,
         barcode,
-        es_codigo_generado
+        es_codigo_generado,
+        categoria_catalogo_id
       )
       VALUES (
         $1,
@@ -467,7 +469,8 @@ async function insertarInventarioRecepcionDirecta({
         'recepcion_directa',
         $4,
         $5,
-        $6
+        $6,
+        $7
       )
       RETURNING *;
     `;
@@ -479,6 +482,7 @@ async function insertarInventarioRecepcionDirecta({
       sku,
       barcode,
       es_codigo_generado,
+      categoria_catalogo_id,
     ]);
 
     const inventario = inventarioResult.rows[0];

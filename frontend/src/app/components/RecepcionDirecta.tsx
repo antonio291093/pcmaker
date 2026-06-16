@@ -11,6 +11,8 @@ export default function RecepcionDirecta() {
   const { user, loading: userLoading } = useUser()
 
   const [loading, setLoading] = useState(false)
+  const [categoriaId, setCategoriaId] = useState<number | null>(null)
+  const [categorias, setCategorias] = useState<{ id: number; descripcion: string }[]>([])
 
   const [form, setForm] = useState({
     cantidad: 1,
@@ -28,6 +30,13 @@ export default function RecepcionDirecta() {
     if (userLoading) return
     if (!user) return
   }, [user, userLoading])
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/catalogo-categorias`, { credentials: 'include' })
+      .then(res => res.ok ? res.json() : Promise.reject())
+      .then(data => setCategorias(data))
+      .catch(() => console.error('Error cargando categorías'))
+  }, [])
 
   if (userLoading || !user) return null
 
@@ -98,6 +107,7 @@ export default function RecepcionDirecta() {
             almacenamiento_gb: Number(form.almacenamiento_gb),
             almacenamiento_tipo: form.almacenamiento_tipo,
             observaciones: form.observaciones,
+            categoria_catalogo_id: categoriaId,
           }),
         }
       )
@@ -124,6 +134,7 @@ export default function RecepcionDirecta() {
         almacenamiento_tipo: '',
         observaciones: '',
       })
+      setCategoriaId(null)
     } catch (error: any) {
       Swal.fire('Error', error.message || 'Error del servidor', 'error')
     } finally {
@@ -183,6 +194,17 @@ export default function RecepcionDirecta() {
         rows={3}
         placeholder="Observaciones (opcional)"
       />
+
+      <select
+        value={categoriaId ?? ''}
+        onChange={e => setCategoriaId(e.target.value ? Number(e.target.value) : null)}
+        className="border rounded-md p-2 w-full mt-4 input-minimal"
+      >
+        <option value="">Sin categoría (opcional)</option>
+        {categorias.map(c => (
+          <option key={c.id} value={c.id}>{c.descripcion}</option>
+        ))}
+      </select>
 
       <button
         onClick={handleSubmit}
