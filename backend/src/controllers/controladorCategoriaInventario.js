@@ -89,6 +89,9 @@ const eliminarCategoria = async (req,res) => {
     }catch(error){
 
         console.error(error)
+        if (error.statusCode === 409) {
+            return res.status(409).json({message: error.message})
+        }
         res.status(500).json({message:"Error eliminando categoria"})
 
     }

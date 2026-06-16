@@ -9,7 +9,8 @@ import {
   FaTruck,
   FaSignOutAlt,
   FaBars,
-  FaBuilding
+  FaBuilding,
+  FaTags
 } from 'react-icons/fa'
 import { useUser } from '@/context/UserContext'
 import { useRouter } from "next/navigation"
@@ -27,7 +28,8 @@ const navItems = [
   { label: 'Reportes', icon: <FaFileAlt />, path: 'reportes' },  
   { label: 'Configuración', icon: <FaCog />, path: 'configuracion' },
   { label: 'Recibir lote', icon: <FaTruck />, path: 'lote' },
-  { label: 'Recepción directa', icon: <FaTruck />, path: 'recepcion' },  
+  { label: 'Recepción directa', icon: <FaTruck />, path: 'recepcion' },
+  { label: 'Categorías', icon: <FaTags />, path: 'categorias' },
 ]
 
 export default function Sidebar({ active, setActive }: SidebarProps) {

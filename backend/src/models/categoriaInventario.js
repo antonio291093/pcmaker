@@ -51,6 +51,19 @@ const actualizarCategoria = async (id, descripcion) => {
 // Eliminar categoría
 const eliminarCategoria = async (id) => {
 
+    const { rows } = await db.query(
+        `SELECT COUNT(*) AS count FROM inventario WHERE categoria_catalogo_id = $1`,
+        [id]
+    )
+    const count = parseInt(rows[0].count)
+    if (count > 0) {
+        const err = new Error(
+            `No puedes eliminar esta categoría porque tiene ${count} producto(s) asignados. Reasígnalos primero.`
+        )
+        err.statusCode = 409
+        throw err
+    }
+
     await db.query(`
         DELETE FROM catalogo_categorias
         WHERE id = $1
