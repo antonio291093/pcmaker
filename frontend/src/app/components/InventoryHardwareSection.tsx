@@ -91,7 +91,8 @@ type EquipoInventario = {
   serie?: string
   etiqueta?: string
   origen: "armado" | "recepcion_directa"
-  visible_catalogo?: boolean 
+  visible_catalogo?: boolean
+  categoria_catalogo_id?: number
 }
 
 function esEquipoArmado(
@@ -128,6 +129,7 @@ export default function InventoryHardwareSection() {
   const [editandoRecepcionDirecta, setEditandoRecepcionDirecta] =useState<RecepcionDirectaItem | null>(null);
   const [vistaTabla, setVistaTabla] = useState(false);
   const [soloDisponibles, setSoloDisponibles] = useState(true);
+  const [categoriaFiltro, setCategoriaFiltro] = useState<number | null>(null);
   
   const normalizarRecepcionDirecta = useCallback((items: any[]) => {
     return items.map(i => ({
@@ -1313,17 +1315,17 @@ export default function InventoryHardwareSection() {
     return <div className="text-center text-gray-500 py-6">Cargando inventario...</div>;
   }
 
-  const inventarioFinal = soloDisponibles
-  ? inventarioFiltrado.filter(item => item.cantidad > 0)
-  : inventarioFiltrado;
+  const inventarioFinal = inventarioFiltrado
+    .filter(item => !categoriaFiltro || item.categoria_catalogo_id === categoriaFiltro)
+    .filter(item => !soloDisponibles || item.cantidad > 0);
 
-  const equiposFinal = soloDisponibles
-  ? equiposFiltrados.filter(eq => eq.cantidad > 0)
-  : equiposFiltrados;
+  const equiposFinal = equiposFiltrados
+    .filter(eq => !categoriaFiltro || eq.categoria_catalogo_id === categoriaFiltro)
+    .filter(eq => !soloDisponibles || eq.cantidad > 0);
 
-  const equiposAgrupadosFinal = soloDisponibles
-  ? equiposAgrupados.filter(eq => eq.cantidad > 0)
-  : equiposAgrupados;
+  const equiposAgrupadosFinal = equiposAgrupados
+    .filter(eq => !categoriaFiltro || eq.categoria_catalogo_id === categoriaFiltro)
+    .filter(eq => !soloDisponibles || eq.cantidad > 0);
 
   return (
     <motion.div
@@ -1341,7 +1343,7 @@ export default function InventoryHardwareSection() {
       {/* === INVENTARIO GENERAL === */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">        
         {/* Acciones */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 w-full">
 
           <div className="relative w-full sm:w-auto">
             <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -1374,6 +1376,18 @@ export default function InventoryHardwareSection() {
               ))}
             </select>
           </div>
+
+          {/* Filtro por categoría */}
+          <select
+            value={categoriaFiltro ?? ''}
+            onChange={(e) => setCategoriaFiltro(e.target.value ? Number(e.target.value) : null)}
+            className="w-full sm:w-auto border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="">Todas las categorías</option>
+            {categorias.map((c) => (
+              <option key={c.id} value={c.id}>{c.descripcion}</option>
+            ))}
+          </select>
 
           {/* Botón agregar */}
           <button
