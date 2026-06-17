@@ -1,5 +1,6 @@
 const pool = require("../config/db");
 const { generarBarcodeBase64 } = require("../utils/barcode");
+const { setAuditContext, withAuditContext } = require("../utils/auditContext");
 
 async function eliminarInventarioRecepcionDirecta(
   inventarioId,
@@ -529,21 +530,17 @@ async function insertarInventarioRecepcionDirecta({
  * ELIMINAR INVENTARIO
  * ---------------------------------------------------- */
 async function eliminarInventario(id, motivo, usuarioId) {
-  const query = `
-    UPDATE inventario
-    SET 
-      eliminado = TRUE,
-      motivo_eliminacion = $2,
-      fecha_eliminacion = NOW(),
-      eliminado_por = $3
-    WHERE id = $1
-      AND eliminado = FALSE
-    RETURNING *;
-  `;
-
-  const { rows } = await pool.query(query, [id, motivo, usuarioId]);
-
-  return rows[0];
+  return withAuditContext({ userId: usuarioId }, async (client) => {
+    const { rows } = await client.query(
+      `UPDATE inventario
+       SET eliminado = TRUE, motivo_eliminacion = $2,
+           fecha_eliminacion = NOW(), eliminado_por = $3
+       WHERE id = $1 AND eliminado = FALSE
+       RETURNING *`,
+      [id, motivo, usuarioId],
+    );
+    return rows[0];
+  });
 }
 
 /**
@@ -551,39 +548,36 @@ async function eliminarInventario(id, motivo, usuarioId) {
  * ----------------------------------------
  * Disminuye la cantidad de un producto en inventario según su ID.
  */
-async function descontarStockVenta({ producto_id, cantidad = 1, sucursal_id }, client = pool) {
+async function descontarStockVenta({ producto_id, cantidad = 1, sucursal_id, userId = null }, client = pool) {
   if (!producto_id || !sucursal_id)
     throw new Error("Debe proporcionar producto_id y sucursal_id");
 
-  // Verificar existencia
-  const buscarQuery = `
-    SELECT * FROM inventario
-    WHERE id = $1 AND sucursal_id = $2
-    LIMIT 1;
-  `;
-  const { rows } = await client.query(buscarQuery, [producto_id, sucursal_id]);
-  const producto = rows[0];
+  const ejecutar = async (c) => {
+    const { rows } = await c.query(
+      `SELECT * FROM inventario WHERE id = $1 AND sucursal_id = $2 LIMIT 1`,
+      [producto_id, sucursal_id],
+    );
+    const producto = rows[0];
+    if (!producto) throw new Error("Producto no encontrado en inventario");
+    if (producto.cantidad < cantidad)
+      throw new Error(`Stock insuficiente. Disponible: ${producto.cantidad}`);
 
-  if (!producto) throw new Error("Producto no encontrado en inventario");
+    const nuevaCantidad = producto.cantidad - cantidad;
+    const { rows: updateRows } = await c.query(
+      `UPDATE inventario SET cantidad = $1 WHERE id = $2 RETURNING *`,
+      [nuevaCantidad, producto.id],
+    );
+    return updateRows[0];
+  };
 
-  // Validar stock suficiente
-  if (producto.cantidad < cantidad)
-    throw new Error(`Stock insuficiente. Disponible: ${producto.cantidad}`);
+  // Client externo = transacción activa (ej. registrarVenta): inyectar en ella
+  if (typeof client.release === 'function') {
+    await setAuditContext(client, { userId, contexto: 'venta' });
+    return ejecutar(client);
+  }
 
-  // Descontar stock
-  const nuevaCantidad = producto.cantidad - cantidad;
-  const updateQuery = `
-    UPDATE inventario
-    SET cantidad = $1
-    WHERE id = $2
-    RETURNING *;
-  `;
-  const { rows: updateRows } = await client.query(updateQuery, [
-    nuevaCantidad,
-    producto.id,
-  ]);
-
-  return updateRows[0];
+  // Sin transacción externa: crear una con contexto
+  return withAuditContext({ userId, contexto: 'venta' }, ejecutar);
 }
 
 async function agregarOActualizarInventario({
@@ -804,73 +798,76 @@ async function actualizarInventario(
     es_codigo_generado = false,
     categoria_catalogo_id = null,
   },
+  userId = null,
 ) {
   // 🧩 Si no hay especificacion pero sí descripcion, úsala
   if (!especificacion && descripcion) {
     especificacion = descripcion;
   }
 
-  const updateQuery = `
-    UPDATE inventario
-    SET tipo = $1,
-        especificacion = $2,
-        cantidad = $3,
-        disponibilidad = $4,
-        estado = $5,
-        precio = $6,
-        memoria_ram_id = $7,
-        almacenamiento_id = $8,
-        sucursal_id = $9,
-        sku = $10,
-        es_codigo_generado = $11,
-        categoria_catalogo_id = $12
-    WHERE id = $13;
-  `;
+  return withAuditContext({ userId }, async (client) => {
+    const updateQuery = `
+      UPDATE inventario
+      SET tipo = $1,
+          especificacion = $2,
+          cantidad = $3,
+          disponibilidad = $4,
+          estado = $5,
+          precio = $6,
+          memoria_ram_id = $7,
+          almacenamiento_id = $8,
+          sucursal_id = $9,
+          sku = $10,
+          es_codigo_generado = $11,
+          categoria_catalogo_id = $12
+      WHERE id = $13;
+    `;
 
-  const values = [
-    tipo,
-    especificacion,
-    cantidad,
-    disponibilidad,
-    estado,
-    precio,
-    memoria_ram_id,
-    almacenamiento_id,
-    sucursal_id,
-    sku,
-    es_codigo_generado,
-    categoria_catalogo_id,
-    id,
-  ];
+    const values = [
+      tipo,
+      especificacion,
+      cantidad,
+      disponibilidad,
+      estado,
+      precio,
+      memoria_ram_id,
+      almacenamiento_id,
+      sucursal_id,
+      sku,
+      es_codigo_generado,
+      categoria_catalogo_id,
+      id,
+    ];
 
-  await pool.query(updateQuery, values);
+    await client.query(updateQuery, values);
 
-  const selectQuery = `
-    SELECT 
-      i.id,
-      i.tipo,
-      COALESCE(cm.descripcion, ca.descripcion, i.especificacion) AS descripcion,
-      i.cantidad,
-      i.disponibilidad,
-      i.estado,
-      i.precio,
-      i.memoria_ram_id,
-      i.almacenamiento_id,
-      i.sucursal_id,
-      i.fecha_creacion,
-      i.sku,
-      i.es_codigo_generado,
-      i.categoria_catalogo_id,
-      cc.descripcion AS categoria_catalogo
-    FROM inventario i
-    LEFT JOIN catalogo_memoria_ram cm ON i.memoria_ram_id = cm.id
-    LEFT JOIN catalogo_almacenamiento ca ON i.almacenamiento_id = ca.id
-    LEFT JOIN catalogo_categorias cc ON i.categoria_catalogo_id = cc.id
-    WHERE i.id = $1;
-  `;
+    const selectQuery = `
+      SELECT
+        i.id,
+        i.tipo,
+        COALESCE(cm.descripcion, ca.descripcion, i.especificacion) AS descripcion,
+        i.cantidad,
+        i.disponibilidad,
+        i.estado,
+        i.precio,
+        i.memoria_ram_id,
+        i.almacenamiento_id,
+        i.sucursal_id,
+        i.fecha_creacion,
+        i.sku,
+        i.es_codigo_generado,
+        i.categoria_catalogo_id,
+        cc.descripcion AS categoria_catalogo
+      FROM inventario i
+      LEFT JOIN catalogo_memoria_ram cm ON i.memoria_ram_id = cm.id
+      LEFT JOIN catalogo_almacenamiento ca ON i.almacenamiento_id = ca.id
+      LEFT JOIN catalogo_categorias cc ON i.categoria_catalogo_id = cc.id
+      WHERE i.id = $1;
+    `;
 
-  const { rows } = await pool.query(selectQuery, [id]);
-  return rows[0];
+    const { rows } = await client.query(selectQuery, [id]);
+    return rows[0];
+  });
 }
 
 /** ----------------------------------------------------
@@ -1282,17 +1279,14 @@ async function actualizarRecepcionDirecta({
   }
 }
 
-async function actualizarVisibleCatalogo(id, visible_catalogo) {
-  const query = `
-    UPDATE inventario
-    SET visible_catalogo = $1
-    WHERE id = $2
-    RETURNING id, visible_catalogo;
-  `;
-
-  const { rows } = await pool.query(query, [visible_catalogo, id]);
-
-  return rows[0];
+async function actualizarVisibleCatalogo(id, visible_catalogo, userId = null) {
+  return withAuditContext({ userId }, async (client) => {
+    const { rows } = await client.query(
+      `UPDATE inventario SET visible_catalogo = $1 WHERE id = $2 RETURNING id, visible_catalogo`,
+      [visible_catalogo, id],
+    );
+    return rows[0];
+  });
 }
 
 module.exports = {

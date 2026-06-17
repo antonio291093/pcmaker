@@ -153,7 +153,7 @@ exports.actualizarVisibleCatalogo = async (req, res) => {
       });
     }
 
-    const actualizado = await actualizarVisibleCatalogo(id, visible_catalogo);
+    const actualizado = await actualizarVisibleCatalogo(id, visible_catalogo, req.userId);
 
     if (!actualizado) {
       return res.status(404).json({
@@ -402,7 +402,7 @@ exports.actualizarInventario = async (req, res) => {
     const { id } = req.params;
     const datos = req.body;
 
-    const actualizado = await actualizarInventario(id, datos);
+    const actualizado = await actualizarInventario(id, datos, req.userId);
 
     if (!actualizado)
       return res.status(404).json({ message: "Inventario no encontrado" });
@@ -488,6 +488,7 @@ exports.descontarStockVenta = async (req, res) => {
         producto_id,
         cantidad: cantidad_vendida,
         sucursal_id,
+        userId: req.userId,
       });
 
       resultados.push(actualizado);
