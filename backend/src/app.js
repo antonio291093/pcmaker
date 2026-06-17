@@ -63,6 +63,7 @@ const reportesRoutes = require("./routes/reportesRutas");
 const clientesRoutes = require("./routes/clientesRutas");
 const apartadosRoutes = require("./routes/apartadosRutas");
 const servicioRoutes = require("./routes/servicioRutas");
+const auditoriaRoutes = require("./routes/auditoriaRutas");
 
 // Usa las rutas
 app.use("/api/usuarios", usuariosRoutes);
@@ -90,5 +91,6 @@ app.use("/api/reportes", reportesRoutes);
 app.use("/api/clientes", clientesRoutes);
 app.use("/api/apartados", apartadosRoutes);
 app.use("/api/admin/servicio", servicioRoutes);
+app.use("/api/admin/auditoria", auditoriaRoutes);
 
 module.exports = { app };

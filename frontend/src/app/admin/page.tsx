@@ -9,6 +9,7 @@ import Configurations from './components/Configurations'
 import RecibirLote from '../components/RecibirLote'
 import RecepcionDirecta from '../components/RecepcionDirecta'
 import CategoriasCrud from './components/CategoriasCrud'
+import AuditoriaInventario from './components/AuditoriaInventario'
 import { useUser } from '@/context/UserContext'
 import { API_URL } from '@/utils/api'
 import SucursalSelectorModal from './components/SucursalSelectorModal'
@@ -98,6 +99,7 @@ export default function AdminDashboard() {
             {active === 'lote' && <RecibirLote />}
             {active === 'recepcion' && <RecepcionDirecta />}
             {active === 'categorias' && <CategoriasCrud />}
+            {active === 'auditoria' && <AuditoriaInventario />}
           </>
         )}
       </main>

@@ -1,5 +1,6 @@
 require("dotenv").config();
 const { app } = require("./app");
+require("./jobs/limpiezaAuditoria");
 
 const PORT = process.env.PORT || 5000;
 
