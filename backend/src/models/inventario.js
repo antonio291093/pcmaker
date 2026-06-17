@@ -11,6 +11,7 @@ async function eliminarInventarioRecepcionDirecta(
 
   try {
     await client.query("BEGIN");
+    await setAuditContext(client, { userId: usuarioId });
 
     const checkQuery = `
       SELECT id
@@ -54,11 +55,12 @@ async function eliminarInventarioRecepcionDirecta(
   }
 }
 
-async function traspasarInventario(id, sucursal_id) {
+async function traspasarInventario(id, sucursal_id, userId = null) {
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
+    await setAuditContext(client, { userId, contexto: 'traspaso' });
 
     const updateInventario = `
       UPDATE inventario
@@ -209,7 +211,7 @@ async function obtenerAlmacenamientosDisponibles() {
   return rows;
 }
 
-async function actualizarEquipoArmado(id, data) {
+async function actualizarEquipoArmado(id, data, userId = null) {
   const {
     nombre,
     procesador,
@@ -223,10 +225,12 @@ async function actualizarEquipoArmado(id, data) {
   console.log("📦 ID de inventario:", id);
   console.log("📩 Datos recibidos:", data);
 
+  const client = await pool.connect();
   try {
-    await pool.query("BEGIN");
+    await client.query("BEGIN");
+    await setAuditContext(client, { userId });
 
-    const { rows } = await pool.query(
+    const { rows } = await client.query(
       `SELECT equipo_id, sucursal_id FROM inventario WHERE id = $1`,
       [id],
     );
@@ -243,9 +247,9 @@ async function actualizarEquipoArmado(id, data) {
     console.log("🧩 equipo_id resuelto:", equipoId);
 
     // Obtener relaciones actuales
-    const { rows: actuales } = await pool.query(
+    const { rows: actuales } = await client.query(
       `
-      SELECT 
+      SELECT
         er.memoria_ram_id,
         ea.almacenamiento_id
       FROM equipos e
@@ -279,7 +283,7 @@ async function actualizarEquipoArmado(id, data) {
       // Reponer stock de las RAM eliminadas
       for (const ramId of ramsRemovidas) {
         console.log(`🔼 Reponiendo stock de RAM ID ${ramId}`);
-        await pool.query(
+        await client.query(
           `UPDATE inventario SET cantidad = cantidad + 1 WHERE memoria_ram_id = $1 AND sucursal_id = $2`,
           [ramId, sucursalId],
         );
@@ -288,19 +292,19 @@ async function actualizarEquipoArmado(id, data) {
       // Descontar stock de las nuevas RAM
       for (const ramId of ramsAgregadas) {
         console.log(`🔽 Descontando stock de nueva RAM ID ${ramId}`);
-        await pool.query(
+        await client.query(
           `UPDATE inventario SET cantidad = cantidad - 1 WHERE memoria_ram_id = $1 AND sucursal_id = $2 AND cantidad > 0`,
           [ramId, sucursalId],
         );
       }
 
       // Limpiar e insertar nuevas RAM
-      await pool.query(`DELETE FROM equipos_ram WHERE equipo_id = $1`, [
+      await client.query(`DELETE FROM equipos_ram WHERE equipo_id = $1`, [
         equipoId,
       ]);
       for (const ramId of memorias_ram_ids) {
         console.log(`➕ Insertando RAM ID ${ramId} en equipos_ram`);
-        await pool.query(
+        await client.query(
           `INSERT INTO equipos_ram (equipo_id, memoria_ram_id) VALUES ($1, $2)`,
           [equipoId, ramId],
         );
@@ -326,7 +330,7 @@ async function actualizarEquipoArmado(id, data) {
       // Reponer stock de los almacenamientos removidos
       for (const alId of almacRemovidos) {
         console.log(`🔼 Reponiendo stock de almacenamiento ID ${alId}`);
-        await pool.query(
+        await client.query(
           `UPDATE inventario SET cantidad = cantidad + 1 WHERE almacenamiento_id = $1 AND sucursal_id = $2`,
           [alId, sucursalId],
         );
@@ -335,14 +339,14 @@ async function actualizarEquipoArmado(id, data) {
       // Descontar stock de los nuevos almacenamientos
       for (const alId of almacAgregados) {
         console.log(`🔽 Descontando stock de nuevo almacenamiento ID ${alId}`);
-        await pool.query(
+        await client.query(
           `UPDATE inventario SET cantidad = cantidad - 1 WHERE almacenamiento_id = $1 AND sucursal_id = $2 AND cantidad > 0`,
           [alId, sucursalId],
         );
       }
 
       // Limpiar e insertar nuevos almacenamientos
-      await pool.query(
+      await client.query(
         `DELETE FROM equipos_almacenamiento WHERE equipo_id = $1`,
         [equipoId],
       );
@@ -350,7 +354,7 @@ async function actualizarEquipoArmado(id, data) {
         console.log(
           `➕ Insertando almacenamiento ID ${alId} en equipos_almacenamiento`,
         );
-        await pool.query(
+        await client.query(
           `INSERT INTO equipos_almacenamiento (equipo_id, almacenamiento_id) VALUES ($1, $2)`,
           [equipoId, alId],
         );
@@ -363,16 +367,16 @@ async function actualizarEquipoArmado(id, data) {
 
     // 🔹 Actualizar datos del equipo
     console.log("✏️ Actualizando datos básicos del equipo...");
-    await pool.query(
+    await client.query(
       `UPDATE equipos SET nombre = $1, procesador = $2 WHERE id = $3`,
       [nombre, procesador, equipoId],
     );
 
     console.log("💰 Actualizando precio del inventario del equipo...");
 
-    await pool.query(
+    await client.query(
       `
-      UPDATE inventario 
+      UPDATE inventario
       SET precio = $1,
           categoria_catalogo_id = $2
       WHERE equipo_id = $3
@@ -380,7 +384,7 @@ async function actualizarEquipoArmado(id, data) {
       [precio, categoria_catalogo_id || null, equipoId],
     );
 
-    await pool.query("COMMIT");
+    await client.query("COMMIT");
     console.log("✅ [COMMIT] Equipo armado actualizado correctamente");
 
     return {
@@ -388,9 +392,11 @@ async function actualizarEquipoArmado(id, data) {
       message: "Equipo armado actualizado correctamente",
     };
   } catch (error) {
-    await pool.query("ROLLBACK");
+    await client.query("ROLLBACK");
     console.error("❌ [ROLLBACK] Error al actualizar equipo armado:", error);
     throw error;
+  } finally {
+    client.release();
   }
 }
 
@@ -402,19 +408,17 @@ async function insertarEquipoEnInventario(
   sucursal_id = null,
   precio = 0,
   disponibilidad = true,
+  userId = null,
 ) {
-  const query = `
-    INSERT INTO inventario (equipo_id, sucursal_id, tipo, cantidad, estado, disponibilidad, fecha_creacion, precio, origen)
-    VALUES ($1, $2, 'Equipo Armado', 1, 'nuevo', $3, NOW(), $4, 'tecnico')
-    RETURNING *;
-  `;
-  const { rows } = await pool.query(query, [
-    equipo_id,
-    sucursal_id,
-    disponibilidad,
-    precio,
-  ]);
-  return rows[0];
+  return withAuditContext({ userId }, async (client) => {
+    const { rows } = await client.query(
+      `INSERT INTO inventario (equipo_id, sucursal_id, tipo, cantidad, estado, disponibilidad, fecha_creacion, precio, origen)
+       VALUES ($1, $2, 'Equipo Armado', 1, 'nuevo', $3, NOW(), $4, 'tecnico')
+       RETURNING *`,
+      [equipo_id, sucursal_id, disponibilidad, precio],
+    );
+    return rows[0];
+  });
 }
 
 async function insertarInventarioRecepcionDirecta({
@@ -430,6 +434,7 @@ async function insertarInventarioRecepcionDirecta({
   almacenamiento_gb,
   almacenamiento_tipo,
   observaciones,
+  userId = null,
 }) {
   const client = await pool.connect();
 
@@ -437,6 +442,7 @@ async function insertarInventarioRecepcionDirecta({
     if (!sucursal_id) throw new Error("sucursal_id es obligatorio");
 
     await client.query("BEGIN");
+    await setAuditContext(client, { userId });
 
     // 🧠 SKU + Barcode
     const { sku, barcode, es_codigo_generado } = await generarSkuYBarcode({
@@ -591,56 +597,73 @@ async function agregarOActualizarInventario({
   almacenamiento_id = null,
   sucursal_id = null,
   categoria_catalogo_id = null,
+  userId = null,
 }) {
   if (!sucursal_id) throw new Error("Debe especificar sucursal_id");
 
-  let buscarQuery, buscarValues;
+  return withAuditContext({ userId }, async (client) => {
+    let buscarQuery, buscarValues;
 
-  if (memoria_ram_id) {
-    buscarQuery = `
-      SELECT * FROM inventario
-      WHERE memoria_ram_id = $1 AND especificacion = $2 AND sucursal_id = $3
-      ORDER BY cantidad DESC LIMIT 1;
-    `;
-    buscarValues = [memoria_ram_id, especificacion, sucursal_id];
-  } else if (almacenamiento_id) {
-    buscarQuery = `
-      SELECT * FROM inventario
-      WHERE almacenamiento_id = $1 AND especificacion = $2 AND sucursal_id = $3
-      ORDER BY cantidad DESC LIMIT 1;
-    `;
-    buscarValues = [almacenamiento_id, especificacion, sucursal_id];
-  } else {
-    throw new Error("Debe especificar memoria_ram_id o almacenamiento_id");
-  }
+    if (memoria_ram_id) {
+      buscarQuery = `
+        SELECT * FROM inventario
+        WHERE memoria_ram_id = $1 AND especificacion = $2 AND sucursal_id = $3
+        ORDER BY cantidad DESC LIMIT 1;
+      `;
+      buscarValues = [memoria_ram_id, especificacion, sucursal_id];
+    } else if (almacenamiento_id) {
+      buscarQuery = `
+        SELECT * FROM inventario
+        WHERE almacenamiento_id = $1 AND especificacion = $2 AND sucursal_id = $3
+        ORDER BY cantidad DESC LIMIT 1;
+      `;
+      buscarValues = [almacenamiento_id, especificacion, sucursal_id];
+    } else {
+      throw new Error("Debe especificar memoria_ram_id o almacenamiento_id");
+    }
 
-  const { rows } = await pool.query(buscarQuery, buscarValues);
+    const { rows } = await client.query(buscarQuery, buscarValues);
 
-  if (rows.length > 0) {
-    // ✅ Ya existe: actualizar cantidad y precio (opcional)
-    const inventario = rows[0];
-    const nuevaCantidad = inventario.cantidad + cantidad;
+    if (rows.length > 0) {
+      // ✅ Ya existe: actualizar cantidad y precio (opcional)
+      const inventario = rows[0];
+      const nuevaCantidad = inventario.cantidad + cantidad;
 
-    const updateQuery = `
-      UPDATE inventario
-      SET cantidad = $1,
-          precio = $2,
-          categoria_catalogo_id = $3
-      WHERE id = $4
-      RETURNING *;
-    `;
-    const { rows: updateRows } = await pool.query(updateQuery, [
-      nuevaCantidad,
-      precio,
-      categoria_catalogo_id,
-      inventario.id,
-    ]);
-    return updateRows[0];
-  } else {
-    // 🆕 No existe: crear nuevo registro
-    const insertQuery = `
-      INSERT INTO inventario 
-      (
+      const updateQuery = `
+        UPDATE inventario
+        SET cantidad = $1,
+            precio = $2,
+            categoria_catalogo_id = $3
+        WHERE id = $4
+        RETURNING *;
+      `;
+      const { rows: updateRows } = await client.query(updateQuery, [
+        nuevaCantidad,
+        precio,
+        categoria_catalogo_id,
+        inventario.id,
+      ]);
+      return updateRows[0];
+    } else {
+      // 🆕 No existe: crear nuevo registro
+      const insertQuery = `
+        INSERT INTO inventario
+        (
+          tipo,
+          especificacion,
+          cantidad,
+          disponibilidad,
+          estado,
+          precio,
+          memoria_ram_id,
+          almacenamiento_id,
+          sucursal_id,
+          categoria_catalogo_id
+        )
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        RETURNING *;
+      `;
+      const insertValues = [
         tipo,
         especificacion,
         cantidad,
@@ -650,27 +673,13 @@ async function agregarOActualizarInventario({
         memoria_ram_id,
         almacenamiento_id,
         sucursal_id,
-        categoria_catalogo_id
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-      RETURNING *;
-    `;
-    const insertValues = [
-      tipo,
-      especificacion,
-      cantidad,
-      disponibilidad,
-      estado,
-      precio,
-      memoria_ram_id,
-      almacenamiento_id,
-      sucursal_id,
-      categoria_catalogo_id,
-    ];
+        categoria_catalogo_id,
+      ];
 
-    const { rows: insertRows } = await pool.query(insertQuery, insertValues);
-    return insertRows[0];
-  }
+      const { rows: insertRows } = await client.query(insertQuery, insertValues);
+      return insertRows[0];
+    }
+  });
 }
 
 async function obtenerInventario(sucursalId = null) {
@@ -878,36 +887,33 @@ async function descontarStockInventario({
   almacenamiento_id = null,
   cantidad = 1,
   sucursal_id = null,
+  userId = null,
 }) {
   if (!sucursal_id) throw new Error("Debe especificar sucursal_id");
 
-  let query, id;
-  if (memoria_ram_id) {
-    query = `SELECT * FROM inventario WHERE memoria_ram_id = $1 AND sucursal_id = $2 ORDER BY cantidad DESC LIMIT 1`;
-    id = memoria_ram_id;
-  } else if (almacenamiento_id) {
-    query = `SELECT * FROM inventario WHERE almacenamiento_id = $1 AND sucursal_id = $2 ORDER BY cantidad DESC LIMIT 1`;
-    id = almacenamiento_id;
-  } else {
-    throw new Error("Debe proporcionar memoria_ram_id o almacenamiento_id");
-  }
+  return withAuditContext({ userId }, async (client) => {
+    let query, id;
+    if (memoria_ram_id) {
+      query = `SELECT * FROM inventario WHERE memoria_ram_id = $1 AND sucursal_id = $2 ORDER BY cantidad DESC LIMIT 1`;
+      id = memoria_ram_id;
+    } else if (almacenamiento_id) {
+      query = `SELECT * FROM inventario WHERE almacenamiento_id = $1 AND sucursal_id = $2 ORDER BY cantidad DESC LIMIT 1`;
+      id = almacenamiento_id;
+    } else {
+      throw new Error("Debe proporcionar memoria_ram_id o almacenamiento_id");
+    }
 
-  const { rows } = await pool.query(query, [id, sucursal_id]);
-  const inventario = rows[0];
-  if (!inventario) throw new Error("Item inventario no encontrado");
+    const { rows } = await client.query(query, [id, sucursal_id]);
+    const inventario = rows[0];
+    if (!inventario) throw new Error("Item inventario no encontrado");
 
-  const nuevaCantidad = Math.max(0, inventario.cantidad - cantidad);
-  const updateQuery = `
-    UPDATE inventario
-    SET cantidad = $1
-    WHERE id = $2
-    RETURNING *;
-  `;
-  const { rows: updateRows } = await pool.query(updateQuery, [
-    nuevaCantidad,
-    inventario.id,
-  ]);
-  return updateRows[0];
+    const nuevaCantidad = Math.max(0, inventario.cantidad - cantidad);
+    const { rows: updateRows } = await client.query(
+      `UPDATE inventario SET cantidad = $1 WHERE id = $2 RETURNING *`,
+      [nuevaCantidad, inventario.id],
+    );
+    return updateRows[0];
+  });
 }
 
 /** ----------------------------------------------------
@@ -918,33 +924,33 @@ async function aumentarStockInventario({
   almacenamiento_id = null,
   cantidad = 1,
   sucursal_id = null,
+  userId = null,
 }) {
   if (!sucursal_id) throw new Error("Debe especificar sucursal_id");
 
-  let query, id;
-  if (memoria_ram_id) {
-    query = `SELECT * FROM inventario WHERE memoria_ram_id = $1 AND sucursal_id = $2 ORDER BY cantidad DESC LIMIT 1`;
-    id = memoria_ram_id;
-  } else if (almacenamiento_id) {
-    query = `SELECT * FROM inventario WHERE almacenamiento_id = $1 AND sucursal_id = $2 ORDER BY cantidad DESC LIMIT 1`;
-    id = almacenamiento_id;
-  } else {
-    throw new Error("Debe proporcionar memoria_ram_id o almacenamiento_id");
-  }
+  return withAuditContext({ userId }, async (client) => {
+    let query, id;
+    if (memoria_ram_id) {
+      query = `SELECT * FROM inventario WHERE memoria_ram_id = $1 AND sucursal_id = $2 ORDER BY cantidad DESC LIMIT 1`;
+      id = memoria_ram_id;
+    } else if (almacenamiento_id) {
+      query = `SELECT * FROM inventario WHERE almacenamiento_id = $1 AND sucursal_id = $2 ORDER BY cantidad DESC LIMIT 1`;
+      id = almacenamiento_id;
+    } else {
+      throw new Error("Debe proporcionar memoria_ram_id o almacenamiento_id");
+    }
 
-  const { rows } = await pool.query(query, [id, sucursal_id]);
-  const inventario = rows[0];
-  if (!inventario) throw new Error("Ítem inventario no encontrado");
+    const { rows } = await client.query(query, [id, sucursal_id]);
+    const inventario = rows[0];
+    if (!inventario) throw new Error("Ítem inventario no encontrado");
 
-  const nuevaCantidad = inventario.cantidad + cantidad;
-  const updateQuery = `
-    UPDATE inventario SET cantidad = $1 WHERE id = $2 RETURNING *;
-  `;
-  const { rows: updatedRows } = await pool.query(updateQuery, [
-    nuevaCantidad,
-    inventario.id,
-  ]);
-  return updatedRows[0];
+    const nuevaCantidad = inventario.cantidad + cantidad;
+    const { rows: updatedRows } = await client.query(
+      `UPDATE inventario SET cantidad = $1 WHERE id = $2 RETURNING *`,
+      [nuevaCantidad, inventario.id],
+    );
+    return updatedRows[0];
+  });
 }
 
 /** ----------------------------------------------------
@@ -989,6 +995,7 @@ async function crearInventarioGeneral({
   sucursal_id,
   precio = 0,
   categoria_catalogo_id = null,
+  userId = null,
 }) {
   if (!tipo || !descripcion || !sucursal_id) {
     throw new Error("Faltan datos requeridos");
@@ -999,6 +1006,7 @@ async function crearInventarioGeneral({
   let esGenerado = false;
 
   // 🧠 1. Generar SKU + barcode SOLO si no viene SKU
+  // (usa pool internamente — operación de lectura, fuera de la transacción está bien)
   if (!skuFinal) {
     const generado = await generarSkuYBarcode({ sucursal_id });
     skuFinal = generado.sku;
@@ -1009,71 +1017,64 @@ async function crearInventarioGeneral({
     barcode = await generarBarcodeBase64(skuFinal);
   }
 
-  // 🔎 2. Verificar duplicado (solo inventario general)
-  const existe = await pool.query(
-    `
-    SELECT id FROM inventario
-    WHERE sku = $1
-      AND sucursal_id = $2
-      AND equipo_id IS NULL
-    `,
-    [skuFinal, sucursal_id],
-  );
-
-  // 🔁 3. Si existe, solo sumar cantidad
-  if (existe.rows.length > 0) {
-    await pool.query(
-      `
-      UPDATE inventario
-      SET cantidad = cantidad + $1
-      WHERE id = $2
-      `,
-      [cantidad, existe.rows[0].id],
+  return withAuditContext({ userId }, async (client) => {
+    // 🔎 2. Verificar duplicado (solo inventario general)
+    const existe = await client.query(
+      `SELECT id FROM inventario WHERE sku = $1 AND sucursal_id = $2 AND equipo_id IS NULL`,
+      [skuFinal, sucursal_id],
     );
 
-    const { rows } = await pool.query(
-      `SELECT * FROM inventario WHERE id = $1`,
-      [existe.rows[0].id],
-    );
+    // 🔁 3. Si existe, solo sumar cantidad
+    if (existe.rows.length > 0) {
+      await client.query(
+        `UPDATE inventario SET cantidad = cantidad + $1 WHERE id = $2`,
+        [cantidad, existe.rows[0].id],
+      );
 
-    return rows[0];
-  }
+      const { rows } = await client.query(
+        `SELECT * FROM inventario WHERE id = $1`,
+        [existe.rows[0].id],
+      );
 
-  // 🆕 4. Insertar nuevo artículo
-  const insertQuery = `
-    INSERT INTO inventario (
+      return rows[0];
+    }
+
+    // 🆕 4. Insertar nuevo artículo
+    const insertQuery = `
+      INSERT INTO inventario (
+        tipo,
+        especificacion,
+        cantidad,
+        disponibilidad,
+        estado,
+        sucursal_id,
+        precio,
+        sku,
+        es_codigo_generado,
+        barcode,
+        categoria_catalogo_id
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+      RETURNING *;
+    `;
+
+    const values = [
       tipo,
-      especificacion,
+      descripcion,
       cantidad,
       disponibilidad,
       estado,
       sucursal_id,
       precio,
-      sku,
-      es_codigo_generado,
+      skuFinal,
+      esGenerado,
       barcode,
-      categoria_catalogo_id
-    )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-    RETURNING *;
-  `;
+      categoria_catalogo_id,
+    ];
 
-  const values = [
-    tipo,
-    descripcion,
-    cantidad,
-    disponibilidad,
-    estado,
-    sucursal_id,
-    precio,
-    skuFinal,
-    esGenerado,
-    barcode,
-    categoria_catalogo_id,
-  ];
-
-  const { rows } = await pool.query(insertQuery, values);
-  return rows[0];
+    const { rows } = await client.query(insertQuery, values);
+    return rows[0];
+  });
 }
 
 async function obtenerInventarioRecepcionDirecta(sucursalId = null) {
@@ -1248,11 +1249,13 @@ async function actualizarRecepcionDirecta({
   cantidad,
   precio,
   categoria_catalogo_id,
+  userId = null,
 }) {
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
+    await setAuditContext(client, { userId });
 
     await client.query(
       `

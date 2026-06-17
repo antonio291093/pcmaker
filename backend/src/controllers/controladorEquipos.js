@@ -1,4 +1,5 @@
 const pool = require("../config/db");
+const { setAuditContext } = require("../utils/auditContext");
 
 const {
   crearEquipo,
@@ -75,6 +76,7 @@ exports.actualizarEquipo = async (req, res) => {
 
   try {
     await client.query("BEGIN");
+    await setAuditContext(client, { userId: req.userId });
 
     // --- Campos válidos que se pueden actualizar ---
     const camposValidos = [

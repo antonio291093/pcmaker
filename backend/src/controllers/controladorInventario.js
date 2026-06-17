@@ -127,6 +127,7 @@ exports.actualizarRecepcionDirecta = async (req, res) => {
       cantidad,
       precio,
       categoria_catalogo_id,
+      userId: req.userId,
     });
 
     res.json({
@@ -206,6 +207,7 @@ exports.registrarRecepcionDirecta = async (req, res) => {
       almacenamiento_gb,
       almacenamiento_tipo,
       observaciones,
+      userId: req.userId,
     });
 
     res.status(201).json({
@@ -225,7 +227,7 @@ exports.actualizarEquipoArmado = async (req, res) => {
   const data = req.body;
 
   try {
-    const resultado = await actualizarEquipoArmado(id, data);
+    const resultado = await actualizarEquipoArmado(id, data, req.userId);
     res.json(resultado);
   } catch (error) {
     console.error("Error en controlador al actualizar equipo armado:", error);
@@ -287,6 +289,8 @@ exports.registrarEquipo = async (req, res) => {
       equipo_id,
       sucursal_id,
       precio,
+      true,
+      req.userId,
     );
 
     res.status(201).json({
@@ -302,11 +306,13 @@ exports.registrarEquipo = async (req, res) => {
 
 exports.aumentarStockInventario = async (req, res) => {
   try {
-    const { memoria_ram_id, almacenamiento_id, cantidad } = req.body;
+    const { memoria_ram_id, almacenamiento_id, cantidad, sucursal_id } = req.body;
     const itemActualizado = await aumentarStockInventario({
       memoria_ram_id,
       almacenamiento_id,
       cantidad,
+      sucursal_id,
+      userId: req.userId,
     });
     res.json(itemActualizado);
   } catch (error) {
@@ -324,6 +330,7 @@ exports.descontarStockInventario = async (req, res) => {
       almacenamiento_id,
       cantidad,
       sucursal_id,
+      userId: req.userId,
     });
     res.json(itemActualizado);
   } catch (error) {
@@ -334,7 +341,7 @@ exports.descontarStockInventario = async (req, res) => {
 
 exports.crearInventario = async (req, res) => {
   try {
-    const item = await agregarOActualizarInventario(req.body);
+    const item = await agregarOActualizarInventario({ ...req.body, userId: req.userId });
     res.status(201).json(item);
   } catch (error) {
     console.error("Error creando inventario:", error);
@@ -344,7 +351,7 @@ exports.crearInventario = async (req, res) => {
 
 exports.crearInventarioGeneral = async (req, res) => {
   try {
-    const nuevo = await crearInventarioGeneral(req.body);
+    const nuevo = await crearInventarioGeneral({ ...req.body, userId: req.userId });
     res.status(201).json(nuevo);
   } catch (error) {
     console.error("Error al crear inventario general:", error);
@@ -518,7 +525,7 @@ exports.traspasarInventario = async (req, res) => {
         .json({ message: "La sucursal es requerida para el traspaso" });
     }
 
-    const actualizado = await traspasarInventario(id, sucursal_id);
+    const actualizado = await traspasarInventario(id, sucursal_id, req.userId);
 
     if (!actualizado) {
       return res.status(404).json({ message: "Inventario no encontrado" });

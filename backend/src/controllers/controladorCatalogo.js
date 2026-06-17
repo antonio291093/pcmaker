@@ -1,4 +1,5 @@
 const pool = require('../config/db')
+const { withAuditContext } = require('../utils/auditContext')
 const sharp = require('sharp')
 const fs = require('fs')
 const path = require('path')
@@ -61,12 +62,12 @@ exports.subirImagenCatalogo = async (req, res) => {
     fs.unlinkSync(rutaOriginal)
 
     // Guardar en DB
-    await pool.query(`
-      UPDATE inventario
-      SET imagen_catalogo = $1,
-          visible_catalogo = true
-      WHERE id = $2
-    `, [nombreFinal, inventarioId])
+    await withAuditContext({ userId: req.userId }, async (client) => {
+      await client.query(
+        `UPDATE inventario SET imagen_catalogo = $1, visible_catalogo = true WHERE id = $2`,
+        [nombreFinal, inventarioId],
+      )
+    })
 
 
     res.json({
