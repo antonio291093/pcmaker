@@ -1,5 +1,6 @@
 const pool = require("../config/db");
 const { CASE_DESCRIPCION_VENTA } = require("../utils/sqlFragments");
+const { setAuditContext } = require("../utils/auditContext");
 const { descontarStockVenta } = require("./inventario");
 const { registrarMovimiento } = require("./caja");
 const { crearComision } = require("./comisiones");
@@ -101,6 +102,8 @@ async function registrarVenta({
 
     const ventaId = ventaResult.rows[0].id;
 
+    await setAuditContext(client, { userId: usuario_id, contexto: 'venta', referenciaId: ventaId });
+
     // D) Resolver o crear cliente y vincular a la venta
     const clienteId = await resolverOCrearCliente(
       { nombre: cliente, telefono, correo, sucursal_id },
@@ -198,7 +201,7 @@ async function registrarVenta({
     // A) Descontar stock de cada producto
     for (const producto of productos) {
       await descontarStockVenta(
-        { producto_id: producto.id, cantidad: producto.cantidad, sucursal_id },
+        { producto_id: producto.id, cantidad: producto.cantidad, sucursal_id, userId: usuario_id },
         client
       );
     }
