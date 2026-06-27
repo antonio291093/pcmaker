@@ -50,6 +50,32 @@ async function getCategorias(): Promise<Categoria[]> {
 
 export default async function CatalogoPage() {
 
+  try {
+    const statusRes = await fetch(
+      `${API_URL}/api/admin/servicio/status`,
+      { cache: 'no-store' }
+    )
+    const { activo } = await statusRes.json()
+
+    if (!activo) {
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center max-w-md px-6">
+            <div className="text-8xl mb-6">⚠️</div>
+            <h1 className="text-3xl font-bold text-gray-800 mb-4">
+              Catálogo No Disponible
+            </h1>
+            <p className="text-gray-500 text-lg">
+              El catálogo está temporalmente fuera de servicio.
+              <br />
+              Vuelve pronto.
+            </p>
+          </div>
+        </div>
+      )
+    }
+  } catch { /* fail open */ }
+
   const items = await getCatalogo()
   const categorias = await getCategorias()
   const sucursales = await getSucursales()
