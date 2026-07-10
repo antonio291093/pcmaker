@@ -5,6 +5,7 @@ import * as XLSX from 'xlsx'
 type SucursalResumen = {
   id: number
   nombre: string
+  fecha: string
   ingresos: number
   gastos: number
   neto: number
@@ -64,6 +65,13 @@ function fmtFecha(iso: string) {
   return new Date(iso).toLocaleDateString('es-MX')
 }
 
+// para strings 'YYYY-MM-DD' puros: evita el corrimiento de día que causa
+// `new Date('YYYY-MM-DD')` al interpretarse como UTC y reformatearse en horario local
+function fmtFechaSola(fecha: string) {
+  const [year, month, day] = fecha.split('-')
+  return `${day}/${month}/${year}`
+}
+
 function hoy() {
   return new Date().toISOString().slice(0, 10)
 }
@@ -93,8 +101,9 @@ function autoWidth(ws: XLSX.WorkSheet, data: Record<string, unknown>[]) {
 
 // ── exportaciones ─────────────────────────────────────────────────────────────
 
-export function exportResumenDiario(sucursales: SucursalResumen[], fecha: string) {
+export function exportResumenDiario(sucursales: SucursalResumen[], desde: string, hasta: string) {
   const data = sucursales.map(s => ({
+    Fecha:             fmtFechaSola(s.fecha),
     Sucursal:          s.nombre,
     Ingresos:          Number(s.ingresos),
     Gastos:            Number(s.gastos),
@@ -106,7 +115,7 @@ export function exportResumenDiario(sucursales: SucursalResumen[], fecha: string
   autoWidth(ws, data)
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, 'Resumen')
-  XLSX.writeFile(wb, `resumen_diario_${fecha}.xlsx`)
+  XLSX.writeFile(wb, `resumen_${desde}_a_${hasta}.xlsx`)
 }
 
 export function exportArticulosEliminados(items: DeletedItem[]) {

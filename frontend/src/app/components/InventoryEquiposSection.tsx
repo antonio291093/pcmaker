@@ -1,11 +1,22 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Swal from "sweetalert2";
-import { FaMoneyBill, FaCheck, FaTimes, FaQuestion } from "react-icons/fa";
+import { FaMoneyBill, FaCheck, FaTimes, FaQuestion, FaStore } from "react-icons/fa";
 import EquipoTraspasoModal from "./EquiposTraspasoModal";
 import { Equipo, IdNombre } from './Types';
 import ModalSeleccionEquiposPedido from './CrearPedidoModal'
+import EquiposGrupoCard from '../tecnico/components/EquiposGrupoCard'
+import EquiposGrupoModal from '../tecnico/components/EquiposGrupoModal'
 
 import { API_URL } from '@/utils/api'
+import { useUser } from '@/context/UserContext'
+
+type GrupoEquipos = {
+  nombre: string
+  procesador: string
+  sucursal_nombre?: string
+  equipos: Equipo[]
+  estadoConteos: Record<number, number>
+}
 
 const statusCatalog = [
   { id: 1, nombre: "Por revisar", icon: <FaQuestion className="text-yellow-500 text-2xl" /> },
@@ -30,6 +41,15 @@ export default function InventoryEquiposSection() {
   const [sucursales, setSucursales] = useState<IdNombre[]>([])
   const [tecnicos, setTecnicos] = useState<IdNombre[]>([])
   const [busquedaPedido, setBusquedaPedido] = useState('')
+  const [grupoSeleccionado, setGrupoSeleccionado] = useState<GrupoEquipos | null>(null)
+  const [sucursalSeleccionada, setSucursalSeleccionada] = useState<number | null>(null)
+
+  const { user } = useUser()
+
+  useEffect(() => {
+    if (!user) return
+    setSucursalSeleccionada(user.sucursal_id ?? null)
+  }, [user])
 
   useEffect(() => {
     fetch(`${API_URL}/api/equipos/conteos`, { credentials: 'include' })
@@ -82,6 +102,30 @@ export default function InventoryEquiposSection() {
       .then(setTecnicos)
   }, [])
 
+  const grupos = useMemo<GrupoEquipos[]>(() => {
+    const base = sucursalSeleccionada !== null
+      ? equipos.filter(eq => eq.sucursal_id === sucursalSeleccionada)
+      : equipos
+    const map = new Map<string, GrupoEquipos>()
+    for (const eq of base) {
+      const key = `${eq.nombre.trim()}||${(eq.procesador ?? '').trim()}||${eq.sucursal_id ?? ''}`
+      if (!map.has(key)) {
+        map.set(key, {
+          nombre: eq.nombre,
+          procesador: eq.procesador,
+          sucursal_nombre: eq.sucursal_nombre,
+          equipos: [],
+          estadoConteos: {},
+        })
+      }
+      const grupo = map.get(key)!
+      grupo.equipos.push(eq)
+      if (eq.estado_id) {
+        grupo.estadoConteos[eq.estado_id] = (grupo.estadoConteos[eq.estado_id] || 0) + 1
+      }
+    }
+    return [...map.values()]
+  }, [equipos, sucursalSeleccionada])
 
   return (
     <div className="w-full">
@@ -115,7 +159,6 @@ export default function InventoryEquiposSection() {
       <div className="flex justify-center mt-6">
     <div className="w-full max-w-xl bg-white p-6 rounded-xl shadow-md">
 
-        {/* 🔍 Buscador */}
         <input
           type="text"
           placeholder="Buscar equipo (lote, serie, etiqueta...)"
@@ -124,7 +167,6 @@ export default function InventoryEquiposSection() {
           className="w-full mb-4 border rounded-lg px-4 py-2"
         />
 
-        {/* 📝 Detalle */}
         <textarea
           value={detallePedido}
           onChange={(e) => setDetallePedido(e.target.value)}
@@ -133,7 +175,6 @@ export default function InventoryEquiposSection() {
           rows={4}
         />
 
-        {/* 🖥️ Equipos */}
         <div className="mb-4">
           <button
             onClick={() => setModalEquiposOpen(true)}
@@ -151,7 +192,6 @@ export default function InventoryEquiposSection() {
           )}
         </div>
 
-        {/* 🏬 Sucursal */}
         <select
           value={sucursalDestino ?? ''}
           onChange={(e) => setSucursalDestino(Number(e.target.value))}
@@ -163,7 +203,6 @@ export default function InventoryEquiposSection() {
           ))}
         </select>
 
-        {/* 🧑‍🔧 Técnico */}
         <select
           value={tecnicoId ?? ''}
           onChange={(e) => setTecnicoId(Number(e.target.value))}
@@ -175,7 +214,6 @@ export default function InventoryEquiposSection() {
           ))}
         </select>
 
-        {/* 💾 Generar */}
         <button
           onClick={() => {
             if (!detallePedido.trim()) {
@@ -201,30 +239,38 @@ export default function InventoryEquiposSection() {
   </div>
     )}
 
+      <div className="flex items-center gap-2 mb-4">
+        <FaStore className="text-gray-400 shrink-0" />
+        <select
+          value={sucursalSeleccionada ?? ''}
+          onChange={(e) =>
+            setSucursalSeleccionada(e.target.value ? Number(e.target.value) : null)
+          }
+          className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          {user?.rol_id === 1 && (
+            <option value="">Todas las sucursales</option>
+          )}
+          {sucursales.map(s => (
+            <option key={s.id} value={s.id}>{s.nombre}</option>
+          ))}
+        </select>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         {loading ? (
           <span className="col-span-full text-center text-gray-500">Cargando...</span>
         ) : (
-          equipos.map(eq => (
-            <div key={eq.id} className="p-4 rounded-lg bg-white shadow-sm flex flex-col items-start">
-              <span className="font-semibold text-gray-800">{eq.nombre}</span>
-              <span className="text-xs text-gray-500">Etiqueta: {eq.etiqueta}</span>
-              <span className="text-xs text-gray-500">Procesador: {eq.procesador}</span>
-              <span className="text-xs text-gray-500">RAM: {eq.memorias_ram?.join(", ")}</span>
-              <span className="text-xs text-gray-500">Almacenamiento: {eq.almacenamientos?.join(", ")}</span>
-              <span className="text-xs text-gray-500">Comentarios: {eq.descripcion}</span>              
-              <span
-                className="text-xs text-blue-500 cursor-pointer hover:underline mt-1"
-                onClick={() =>
-                  setEquipoParaTraspaso({
-                    ...eq,
-                    origen: "tecnico"
-                  })
-                }
-              >
-                Sucursal: {eq.sucursal_nombre ?? "Sin asignar"}
-              </span>
-            </div>
+          grupos.map((grupo, idx) => (
+            <EquiposGrupoCard
+              key={idx}
+              nombre={grupo.nombre}
+              procesador={grupo.procesador}
+              sucursal_nombre={grupo.sucursal_nombre}
+              cantidad={grupo.equipos.length}
+              estadoConteos={grupo.estadoConteos}
+              onClick={() => setGrupoSeleccionado(grupo)}
+            />
           ))
         )}
       </div>
@@ -234,7 +280,6 @@ export default function InventoryEquiposSection() {
         </button>
       )}
 
-      {/* Modal para traspaso de sucursal */}
       {equipoParaTraspaso && (
         <EquipoTraspasoModal
           equipo={equipoParaTraspaso}
@@ -247,6 +292,20 @@ export default function InventoryEquiposSection() {
             setEquipoParaTraspaso(null);
           }}
           onClose={() => setEquipoParaTraspaso(null)}
+        />
+      )}
+
+      {grupoSeleccionado && (
+        <EquiposGrupoModal
+          nombre={grupoSeleccionado.nombre}
+          procesador={grupoSeleccionado.procesador}
+          sucursal_nombre={grupoSeleccionado.sucursal_nombre}
+          equipos={grupoSeleccionado.equipos}
+          onClose={() => setGrupoSeleccionado(null)}
+          onAbrirDetalle={(eq) => {
+            setGrupoSeleccionado(null)
+            setEquipoParaTraspaso({ ...eq, origen: 'tecnico' })
+          }}
         />
       )}
 

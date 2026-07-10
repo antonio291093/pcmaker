@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import SucursalCard from './SucursalCard'
 import DetailSection from './DetailSection'
 import { API_URL } from '@/utils/api'
@@ -10,26 +10,42 @@ import { exportResumenDiario } from '@/utils/exportReportes'
 type SucursalResumen = {
   id: number
   nombre: string
+  fecha: string
   ingresos: number
   gastos: number
   neto: number
   corte_realizado: boolean
 }
 
-export default function DailySummaryTab() {
-  const [selected, setSelected] = useState<number | null>(null)
+function formatFechaDisplay(fecha: string) {
+  const [year, month, day] = fecha.split('-')
+  return `${day}/${month}/${year}`
+}
 
-  const [fecha, setFecha] = useState(() => toDateString())
+function claveSeleccion(id: number, fecha: string) {
+  return `${id}_${fecha}`
+}
+
+export default function DailySummaryTab() {
+  const [selected, setSelected] = useState<string | null>(null)
+
+  const [fechaInicio, setFechaInicio] = useState(() => toDateString())
+  const [fechaFin, setFechaFin] = useState(() => toDateString())
 
   const [loading, setLoading] = useState(true)
   const [sucursales, setSucursales] = useState<SucursalResumen[]>([])
 
+  const rangoInvalido = fechaInicio > fechaFin
+
   const cargarResumen = async () => {
+    if (rangoInvalido) return
+
     try {
       setLoading(true)
+      setSelected(null)
 
       const resp = await fetch(
-        `${API_URL}/api/reportes/ReportesSucursales?fecha=${fecha}`,
+        `${API_URL}/api/reportes/ReportesSucursales?desde=${fechaInicio}&hasta=${fechaFin}`,
         {
           credentials: 'include'
         }
@@ -59,7 +75,31 @@ export default function DailySummaryTab() {
 
   useEffect(() => {
     cargarResumen()
-  }, [fecha])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const grupos = useMemo(() => {
+    const map = new Map<string, SucursalResumen[]>()
+
+    for (const s of sucursales) {
+      if (!map.has(s.fecha)) map.set(s.fecha, [])
+      map.get(s.fecha)!.push(s)
+    }
+
+    return Array.from(map.entries())
+  }, [sucursales])
+
+  const detalleActivo = useMemo(() => {
+    if (!selected) return null
+    return sucursales.find(
+      (s) => claveSeleccion(s.id, s.fecha) === selected
+    ) ?? null
+  }, [selected, sucursales])
+
+  const gruposVisibles = useMemo(() => {
+    if (!detalleActivo) return grupos
+    return grupos.filter(([fecha]) => fecha === detalleActivo.fecha)
+  }, [grupos, detalleActivo])
 
   return (
     <div className="space-y-6">
@@ -77,20 +117,33 @@ export default function DailySummaryTab() {
           </p>
         </div>
 
-        {/* DatePicker + Exportar */}
-        <div className="flex items-center gap-3">
+        {/* Rango de fechas + Filtrar + Exportar */}
+        <div className="flex flex-wrap items-center gap-3">
 
           <label className="text-sm font-medium text-gray-600">
-            Fecha:
+            Del:
           </label>
 
           <input
             type="date"
-            value={fecha}
-            onChange={(e) => {
-              setSelected(null)
-              setFecha(e.target.value)
-            }}
+            value={fechaInicio}
+            onChange={(e) => setFechaInicio(e.target.value)}
+            className="
+              border rounded-lg px-3 py-2 text-sm
+              bg-white text-gray-700
+              focus:outline-none focus:ring-2 focus:ring-indigo-500
+              input-minimal
+            "
+          />
+
+          <label className="text-sm font-medium text-gray-600">
+            al:
+          </label>
+
+          <input
+            type="date"
+            value={fechaFin}
+            onChange={(e) => setFechaFin(e.target.value)}
             className="
               border rounded-lg px-3 py-2 text-sm
               bg-white text-gray-700
@@ -100,7 +153,20 @@ export default function DailySummaryTab() {
           />
 
           <button
-            onClick={() => exportResumenDiario(sucursales, fecha)}
+            onClick={cargarResumen}
+            disabled={loading || rangoInvalido}
+            className="
+              px-4 py-2 rounded-lg text-sm font-medium
+              bg-indigo-600 text-white
+              hover:bg-indigo-700 transition
+              disabled:opacity-40 disabled:cursor-not-allowed
+            "
+          >
+            Filtrar
+          </button>
+
+          <button
+            onClick={() => exportResumenDiario(sucursales, fechaInicio, fechaFin)}
             disabled={!sucursales.length || loading}
             className="
               px-4 py-2 rounded-lg text-sm font-medium
@@ -115,6 +181,12 @@ export default function DailySummaryTab() {
         </div>
 
       </div>
+
+      {rangoInvalido && (
+        <div className="text-sm text-red-500">
+          La fecha inicial no puede ser posterior a la fecha final.
+        </div>
+      )}
 
       {loading && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-pulse">
@@ -136,40 +208,59 @@ export default function DailySummaryTab() {
         </div>
       )}
 
-      {/* Cards */}
-      {!loading && sucursales.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      {/* Grupos por fecha */}
+      {!loading && gruposVisibles.length > 0 && (
+        <div className="space-y-8">
 
-          {sucursales.map((sucursal) => (
-            <SucursalCard
-              key={sucursal.id}
-              data={{
-                id: sucursal.id,
-                sucursal: sucursal.nombre,
-                fecha,
-                ingresos: sucursal.ingresos,
-                gastos: sucursal.gastos,
-                corteRealizado: sucursal.corte_realizado
-              }}
-              isActive={selected === sucursal.id}
-              onSelect={() =>
-                setSelected(
-                  selected === sucursal.id
-                    ? null
-                    : sucursal.id
-                )
-              }
-            />
+          {gruposVisibles.map(([fecha, items]) => (
+            <div key={fecha} className="space-y-4">
+
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-semibold text-gray-500 whitespace-nowrap">
+                  {formatFechaDisplay(fecha)}
+                </span>
+                <div className="h-px flex-1 bg-gray-200" />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+                {items.map((sucursal) => {
+                  const clave = claveSeleccion(sucursal.id, sucursal.fecha)
+
+                  return (
+                    <SucursalCard
+                      key={clave}
+                      data={{
+                        id: sucursal.id,
+                        sucursal: sucursal.nombre,
+                        fecha: sucursal.fecha,
+                        ingresos: sucursal.ingresos,
+                        gastos: sucursal.gastos,
+                        corteRealizado: sucursal.corte_realizado
+                      }}
+                      isActive={selected === clave}
+                      onSelect={() =>
+                        setSelected(
+                          selected === clave ? null : clave
+                        )
+                      }
+                    />
+                  )
+                })}
+
+              </div>
+
+            </div>
           ))}
 
         </div>
       )}
 
       {/* Detail */}
-      {selected && (
+      {detalleActivo && (
         <DetailSection
-          sucursalId={selected}
-          fecha={fecha}
+          sucursalId={detalleActivo.id}
+          fecha={detalleActivo.fecha}
         />
       )}
 

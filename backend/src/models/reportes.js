@@ -1,39 +1,45 @@
 const pool = require("../config/db");
 const { CASE_DESCRIPCION_VENTA, CASE_ESPECIFICACIONES_VENTA } = require("../utils/sqlFragments");
 
-async function obtenerResumenSucursales({ fecha }) {
+async function obtenerResumenSucursales({ desde, hasta }) {
   const query = `
-    SELECT 
+    SELECT
       s.id,
       s.nombre,
+      TO_CHAR(d.fecha, 'YYYY-MM-DD') as fecha,
 
       COALESCE(m.ingresos, 0) as ingresos,
       COALESCE(m.gastos, 0) as gastos,
       COALESCE(m.ingresos, 0) - COALESCE(m.gastos, 0) as neto,
 
       EXISTS (
-        SELECT 1 
+        SELECT 1
         FROM caja_cortes c
         WHERE c.sucursal_id = s.id
-        AND DATE(c.fecha) = $1
+        AND DATE(c.fecha) = d.fecha
       ) as corte_realizado
 
     FROM sucursales s
 
+    CROSS JOIN (
+      SELECT generate_series($1::date, $2::date, '1 day')::date AS fecha
+    ) d
+
     LEFT JOIN (
-      SELECT 
+      SELECT
         sucursal_id,
+        DATE(fecha) as fecha,
         SUM(CASE WHEN tipo IN ('ingreso', 'venta') THEN monto ELSE 0 END) as ingresos,
         SUM(CASE WHEN tipo = 'gasto' THEN monto ELSE 0 END) as gastos
       FROM caja_movimientos
-      WHERE DATE(fecha) = $1
-      GROUP BY sucursal_id
-    ) m ON m.sucursal_id = s.id
+      WHERE DATE(fecha) BETWEEN $1 AND $2
+      GROUP BY sucursal_id, DATE(fecha)
+    ) m ON m.sucursal_id = s.id AND m.fecha = d.fecha
 
-    ORDER BY s.id;
+    ORDER BY d.fecha DESC, s.id ASC;
   `;
 
-  const { rows } = await pool.query(query, [fecha]);
+  const { rows } = await pool.query(query, [desde, hasta]);
 
   return rows;
 }

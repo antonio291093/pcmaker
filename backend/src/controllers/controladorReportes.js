@@ -7,9 +7,13 @@ const {
 
 exports.resumenSucursales = async (req, res) => {
   try {
-    const fecha = req.query.fecha || new Date().toISOString().split("T")[0];
+    const { desde, hasta } = req.query;
 
-    const data = await obtenerResumenSucursales({ fecha });
+    if (!desde || !hasta) {
+      return res.status(400).json({ message: "desde y hasta son requeridos" });
+    }
+
+    const data = await obtenerResumenSucursales({ desde, hasta });
 
     res.json(data);
   } catch (error) {

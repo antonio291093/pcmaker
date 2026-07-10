@@ -126,11 +126,12 @@ async function buscarEquipoPorEtiquetaTexto(texto) {
 
 async function obtenerEquiposPorEstado(estadoId) {
   const query = `
-    SELECT 
+    SELECT
       e.id,
       e.nombre,
       e.descripcion,
       e.procesador,
+      e.estado_id,
       le.etiqueta,
       e.sucursal_id,
       cs.nombre AS sucursal_nombre,

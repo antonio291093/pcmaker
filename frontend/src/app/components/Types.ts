@@ -8,6 +8,7 @@ export interface Equipo {
   almacenamientos?: string[];
   sucursal_id?: number;
   sucursal_nombre?: string;
+  estado_id?: number;
   origen: 'tecnico' | 'recepcion_directa';
   cantidad?: number
 }
