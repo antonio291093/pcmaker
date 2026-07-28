@@ -3,7 +3,6 @@ import Swal from "sweetalert2";
 import { FaMoneyBill, FaCheck, FaTimes, FaQuestion, FaStore } from "react-icons/fa";
 import EquipoTraspasoModal from "./EquiposTraspasoModal";
 import { Equipo, IdNombre } from './Types';
-import ModalSeleccionEquiposPedido from './CrearPedidoModal'
 import EquiposGrupoCard from '../tecnico/components/EquiposGrupoCard'
 import EquiposGrupoModal from '../tecnico/components/EquiposGrupoModal'
 
@@ -23,7 +22,6 @@ const statusCatalog = [
   { id: 2, nombre: "Revisado - Por armar", icon: <FaCheck className="text-blue-500 text-2xl" /> },
   { id: 3, nombre: "Revisado - No funciona", icon: <FaTimes className="text-red-500 text-2xl" /> },
   { id: 4, nombre: "Armado", icon: <FaMoneyBill className="text-green-500 text-2xl" /> },
-  { id: 99, nombre: "Generar Pedido", icon: <FaMoneyBill className="text-indigo-600 text-2xl" /> }
 ]
 
 export default function InventoryEquiposSection() {
@@ -32,15 +30,7 @@ export default function InventoryEquiposSection() {
   const [loading, setLoading] = useState(false);
   const [counts, setCounts] = useState<Record<number, number>>({});
   const [equipoParaTraspaso, setEquipoParaTraspaso] = useState<Equipo | null>(null);
-  const [modoGenerarPedido, setModoGenerarPedido] = useState(false)
-  const [detallePedido, setDetallePedido] = useState('')
-  const [equiposPedido, setEquiposPedido] = useState<Equipo[]>([])
-  const [modalEquiposOpen, setModalEquiposOpen] = useState(false)
-  const [sucursalDestino, setSucursalDestino] = useState<number | null>(null)
-  const [tecnicoId, setTecnicoId] = useState<number | null>(null)
   const [sucursales, setSucursales] = useState<IdNombre[]>([])
-  const [tecnicos, setTecnicos] = useState<IdNombre[]>([])
-  const [busquedaPedido, setBusquedaPedido] = useState('')
   const [grupoSeleccionado, setGrupoSeleccionado] = useState<GrupoEquipos | null>(null)
   const [sucursalSeleccionada, setSucursalSeleccionada] = useState<number | null>(null)
 
@@ -96,10 +86,6 @@ export default function InventoryEquiposSection() {
     fetch(`${API_URL}/api/sucursales`, { credentials: 'include' })
       .then(r => r.json())
       .then(setSucursales)
-
-    fetch(`${API_URL}/api/usuarios?rol=2`, { credentials: 'include' })
-      .then(r => r.json())
-      .then(setTecnicos)
   }, [])
 
   const grupos = useMemo<GrupoEquipos[]>(() => {
@@ -133,16 +119,7 @@ export default function InventoryEquiposSection() {
         {statusCatalog.map(st => (
           <button
             key={st.id}
-            onClick={() => {
-              if (st.id === 99) {
-                setModoGenerarPedido(true)
-                setSelectedStatus(null)
-                setEquipos([])
-              } else {
-                setModoGenerarPedido(false)
-                setSelectedStatus(st.id)
-              }
-            }}
+            onClick={() => setSelectedStatus(st.id)}
             className={`flex flex-col items-center p-4 rounded-xl shadow-sm border
               ${selectedStatus === st.id ? "border-gray-300" : "border-transparent"}
               bg-white hover:bg-gray-50 transition`}
@@ -155,89 +132,6 @@ export default function InventoryEquiposSection() {
           </button>
         ))}
       </div>
-      {modoGenerarPedido && (
-      <div className="flex justify-center mt-6">
-    <div className="w-full max-w-xl bg-white p-6 rounded-xl shadow-md">
-
-        <input
-          type="text"
-          placeholder="Buscar equipo (lote, serie, etiqueta...)"
-          value={busquedaPedido}
-          onChange={(e) => setBusquedaPedido(e.target.value)}
-          className="w-full mb-4 border rounded-lg px-4 py-2"
-        />
-
-        <textarea
-          value={detallePedido}
-          onChange={(e) => setDetallePedido(e.target.value)}
-          placeholder="Detalle del pedido (obligatorio)"
-          className="w-full border rounded-lg px-4 py-3 mb-4"
-          rows={4}
-        />
-
-        <div className="mb-4">
-          <button
-            onClick={() => setModalEquiposOpen(true)}
-            className="text-indigo-600 underline"
-          >
-            + Seleccionar equipos
-          </button>
-
-          {equiposPedido.length > 0 && (
-            <ul className="mt-2 text-sm text-gray-600 list-disc list-inside">
-              {equiposPedido.map(eq => (
-                <li key={eq.id}>{eq.nombre} - {eq.etiqueta}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        <select
-          value={sucursalDestino ?? ''}
-          onChange={(e) => setSucursalDestino(Number(e.target.value))}
-          className="w-full mb-3 border rounded-lg px-3 py-2"
-        >
-          <option value="">Sucursal destino</option>
-          {sucursales.map(s => (
-            <option key={s.id} value={s.id}>{s.nombre}</option>
-          ))}
-        </select>
-
-        <select
-          value={tecnicoId ?? ''}
-          onChange={(e) => setTecnicoId(Number(e.target.value))}
-          className="w-full mb-4 border rounded-lg px-3 py-2"
-        >
-          <option value="">Técnico responsable</option>
-          {tecnicos.map(t => (
-            <option key={t.id} value={t.id}>{t.nombre}</option>
-          ))}
-        </select>
-
-        <button
-          onClick={() => {
-            if (!detallePedido.trim()) {
-              Swal.fire('Error', 'El detalle del pedido es obligatorio', 'warning')
-              return
-            }
-            if (equiposPedido.length === 0) {
-              Swal.fire('Error', 'Debes agregar al menos un equipo', 'warning')
-              return
-            }
-            if (!sucursalDestino || !tecnicoId) {
-              Swal.fire('Error', 'Selecciona sucursal y técnico', 'warning')
-              return
-            }
-
-            Swal.fire('Listo', 'Pedido validado (backend siguiente paso)', 'success')
-          }}
-          className="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700"
-        >
-          Generar pedido
-        </button>
-       </div>
-  </div>
-    )}
 
       <div className="flex items-center gap-2 mb-4">
         <FaStore className="text-gray-400 shrink-0" />
@@ -308,14 +202,6 @@ export default function InventoryEquiposSection() {
           }}
         />
       )}
-
-      <ModalSeleccionEquiposPedido
-        open={modalEquiposOpen}
-        onClose={() => setModalEquiposOpen(false)}
-        equiposSeleccionados={equiposPedido}
-        onConfirm={(seleccionados) => setEquiposPedido(seleccionados)}
-      />
-
     </div>
   );
 }

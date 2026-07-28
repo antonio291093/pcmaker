@@ -9,6 +9,8 @@ import SpecsCard from './components/SpecsCard'
 import ComisionesCard from '@/app/components/ComisionesCard'
 import RecibirLote from '../components/RecibirLote'
 import RecepcionDirecta from '../components/RecepcionDirecta'
+import PedidosPanel from '../components/PedidosPanel'
+import GarantiasSolicitudes from '../components/GarantiasSolicitudes'
 import { useUser } from '@/context/UserContext'
 
 export default function DashboardPage() {
@@ -36,6 +38,8 @@ export default function DashboardPage() {
         {active === 'comisiones' && <ComisionesCard />}
         {active === 'lote' && <RecibirLote />}
         {active === 'recepcion' && <RecepcionDirecta />}
+        {active === 'pedidos' && <PedidosPanel />}
+        {active === 'garantias' && <GarantiasSolicitudes />}
       </main>
     </>
   )

@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { FaBoxOpen, FaShoppingCart, FaFileAlt, FaDollarSign, FaTruck, FaSignOutAlt, FaBars, FaCashRegister, FaTag } from 'react-icons/fa'
+import { FaBoxOpen, FaShoppingCart, FaFileAlt, FaDollarSign, FaTruck, FaExchangeAlt, FaSignOutAlt, FaBars, FaCashRegister, FaTag, FaShieldAlt } from 'react-icons/fa'
 import { useUser } from '@/context/UserContext'
 import { useRouter } from 'next/navigation'
 
@@ -13,8 +13,10 @@ const navItems = [
   { label: 'Reportes e historial', icon: <FaFileAlt />, path: 'reportes' },
   { label: 'Comisiones', icon: <FaDollarSign />, path: 'comisiones' },  
   { label: 'Recepción directa', icon: <FaTruck />, path: 'recepcion' },
+  { label: 'Pedidos', icon: <FaExchangeAlt />, path: 'pedidos' },
   { label: 'Corte de caja', icon: <FaCashRegister />, path: 'caja' },
   { label: 'Apartados',     icon: <FaTag />,         path: 'apartados' },
+  { label: 'Garantías',     icon: <FaShieldAlt />,   path: 'garantias' },
   { label: 'Cerrar sesión', icon: <FaSignOutAlt />, path: 'logout' }
 ]
 

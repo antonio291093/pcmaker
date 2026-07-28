@@ -3,7 +3,7 @@ import ServicioGuard from '@/app/components/ServicioGuard'
 
 export default function TecnicoLayout({ children }: { children: React.ReactNode }) {
   return (
-    <RolGuard rolRequerido={2}>
+    <RolGuard rolesPermitidos={[2]}>
       <ServicioGuard>
         <div className="flex min-h-screen bg-gray-50">
           {children}

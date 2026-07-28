@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 import { motion } from 'framer-motion'
 import {
   FaUsers,
@@ -7,11 +7,13 @@ import {
   FaFileAlt,
   FaCog,
   FaTruck,
+  FaExchangeAlt,
   FaSignOutAlt,
   FaBars,
   FaBuilding,
   FaTags,
   FaClipboardList,
+  FaCashRegister,
 } from 'react-icons/fa'
 import { useUser } from '@/context/UserContext'
 import { useRouter } from "next/navigation"
@@ -30,8 +32,10 @@ const navItems = [
   { label: 'Configuración', icon: <FaCog />, path: 'configuracion' },
   { label: 'Recibir lote', icon: <FaTruck />, path: 'lote' },
   { label: 'Recepción directa', icon: <FaTruck />, path: 'recepcion' },
+  { label: 'Pedidos', icon: <FaExchangeAlt />, path: 'pedidos' },
   { label: 'Categorías', icon: <FaTags />, path: 'categorias' },
   { label: 'Auditoría', icon: <FaClipboardList />, path: 'auditoria' },
+  { label: 'Panel Ventas', icon: <FaCashRegister />, path: '/ventas', external: true },
 ]
 
 export default function Sidebar({ active, setActive }: SidebarProps) {
@@ -131,20 +135,28 @@ export default function Sidebar({ active, setActive }: SidebarProps) {
         {/* Navegación */}
         <nav className="flex-1 flex flex-col space-y-1 items-center">
           {navItems.map(item => (
-            <motion.button
-              key={item.label}
-              onClick={() => handleNavClick(item.path)}
-              whileHover={{ scale: 1.08 }}
-              className={`flex flex-col items-center w-full py-3 rounded-xl text-xl px-2 transition-colors ${
-                active === item.path
-                  ? 'bg-indigo-50 text-indigo-600'
-                  : 'text-gray-400 hover:bg-gray-100 hover:text-indigo-600'
-              }`}
-              title={item.label}
-            >
-              <div>{item.icon}</div>
-              <span className="text-[11px] mt-1 font-medium">{item.label}</span>
-            </motion.button>
+            <Fragment key={item.label}>
+              {item.external && (
+                <div className="w-10 border-t border-gray-200 my-2" />
+              )}
+              <motion.button
+                onClick={() =>
+                  item.external ? router.push(item.path) : handleNavClick(item.path)
+                }
+                whileHover={{ scale: 1.08 }}
+                className={`flex flex-col items-center w-full py-3 rounded-xl text-xl px-2 transition-colors ${
+                  item.external
+                    ? 'text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700'
+                    : active === item.path
+                      ? 'bg-indigo-50 text-indigo-600'
+                      : 'text-gray-400 hover:bg-gray-100 hover:text-indigo-600'
+                }`}
+                title={item.label}
+              >
+                <div>{item.icon}</div>
+                <span className="text-[11px] mt-1 font-medium">{item.label}</span>
+              </motion.button>
+            </Fragment>
           ))}
 
           {/* 🔥 Cambiar sucursal */}

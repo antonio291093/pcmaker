@@ -9,6 +9,8 @@ import ComisionesCard from '@/app/components/ComisionesCard'
 import RecepcionDirecta from '../components/RecepcionDirecta'
 import CorteCaja from './components/CorteCaja'
 import Apartados from './components/Apartados'
+import PedidosPanel from '../components/PedidosPanel'
+import GarantiasSolicitudes from '../components/GarantiasSolicitudes'
 import { useUser } from '@/context/UserContext'
 import { API_URL } from '@/utils/api'
 
@@ -92,6 +94,8 @@ export default function DashboardPage() {
         {active === 'recepcion' && <RecepcionDirecta />}
         {active === 'caja' && <CorteCaja />}
         {active === 'apartados' && <Apartados />}
+        {active === 'pedidos' && <PedidosPanel />}
+        {active === 'garantias' && <GarantiasSolicitudes />}
       </main>
     </>
   )

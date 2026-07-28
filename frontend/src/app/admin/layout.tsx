@@ -3,7 +3,7 @@ import ServicioGuard from '@/app/components/ServicioGuard'
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
-    <RolGuard rolRequerido={1}>
+    <RolGuard rolesPermitidos={[1]}>
       <ServicioGuard>
         <div className="flex min-h-screen bg-gray-50">
           {children}

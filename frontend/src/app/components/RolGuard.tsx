@@ -4,8 +4,8 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useUser } from '@/context/UserContext'
 
-export default function RolGuard({ rolRequerido, children }: {
-  rolRequerido: number
+export default function RolGuard({ rolesPermitidos, children }: {
+  rolesPermitidos: number[]
   children: React.ReactNode
 }) {
   const { user, loading } = useUser()
@@ -13,11 +13,11 @@ export default function RolGuard({ rolRequerido, children }: {
 
   useEffect(() => {
     if (!loading) {
-      if (!user || user.rol_id !== rolRequerido) {
+      if (!user || !rolesPermitidos.includes(user.rol_id)) {
         router.replace('/login')
       }
     }
-  }, [user, loading, router, rolRequerido])
+  }, [user, loading, router, rolesPermitidos])
 
   if (loading) {
     return (
@@ -27,7 +27,7 @@ export default function RolGuard({ rolRequerido, children }: {
     )
   }
 
-  if (!user || user.rol_id !== rolRequerido) {
+  if (!user || !rolesPermitidos.includes(user.rol_id)) {
     return null
   }
 
