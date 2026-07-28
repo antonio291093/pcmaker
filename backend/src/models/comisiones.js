@@ -78,7 +78,7 @@ async function obtenerComisionPorEquipo(equipo_id) {
   return rows[0];
 }
 
-async function obtenerComisionesSemanaActualPorUsuario({ usuario_id, fecha_inicio, fecha_fin }) {
+async function obtenerComisionesSemanaActualPorUsuario({ usuario_id, sucursal_id, fecha_inicio, fecha_fin }) {
   const query = `
     WITH comisiones_semana AS (
   SELECT
@@ -89,13 +89,16 @@ async function obtenerComisionesSemanaActualPorUsuario({ usuario_id, fecha_inici
     c.mantenimiento_id,
     c.monto,
     c.fecha_creacion,
+    u.nombre AS vendedor,
     CASE
       WHEN c.venta_id         IS NOT NULL THEN 'venta'
       WHEN c.equipo_id        IS NOT NULL THEN 'armado'
       WHEN c.mantenimiento_id IS NOT NULL THEN 'mantenimiento'
     END AS tipo
   FROM comisiones c
-  WHERE c.usuario_id = $1
+  JOIN usuarios u ON u.id = c.usuario_id
+  WHERE ($1::int IS NULL OR c.usuario_id = $1)
+    AND ($4::int IS NULL OR u.sucursal_id = $4)
     AND c.fecha_creacion >= COALESCE($2::date, date_trunc('week', now()))
     AND c.fecha_creacion <  COALESCE($3::date, date_trunc('week', now()) + interval '1 week')
 )
@@ -105,6 +108,7 @@ SELECT
   cs.tipo,
   cs.monto,
   cs.fecha_creacion,
+  cs.vendedor,
 
   -- 🔵 VENTA
   CASE WHEN cs.tipo = 'venta' THEN json_build_object(
@@ -169,6 +173,7 @@ GROUP BY
   cs.tipo,
   cs.monto,
   cs.fecha_creacion,
+  cs.vendedor,
   v.id,
   eq.id,
   eq.procesador,
@@ -181,7 +186,12 @@ GROUP BY
 ORDER BY cs.fecha_creacion ASC;
 
   `;
-  const { rows } = await pool.query(query, [usuario_id, fecha_inicio ?? null, fecha_fin ?? null]);
+  const { rows } = await pool.query(query, [
+    usuario_id ?? null,
+    fecha_inicio ?? null,
+    fecha_fin ?? null,
+    sucursal_id ?? null,
+  ]);
   return rows;
 }
 

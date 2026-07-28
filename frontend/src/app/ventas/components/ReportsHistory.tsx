@@ -64,7 +64,9 @@ export default function ReportsHistory() {
   const [loading, setLoading] = useState(false)
   const ventasRenderizadas = new Set<number>()
   const capturaRef = useRef<HTMLDivElement>(null)
-  const { user, loading: userLoading } = useUser()
+  const { user, loading: userLoading, sucursalActiva } = useUser()
+  const [sucursales, setSucursales] = useState<{ id: number; nombre: string }[]>([])
+  const [sucursalSeleccionada, setSucursalSeleccionada] = useState<number | null>(null)
   if (userLoading) {
     return <p>Cargando usuario...</p>
   }
@@ -72,7 +74,12 @@ export default function ReportsHistory() {
   if (!user) {
     return null
   }
-  const sucursalId = user?.sucursal_id
+
+  const esAdmin = user.rol_id === 1
+  const sucursalId = esAdmin
+    ? (sucursalSeleccionada ?? sucursalActiva ?? user.sucursal_id)
+    : user.sucursal_id
+
   const formatFecha = (fecha: string) => {
     const soloFecha = fecha.split('T')[0].split(' ')[0]
     const [year, month, day] = soloFecha.split('-')
@@ -82,8 +89,13 @@ export default function ReportsHistory() {
     try {
       setLoading(true)
 
+      const params = new URLSearchParams({ from, to, sucursal_id: String(sucursalId) })
+      if (!esAdmin) {
+        params.set('usuario_id', String(user.id))
+      }
+
       const resp = await fetch(
-        `${API_URL}/api/reportes?from=${from}&to=${to}&sucursal_id=${sucursalId}&usuario_id=${user.id}`,
+        `${API_URL}/api/reportes?${params}`,
         { credentials: 'include' }
       )
 
@@ -107,9 +119,24 @@ export default function ReportsHistory() {
     }
   }
 
+  // 🔹 Sucursales disponibles (solo admin)
+  useEffect(() => {
+    if (!esAdmin) return
+    fetch(`${API_URL}/api/sucursales`, { credentials: 'include' })
+      .then(res => res.ok ? res.json() : Promise.reject())
+      .then(data => setSucursales(data))
+      .catch(() => setSucursales([]))
+  }, [esAdmin])
+
+  // 🔹 Sincroniza con la sucursal activa global del admin (Sidebar → Cambiar sucursal)
+  useEffect(() => {
+    if (!esAdmin) return
+    setSucursalSeleccionada(sucursalActiva ?? user.sucursal_id)
+  }, [esAdmin, sucursalActiva, user.sucursal_id])
+
   useEffect(() => {
     fetchReport()
-  }, [])
+  }, [sucursalId])
 
   const descargarGarantia = async (ventaId: number) => {
     const resp = await fetch(
@@ -183,6 +210,20 @@ export default function ReportsHistory() {
           <label className='text-xs text-gray-500'>Hasta</label>
           <input type='date' value={to} onChange={e => setTo(e.target.value)} className='border rounded px-2 py-1 text-sm' />
         </div>
+        {esAdmin && (
+          <div>
+            <label className='text-xs text-gray-500'>Sucursal</label>
+            <select
+              value={sucursalSeleccionada ?? ''}
+              onChange={e => setSucursalSeleccionada(Number(e.target.value))}
+              className='border rounded px-2 py-1 text-sm block'
+            >
+              {sucursales.map(s => (
+                <option key={s.id} value={s.id}>{s.nombre}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <button onClick={fetchReport} className='self-end bg-indigo-600 text-white px-4 py-2 rounded text-sm'>Filtrar</button>
       </div>
 

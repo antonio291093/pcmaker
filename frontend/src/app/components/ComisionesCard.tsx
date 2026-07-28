@@ -37,6 +37,7 @@ interface Comision {
   tipo: 'venta' | 'armado' | 'mantenimiento'
   monto: string
   fecha_creacion: string
+  vendedor?: string
   venta: Venta | null
   equipo: Equipo | null
   mantenimiento: Mantenimiento | null
@@ -54,7 +55,7 @@ function semanaActual(): { inicio: string; fin: string } {
 }
 
 export default function ComisionesCard() {
-  const { user, loading: userLoading } = useUser()
+  const { user, loading: userLoading, sucursalActiva } = useUser()
 
   const semana = semanaActual()
   const [fechaInicio, setFechaInicio] = useState(semana.inicio)
@@ -63,10 +64,15 @@ export default function ComisionesCard() {
   const [total, setTotal]             = useState(0)
   const [cargando, setCargando]       = useState(false)
 
-  const fetchComisiones = (uid: number, inicio: string, fin: string) => {
+  const fetchComisiones = (inicio: string, fin: string) => {
     setCargando(true)
     const params = new URLSearchParams({ fecha_inicio: inicio, fecha_fin: fin })
-    fetch(`${API_URL}/api/comisiones/semana/${uid}?${params}`, { credentials: 'include' })
+    if (user?.rol_id === 1) {
+      params.set('sucursal_id', String(sucursalActiva ?? user.sucursal_id))
+    } else if (user?.id) {
+      params.set('usuario_id', String(user.id))
+    }
+    fetch(`${API_URL}/api/comisiones/semana?${params}`, { credentials: 'include' })
       .then(res => res.json())
       .then((data: Comision[]) => {
         const validas = data.filter(x => x.id !== null)
@@ -77,8 +83,8 @@ export default function ComisionesCard() {
   }
 
   useEffect(() => {
-    if (user?.id) fetchComisiones(user.id, fechaInicio, fechaFin)
-  }, [user?.id])
+    if (user?.id) fetchComisiones(fechaInicio, fechaFin)
+  }, [user?.id, user?.rol_id, sucursalActiva])
 
   if (userLoading) return <p>Cargando comisiones...</p>
   if (!user) return null
@@ -91,7 +97,7 @@ export default function ComisionesCard() {
       className="bg-white rounded-xl shadow p-4 sm:p-6 w-full max-w-full"
     >
       <h2 className="text-lg font-semibold mb-4 text-gray-700">
-        Mis comisiones
+        {user.rol_id === 1 ? 'Comisiones de la sucursal' : 'Mis comisiones'}
       </h2>
 
       {/* === FILTRO DE FECHAS === */}
@@ -115,7 +121,7 @@ export default function ComisionesCard() {
           />
         </div>
         <button
-          onClick={() => fetchComisiones(user.id, fechaInicio, fechaFin)}
+          onClick={() => fetchComisiones(fechaInicio, fechaFin)}
           disabled={cargando}
           className="bg-indigo-600 text-white text-sm px-4 py-1.5 rounded hover:bg-indigo-700 disabled:opacity-50"
         >
@@ -155,6 +161,9 @@ export default function ComisionesCard() {
                     {c.tipo === 'venta'         && `Venta #${c.venta?.id}`}
                     {c.tipo === 'armado'        && 'Armado de equipo'}
                     {c.tipo === 'mantenimiento' && 'Mantenimiento'}
+                    {user.rol_id === 1 && c.vendedor && (
+                      <span className="text-xs text-gray-400 font-normal ml-2">— {c.vendedor}</span>
+                    )}
                   </span>
                   <span className="text-sm">
                     ${Number(c.monto).toFixed(2)} |{' '}

@@ -22,9 +22,9 @@ router.get(
   comisionesController.obtenerComisionPorEquipo
 );
 
-// Obtener comisiones de la semana actual por usuario
+// Obtener comisiones de la semana actual (por usuario o, para admin, por sucursal completa)
 router.get(
-  "/semana/:usuario_id",
+  "/semana",
   authMiddleware,
   comisionesController.obtenerComisionesSemanaActual
 );
