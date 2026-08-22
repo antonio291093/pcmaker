@@ -15,6 +15,7 @@ type VentaRow = {
   venta_id: number
   cantidad: number
   cliente: string
+  vendedor: string
   metodo_pago: string
   fecha_venta: string
   descripcion: string
@@ -23,6 +24,16 @@ type VentaRow = {
 }
 
 type Totales = {
+  efectivo: number
+  transferencia: number
+  terminal: number
+  facturacion: number
+  total: number
+}
+
+type TotalesPorVendedor = {
+  usuario_id: number
+  vendedor: string
   efectivo: number
   transferencia: number
   terminal: number
@@ -61,6 +72,7 @@ export default function ReportsHistory() {
   const [to, setTo] = useState(week.to)
   const [ventas, setVentas] = useState<VentaRow[]>([])
   const [totales, setTotales] = useState<Totales | null>(null)
+  const [totalesPorVendedor, setTotalesPorVendedor] = useState<TotalesPorVendedor[]>([])
   const [loading, setLoading] = useState(false)
   const ventasRenderizadas = new Set<number>()
   const capturaRef = useRef<HTMLDivElement>(null)
@@ -90,9 +102,6 @@ export default function ReportsHistory() {
       setLoading(true)
 
       const params = new URLSearchParams({ from, to, sucursal_id: String(sucursalId) })
-      if (!esAdmin) {
-        params.set('usuario_id', String(user.id))
-      }
 
       const resp = await fetch(
         `${API_URL}/api/reportes?${params}`,
@@ -102,6 +111,7 @@ export default function ReportsHistory() {
       if (!resp.ok) {
         setVentas([])
         setTotales(null)
+        setTotalesPorVendedor([])
         return
       }
 
@@ -109,11 +119,13 @@ export default function ReportsHistory() {
 
       setVentas(Array.isArray(data?.detalle) ? data.detalle : [])
       setTotales(data?.totales || null)
+      setTotalesPorVendedor(Array.isArray(data?.totalesPorVendedor) ? data.totalesPorVendedor : [])
 
     } catch (error) {
       console.error(error)
       setVentas([])
       setTotales(null)
+      setTotalesPorVendedor([])
     } finally {
       setLoading(false)
     }
@@ -237,7 +249,8 @@ export default function ReportsHistory() {
                 <th className='p-2 text-left text-gray-500'>Cantidad</th>
                 <th className='p-2 text-left text-gray-500'>Equipo</th>
                 <th className='p-2 text-left text-gray-500'>Especificaciones</th>
-                <th className='p-2 text-left text-gray-500'>Cliente</th>              
+                <th className='p-2 text-left text-gray-500'>Cliente</th>
+                <th className='p-2 text-left text-gray-500'>Vendedor</th>
                 <th className='p-2 text-left text-gray-500'>Pago</th>
                 <th className='p-2 text-right text-gray-500'>Monto</th>                                          
                 <th className='p-2 text-center text-gray-500'>Garantía</th>
@@ -260,7 +273,8 @@ export default function ReportsHistory() {
                   <td className='p-2 text-xs text-gray-600'>
                     {v.especificaciones || '—'}
                   </td>
-                    <td className='p-2'>{v.cliente}</td>                  
+                    <td className='p-2'>{v.cliente}</td>
+                    <td className='p-2'>{v.vendedor}</td>
                     <td className='p-2'>
                       <span className={`px-2 py-1 rounded text-xs ${metodoColors[v.metodo_pago]}`}>
                         {v.metodo_pago}
@@ -296,48 +310,81 @@ export default function ReportsHistory() {
               })}
 
               {!loading && ventas.length === 0 && (
-                <tr><td colSpan={9} className='p-4 text-center text-gray-400'>Sin resultados</td></tr>
+                <tr><td colSpan={10} className='p-4 text-center text-gray-400'>Sin resultados</td></tr>
               )}
             </tbody>
           </table>
         </div>
 
-        {/* Totales sticky */}
-        {totales && (
-          <div className='grid grid-cols-2 md:grid-cols-5 gap-4 mt-6 sticky bottom-0 bg-white pt-4'>
+        {/* Totales por vendedor */}
+        {totalesPorVendedor.map(tv => (
+          <div key={tv.usuario_id} className='mt-6'>
+            <p className='text-sm font-semibold text-gray-600 mb-2'>Vendedor: {tv.vendedor}</p>
+            <div className='grid grid-cols-2 md:grid-cols-5 gap-4'>
+              {Object.entries(tv)
+                .filter(([k]) => k !== 'usuario_id' && k !== 'vendedor')
+                .filter(([k, v]) => k !== 'facturacion' || (v as number) > 0)
 
-            {Object.entries(totales)
-              .filter(([k]) => k !== 'facturacion' || totales.facturacion > 0)
+                // 🔹 Forzar TOTAL al final
+                .sort(([a], [b]) => {
+                  if (a === 'total') return 1
+                  if (b === 'total') return -1
+                  return 0
+                })
 
-              // 🔹 Forzar TOTAL al final
-              .sort(([a], [b]) => {
-                if (a === 'total') return 1
-                if (b === 'total') return -1
-                return 0
-              })
-
-              .map(([k, v]) => {
-
-                let label = k
-
-                // 🔹 Unificar nombres
-                if (k === 'facturacion') label = 'factura'
-                if (k === 'facturacion_subtotal') label = 'factura subtotal'
-                if (k === 'facturacion_iva') label = 'factura iva'
-                if (k === 'total_sin_iva') label = 'total sin iva'
-
-                return (
+                .map(([k, v]) => (
                   <div key={k} className='bg-gray-50 rounded-xl p-4 shadow-sm'>
                     <p className='text-xs text-gray-500 uppercase'>
-                      {label}
+                      {k === 'facturacion' ? 'factura' : k}
                     </p>
                     <p className='text-lg font-semibold text-gray-700'>
-                      ${v.toFixed(2)}
+                      ${(v as number).toFixed(2)}
                     </p>
                   </div>
-                )
-              })}
+                ))}
+            </div>
+          </div>
+        ))}
 
+        {/* Total general sticky */}
+        {totales && (
+          <div className='mt-6 sticky bottom-0 bg-white pt-4'>
+            <p className='text-sm font-semibold text-gray-600 mb-2'>Total general</p>
+            <div className='grid grid-cols-2 md:grid-cols-5 gap-4'>
+
+              {Object.entries(totales)
+                .filter(([k]) => k !== 'facturacion' || totales.facturacion > 0)
+
+                // 🔹 Forzar TOTAL al final
+                .sort(([a], [b]) => {
+                  if (a === 'total') return 1
+                  if (b === 'total') return -1
+                  return 0
+                })
+
+                .map(([k, v]) => {
+
+                  let label = k
+
+                  // 🔹 Unificar nombres
+                  if (k === 'facturacion') label = 'factura'
+                  if (k === 'facturacion_subtotal') label = 'factura subtotal'
+                  if (k === 'facturacion_iva') label = 'factura iva'
+                  if (k === 'total_sin_iva') label = 'total sin iva'
+
+                  return (
+                    <div key={k} className='bg-gray-50 rounded-xl p-4 shadow-sm'>
+                      <p className='text-xs text-gray-500 uppercase'>
+                        {label}
+                      </p>
+                      <p className='text-lg font-semibold text-gray-700'>
+                        ${v.toFixed(2)}
+                      </p>
+                    </div>
+                  )
+                })}
+
+            </div>
           </div>
         )}
       </div>

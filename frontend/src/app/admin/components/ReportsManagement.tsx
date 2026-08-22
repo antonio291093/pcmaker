@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 import DailySummaryTab from './DailySummaryTab'
+import WeeklySummaryTab from './WeeklySummaryTab'
 import DeletedItemTabs from './DeletedItemsTab'
 import ComisionesReporte from './ComisionesReporte'
 import CarteraClientes from './CarteraClientes'
@@ -11,11 +12,12 @@ import CarteraClientes from './CarteraClientes'
 export default function ReportsManagement() {
 
   const [tab, setTab] = useState<
-    'resumen' | 'eliminados' | 'comisiones' | 'clientes'
+    'resumen' | 'semanal' | 'eliminados' | 'comisiones' | 'clientes'
   >('resumen')
 
   const tabs = [
     { key: 'resumen',    label: 'Resumen diario'       },
+    { key: 'semanal',    label: 'Resumen semanal'      },
     { key: 'eliminados', label: 'Artículos Eliminados'  },
     { key: 'comisiones', label: 'Comisiones'            },
     { key: 'clientes',   label: 'Cartera de clientes'   },
@@ -90,6 +92,10 @@ export default function ReportsManagement() {
 
           {tab === 'resumen' && (
             <DailySummaryTab />
+          )}
+
+          {tab === 'semanal' && (
+            <WeeklySummaryTab />
           )}
 
           {tab === 'eliminados' && (

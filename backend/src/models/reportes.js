@@ -50,6 +50,7 @@ async function obtenerReporteVentas({ from, to, sucursal_id, usuario_id }) {
       d.id AS detalle_id,
       v.id AS venta_id,
       v.cliente,
+      u.nombre AS vendedor,
 
       d.cantidad,
       (
@@ -67,6 +68,7 @@ async function obtenerReporteVentas({ from, to, sucursal_id, usuario_id }) {
 
     FROM ventas v
     JOIN venta_detalle d ON d.venta_id = v.id
+    JOIN usuarios u ON u.id = v.user_venta
 
     -- Inventario base
     LEFT JOIN inventario i ON i.id = d.producto_id
@@ -103,6 +105,23 @@ async function obtenerReporteVentas({ from, to, sucursal_id, usuario_id }) {
     GROUP BY vp.metodo_pago;
   `;
 
+  const totalesPorVendedorQuery = `
+    SELECT
+      v.user_venta AS usuario_id,
+      u.nombre AS vendedor,
+      vp.metodo_pago AS metodo_pago,
+      SUM(vp.monto) AS total
+    FROM ventas v
+    JOIN ventas_pagos vp
+      ON vp.venta_id = v.id
+    JOIN usuarios u
+      ON u.id = v.user_venta
+    WHERE v.fecha_venta::date BETWEEN $1 AND $2
+      AND ($3::INTEGER IS NULL OR v.sucursal_id = $3)
+      AND ($4::INTEGER IS NULL OR v.user_venta = $4)
+    GROUP BY v.user_venta, u.nombre, vp.metodo_pago;
+  `;
+
   const facturacionQuery = `
     SELECT
       SUM(subtotal) AS subtotal,
@@ -117,9 +136,10 @@ async function obtenerReporteVentas({ from, to, sucursal_id, usuario_id }) {
 
   const params = [from, to, sucursal_id, usuario_id ?? null];
 
-  const [detalle, totalesRaw, facturacionRaw] = await Promise.all([
+  const [detalle, totalesRaw, totalesPorVendedorRaw, facturacionRaw] = await Promise.all([
     pool.query(detalleQuery, params),
     pool.query(totalesQuery, params),
+    pool.query(totalesPorVendedorQuery, params),
     pool.query(facturacionQuery, params),
   ]);
 
@@ -164,9 +184,39 @@ async function obtenerReporteVentas({ from, to, sucursal_id, usuario_id }) {
 
   totales.total_sin_iva = totales.total - totales.facturacion_iva;
 
+  const porVendedorMap = new Map();
+
+  totalesPorVendedorRaw.rows.forEach((r) => {
+    const monto = Number(r.total);
+    const metodo = r.metodo_pago;
+
+    if (!porVendedorMap.has(r.usuario_id)) {
+      porVendedorMap.set(r.usuario_id, {
+        usuario_id: r.usuario_id,
+        vendedor: r.vendedor,
+        efectivo: 0,
+        transferencia: 0,
+        terminal: 0,
+        facturacion: 0,
+        total: 0,
+      });
+    }
+
+    const vendedorTotales = porVendedorMap.get(r.usuario_id);
+
+    if (vendedorTotales[metodo] !== undefined) {
+      vendedorTotales[metodo] += monto;
+    }
+
+    vendedorTotales.total += monto;
+  });
+
+  const totalesPorVendedor = Array.from(porVendedorMap.values());
+
   return {
     detalle: detalle.rows,
     totales,
+    totalesPorVendedor,
   };
 }
 
