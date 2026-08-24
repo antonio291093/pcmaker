@@ -1,0 +1,15 @@
+{
+  "name": "pcmaker-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pruebas E2E (Playwright) para PCMaker ERP — corre contra el ambiente de desarrollo local",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "playwright": "^1.62.1"
+  }
+}
