@@ -262,7 +262,7 @@ async function registrarDiagnostico(id, { diagnostico, aplica, motivo_rechazo })
        SET diagnostico_tecnico = $1,
            estado = $2,
            motivo_rechazo = $3,
-           fecha_resolucion = CASE WHEN $2 = 'rechazada' THEN NOW() ELSE fecha_resolucion END,
+           fecha_resolucion = CASE WHEN $2::VARCHAR = 'rechazada' THEN NOW() ELSE fecha_resolucion END,
            fecha_actualizacion = NOW()
        WHERE id = $4 AND estado = 'en_revision'
        RETURNING *`,

@@ -259,7 +259,7 @@ async function cambiarEstadoPedido(id, nuevoEstado) {
     const { rows: actualizado } = await client.query(
       `UPDATE pedidos
        SET estado = $1,
-           fecha_completado = CASE WHEN $1 = 'completado' THEN NOW() ELSE fecha_completado END
+           fecha_completado = CASE WHEN $1::VARCHAR = 'completado' THEN NOW() ELSE fecha_completado END
        WHERE id = $2
        RETURNING *`,
       [nuevoEstado, id]
