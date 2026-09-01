@@ -73,60 +73,6 @@ export default function MaintenanceForm() {
     }
   };
 
-  const generarComisionMantenimiento = async (
-    mantenimiento: any,
-    tecnicoId: any,
-    costo: number
-  ) => {
-    try {
-      // 🔹 1. Obtener configuración desde el backend
-      const respConfig = await fetch(`${API_URL}/api/configuraciones/comision_mantenimiento`, {
-        credentials: "include",
-      });
-
-      let tasa = 0.03; // valor por defecto
-
-      if (respConfig.ok) {
-        const data = await respConfig.json();
-        if (data?.valor) {
-          const parsed = parseFloat(data.valor);
-          if (!isNaN(parsed)) tasa = parsed; // ya guardas el valor como 0.3 o 0.03 en BD
-        }
-      } else {
-        console.warn("⚠️ No se pudo obtener la configuración de comisión, usando valor por defecto (3%)");
-      }
-
-      // 🔹 2. Calcular comisión
-      const comision = costo * tasa;
-
-      // 🔹 3. Registrar comisión
-      const respCrear = await fetch(`${API_URL}/api/comisiones`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          usuario_id: tecnicoId,
-          venta_id: null,
-          mantenimiento_id: mantenimiento.id,
-          monto: comision,
-          fecha_creacion: new Date().toISOString(),
-          equipo_id: mantenimiento.equipo_id || null,
-        }),
-      });
-
-      if (respCrear.ok) {
-        //console.log(`✅ Comisión generada correctamente (${(tasa * 100).toFixed(2)}%)`);
-        return true;
-      } else {
-        console.error("❌ Error al generar comisión");
-        return false;
-      }
-    } catch (err) {
-      console.error("Error generando comisión:", err);
-      return false;
-    }
-  };
-
   // --- Enviar formulario ---
   const handleSubmit = async (e: any) => {
     e.preventDefault();
@@ -184,12 +130,6 @@ export default function MaintenanceForm() {
       });      
 
       if (res.ok) {
-         const mantenimiento = await res.json();
-
-        // Generar comisión automáticamente
-        const costoMantenimiento = selectedCosto || 0;
-        await generarComisionMantenimiento(mantenimiento, tecnicoId, costoMantenimiento);
-
         Swal.fire({
           icon: 'success',
           title: 'Mantenimiento guardado',

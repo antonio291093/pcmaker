@@ -293,9 +293,36 @@ async function crearComisionArmadoSiNoExiste(equipo_id, usuario_id, client = poo
   );
 }
 
+// Crea la comisión por mantenimiento a partir del costo YA persistido (nunca uno enviado por el cliente)
+async function crearComisionMantenimientoSiNoExiste(mantenimiento_id, usuario_id, costo, client = pool) {
+  const { rows: existente } = await client.query(
+    `SELECT id FROM comisiones WHERE mantenimiento_id = $1 LIMIT 1`,
+    [mantenimiento_id]
+  );
+  if (existente.length > 0) return null;
+
+  const { rows: config } = await client.query(
+    `SELECT valor FROM configuraciones WHERE nombre = 'comision_mantenimiento' LIMIT 1`
+  );
+  const tasa =
+    config.length > 0 && !isNaN(parseFloat(config[0].valor))
+      ? parseFloat(config[0].valor)
+      : 0.03;
+
+  if (isNaN(tasa) || tasa <= 0) return null;
+
+  const monto = Number((Number(costo || 0) * tasa).toFixed(2));
+
+  return crearComision(
+    { usuario_id, venta_id: null, mantenimiento_id, monto, fecha_creacion: new Date(), equipo_id: null },
+    client
+  );
+}
+
 module.exports = {
   crearComision,
   crearComisionArmadoSiNoExiste,
+  crearComisionMantenimientoSiNoExiste,
   obtenerComisiones,
   actualizarComision,
   eliminarComision,

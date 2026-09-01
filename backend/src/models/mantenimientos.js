@@ -1,4 +1,5 @@
 const pool = require("../config/db");
+const { crearComisionMantenimientoSiNoExiste } = require("./comisiones");
 
 async function crearMantenimiento({
   fecha_mantenimiento,
@@ -9,24 +10,61 @@ async function crearMantenimiento({
   catalogo_id,
   costo_personalizado,
 }) {
-  const query = `
-    INSERT INTO mantenimientos (
-      fecha_mantenimiento, detalle, tecnico_id, sucursal_id, fecha_creacion, catalogo_id, costo_personalizado
-    )
-    VALUES ($1, $2, $3, $4, $5, $6, $7)
-    RETURNING *;
-  `;
-  const values = [
-    fecha_mantenimiento,
-    detalle,
-    tecnico_id,
-    sucursal_id,
-    fecha_creacion,
-    catalogo_id || null,
-    costo_personalizado || null,
-  ];
-  const { rows } = await pool.query(query, values);
-  return rows[0];
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const insertResult = await client.query(
+      `
+      INSERT INTO mantenimientos (
+        fecha_mantenimiento, detalle, tecnico_id, sucursal_id, fecha_creacion, catalogo_id, costo_personalizado
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *;
+      `,
+      [
+        fecha_mantenimiento,
+        detalle,
+        tecnico_id,
+        sucursal_id,
+        fecha_creacion,
+        catalogo_id || null,
+        costo_personalizado || null,
+      ],
+    );
+
+    const mantenimiento = insertResult.rows[0];
+
+    // Costo real ya persistido: personalizado si existe, si no el del catálogo
+    const { rows: costoRows } = await client.query(
+      `
+      SELECT COALESCE(m.costo_personalizado, cm.costo) AS costo_final
+      FROM mantenimientos m
+      LEFT JOIN catalogo_mantenimiento cm ON cm.id = m.catalogo_id
+      WHERE m.id = $1
+      `,
+      [mantenimiento.id],
+    );
+    const costoFinal = costoRows[0]?.costo_final ?? 0;
+
+    if (tecnico_id) {
+      await crearComisionMantenimientoSiNoExiste(
+        mantenimiento.id,
+        tecnico_id,
+        costoFinal,
+        client
+      );
+    }
+
+    await client.query("COMMIT");
+    return mantenimiento;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 async function obtenerMantenimientos() {

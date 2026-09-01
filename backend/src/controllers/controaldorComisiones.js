@@ -10,6 +10,9 @@ const {
   obtenerDetalleComisiones,
 } = require("../models/comisiones");
 
+// Sin llamador activo en el frontend: la comisión de mantenimiento ahora se crea
+// server-side dentro de la transacción de crearMantenimiento (models/mantenimientos.js).
+// Se conserva el endpoint por si sirve para otro caso futuro, pero no debe asumirse en uso.
 exports.crearComision = async (req, res) => {
   const {
     usuario_id,
