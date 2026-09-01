@@ -25,6 +25,17 @@ const path = require("path");
 const pool = require("../src/config/db");
 const { withAuditContext } = require("../src/utils/auditContext");
 const { cancelarPedido } = require("../src/models/pedido");
+const {
+  obtenerCortePendiente,
+  obtenerResumenPorFecha,
+  crearCorteCaja,
+  cerrarDiaOperativo,
+} = require("../src/models/caja");
+const { obtenerTotalesPorMetodo } = require("../src/models/ventas");
+const {
+  crearCatalogoMantenimiento,
+  actualizarCatalogoMantenimiento,
+} = require("../src/models/catalogoMantenimiento");
 
 const CONTEXTO = "e2e_seed";
 const FIXTURES_OUT = path.resolve(__dirname, "../../e2e/.fixtures.json");
@@ -37,10 +48,22 @@ const SKU = {
   productoReemplazo: "E2E-GARANTIA-REEMPLAZO-001",
   equipoPedidoCompletar: "E2E-PEDIDO-EQUIPO-A",
   equipoPedidoCancelar: "E2E-PEDIDO-EQUIPO-B",
+  productoComisionVenta: "E2E-COMISION-VENTA-001",
 };
 
 const STOCK_COMPONENTE_REPARACION = 100;
 const STOCK_PRODUCTO_REEMPLAZO = 50;
+const STOCK_PRODUCTO_COMISION_VENTA = 20;
+const PRECIO_PRODUCTO_COMISION_VENTA = 1000;
+
+const CATALOGO_MANTENIMIENTO_NORMAL = {
+  descripcion: "[E2E] Mantenimiento Costo Fijo",
+  costo: 500,
+};
+const CATALOGO_MANTENIMIENTO_OTRO = {
+  descripcion: "[E2E] Mantenimiento Costo Personalizado",
+  costo: 777.5,
+};
 
 const VENTA_MARCADOR = "[E2E] fixture:garantia";
 
@@ -290,12 +313,111 @@ async function resetPedidoFixture({ adminId, sucursalId, sku, especificacion }) 
   return { id: equipo.id, descripcion: especificacion, sku };
 }
 
+/**
+ * Cierra cualquier caja_dias colgado (abierto, con ventas, sin corte) de una
+ * corrida anterior para la sucursal del usuario de ventas E2E — si no, el
+ * test de comisión de venta se bloquearía con 423 vía corteCajaMiddleware
+ * (ver backend/src/middlewares/corteCajaMiddleware.js). Usa la misma
+ * secuencia de funciones de modelo que controladorCaja.generarCorte (no
+ * reimplementa el cierre a mano). obtenerCortePendiente siempre devuelve el
+ * día colgado más antiguo, así que se repite hasta que no quede ninguno —
+ * puede haber más de uno acumulado entre corridas.
+ */
+async function cerrarCortesPendientes({ sucursalId, usuarioId }) {
+  for (;;) {
+    const pendiente = await obtenerCortePendiente(sucursalId);
+    if (!pendiente.requiere_corte) break;
+
+    // pg devuelve las columnas `date` como objetos Date (medianoche UTC, sin
+    // parser custom en config/db.js) — toISOString().split('T')[0] extrae el
+    // Y-M-D correcto; String(date) da el formato largo local y rompe el parseo.
+    const fecha = pendiente.fecha_pendiente.toISOString().split("T")[0];
+    const resumenCaja = await obtenerResumenPorFecha(fecha, sucursalId);
+    const resumenVentas = await obtenerTotalesPorMetodo(fecha, sucursalId);
+
+    const total_ingresos = Number(resumenCaja.total_ingresos) + Number(resumenVentas.total_ventas);
+    const total_gastos = Number(resumenCaja.total_gastos);
+
+    await crearCorteCaja({
+      fecha,
+      sucursal_id: sucursalId,
+      usuario_id: usuarioId,
+      total_ventas: resumenVentas.total_ventas,
+      total_ingresos,
+      total_gastos,
+      balance_final: total_ingresos - total_gastos,
+      total_efectivo: resumenVentas.total_efectivo,
+      total_transferencia: resumenVentas.total_transferencia,
+      total_terminal: resumenVentas.total_terminal,
+      total_facturacion: resumenVentas.total_facturacion,
+    });
+    await cerrarDiaOperativo(sucursalId, fecha);
+
+    console.log(`  ↳ corte pendiente de ${fecha} cerrado (reset de fixture)`);
+  }
+}
+
+/**
+ * Upsert de un tipo de mantenimiento por descripción (estable entre
+ * corridas) usando las funciones reales del modelo — no INSERT/UPDATE a mano.
+ */
+async function upsertCatalogoMantenimiento({ descripcion, costo }) {
+  const { rows: existente } = await pool.query(
+    `SELECT id FROM catalogo_mantenimiento WHERE descripcion = $1`,
+    [descripcion]
+  );
+
+  if (existente.length) {
+    return actualizarCatalogoMantenimiento(existente[0].id, { descripcion, costo, activo: true });
+  }
+  return crearCatalogoMantenimiento({ descripcion, costo, activo: true });
+}
+
+/**
+ * Fixtures para e2e/comisiones.spec.ts:
+ *  - Producto de venta dedicado (no comparte stock con garantías).
+ *  - Dos tipos de mantenimiento fijos y marcados [E2E]: costo de catálogo
+ *    normal y costo "personalizado" (equivalente al caso "Otro" del form,
+ *    que ya no depende de un fixture creado sobre la marcha).
+ * El armado de equipo no necesita fixture: el spec crea el equipo directo
+ * vía POST /api/equipos con estado_id=4 (lote_etiqueta_id es NULLABLE).
+ */
+async function resetComisionFixtures({ adminId, sucursalId }) {
+  const producto = await withAuditContext({ userId: adminId, contexto: CONTEXTO, referenciaId: null }, (client) =>
+    upsertInventarioPorSku(client, {
+      sku: SKU.productoComisionVenta,
+      especificacion: "[E2E] Producto Comisión Venta",
+      tipo: "Otro",
+      cantidad: STOCK_PRODUCTO_COMISION_VENTA,
+      precio: PRECIO_PRODUCTO_COMISION_VENTA,
+      sucursal_id: sucursalId,
+    })
+  );
+
+  const catalogoNormal = await upsertCatalogoMantenimiento(CATALOGO_MANTENIMIENTO_NORMAL);
+  const catalogoOtro = await upsertCatalogoMantenimiento(CATALOGO_MANTENIMIENTO_OTRO);
+
+  console.log(
+    `✔ Fixtures comisiones: producto venta (id=${producto.id}, stock=${STOCK_PRODUCTO_COMISION_VENTA}, precio=${PRECIO_PRODUCTO_COMISION_VENTA}), ` +
+    `catálogo normal (id=${catalogoNormal.id}, costo=${catalogoNormal.costo}), catálogo otro (id=${catalogoOtro.id}, costo=${catalogoOtro.costo})`
+  );
+
+  return {
+    productoVenta: { id: producto.id, precio: PRECIO_PRODUCTO_COMISION_VENTA, stockInicial: STOCK_PRODUCTO_COMISION_VENTA },
+    catalogoMantenimientoNormal: { id: catalogoNormal.id, costo: Number(catalogoNormal.costo) },
+    catalogoMantenimientoOtro: { id: catalogoOtro.id, costo: Number(catalogoOtro.costo) },
+  };
+}
+
 async function main() {
   const adminId = await obtenerUsuarioPorEmail("e2e.admin@pcmaker.test");
   const ventasUserId = await obtenerUsuarioPorEmail("e2e.ventas@pcmaker.test");
   const { origenId, destinoId } = await obtenerSucursales();
 
+  await cerrarCortesPendientes({ sucursalId: origenId, usuarioId: ventasUserId });
+
   const garantias = await resetGarantiaFixtures({ adminId, ventasUserId, sucursalId: origenId });
+  const comisiones = await resetComisionFixtures({ adminId, sucursalId: origenId });
 
   const equipoPedidoCompletar = await resetPedidoFixture({
     adminId,
@@ -319,6 +441,7 @@ async function main() {
       equipoPedidoCompletar,
       equipoPedidoCancelar,
     },
+    comisiones,
   };
 
   fs.writeFileSync(FIXTURES_OUT, JSON.stringify(fixtures, null, 2));

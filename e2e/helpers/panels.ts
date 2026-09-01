@@ -20,3 +20,8 @@ export function panelGarantia(page: Page): Locator {
 export function panelPedido(page: Page): Locator {
   return page.locator('div.sticky.top-4')
 }
+
+/** Fila de una comisión en ComisionesCard, identificada por un texto distintivo del detalle (venta/equipo/mantenimiento). */
+export function filaComision(page: Page, textoDistintivo: string): Locator {
+  return page.locator('li').filter({ hasText: textoDistintivo })
+}

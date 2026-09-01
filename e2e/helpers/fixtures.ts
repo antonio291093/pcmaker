@@ -16,6 +16,11 @@ export interface Fixtures {
     equipoPedidoCompletar: { id: number; descripcion: string; sku: string }
     equipoPedidoCancelar: { id: number; descripcion: string; sku: string }
   }
+  comisiones: {
+    productoVenta: { id: number; precio: number; stockInicial: number }
+    catalogoMantenimientoNormal: { id: number; costo: number }
+    catalogoMantenimientoOtro: { id: number; costo: number }
+  }
 }
 
 /** Lee e2e/.fixtures.json, escrito por backend/scripts/seedE2EFixtures.js (globalSetup). */

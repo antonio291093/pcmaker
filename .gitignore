@@ -22,6 +22,7 @@ yarn-error.log*
 e2e/.auth/
 e2e/.env
 e2e/.fixtures.json
+e2e/capturas/
 test-results/
 playwright-report/
 blob-report/

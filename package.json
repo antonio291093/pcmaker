@@ -4,7 +4,8 @@
   "private": true,
   "description": "Pruebas E2E (Playwright) para PCMaker ERP — corre contra el ambiente de desarrollo local",
   "scripts": {
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test --project=setup-ventas --project=setup-tecnico --project=setup-admin --project=chromium-ventas",
+    "test:e2e:capturas": "playwright test --project=capturas",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed"
   },

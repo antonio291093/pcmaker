@@ -39,10 +39,10 @@ export default defineConfig({
 
     {
       // Único project que corre specs — la sesión de ventas es la que arranca
-      // cada flujo (crea la solicitud de garantía / el pedido); los specs
-      // abren sus propios browser.newContext({ storageState }) para técnico/admin.
+      // cada flujo (crea la solicitud de garantía / el pedido / la venta); los
+      // specs abren sus propios browser.newContext({ storageState }) para técnico/admin.
       name: 'chromium-ventas',
-      testMatch: [/garantias\.spec\.ts$/, /pedidos\.spec\.ts$/],
+      testMatch: [/garantias\.spec\.ts$/, /pedidos\.spec\.ts$/, /comisiones\.spec\.ts$/],
       use: { ...devices['Desktop Chrome'], storageState: 'e2e/.auth/ventas.json' },
       dependencies: ['setup-ventas', 'setup-tecnico', 'setup-admin'],
     },
@@ -60,6 +60,27 @@ export default defineConfig({
       testMatch: /$^/,
       use: { ...devices['Desktop Chrome'], storageState: 'e2e/.auth/admin.json' },
       dependencies: ['setup-admin'],
+    },
+    {
+      // Documentación visual (capturas de pantalla), no forma parte de la suite
+      // normal ni debe correr en CI — se invoca a mano con --project=capturas
+      // (o `npm run test:e2e:capturas`).
+      // Sin storageState: el propio spec hace login real por UI para poder
+      // capturar la pantalla de login (ver documentar-flujos.spec.ts).
+      //
+      // ⚠️ `npx playwright test` SIN filtro de --project corre TODOS los
+      // projects definidos aquí, incluido este — Playwright no tiene forma de
+      // excluir un project por config, solo por flag en el comando. Este spec
+      // reusa la MISMA venta fixture ([E2E] Cliente Garantías) y el mismo
+      // ítem que garantias.spec.ts, así que si ambos corren en paralelo compiten
+      // por marcarlo ya_reclamado y garantias.spec.ts falla de forma intermitente
+      // (visto y confirmado en la sesión que agregó comisiones.spec.ts).
+      // Por eso `npm run test:e2e` (ver package.json) siempre pasa
+      // --project=... explícito sin incluir "capturas" — es la forma segura de
+      // correr la suite. No invocar `npx playwright test` a secas.
+      name: 'capturas',
+      testMatch: /documentar-flujos\.spec\.ts$/,
+      use: { ...devices['Desktop Chrome'] },
     },
   ],
 })
