@@ -21,6 +21,28 @@ services:
 
 
   # =====================
+  # BACKEND DEMO (ambiente aislado demo.pcmaker.mx)
+  # =====================
+  backend_demo:
+    build:
+      context: ./backend
+    container_name: backend_demo
+    restart: always
+    env_file: .env.demo
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+    ports:
+      - "5001:5000"
+    volumes:
+      - ./backend/uploads-demo:/app/uploads
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - appnet
+
+
+  # =====================
   # CATALOGO NEXTJS
   # =====================
   catalogo:

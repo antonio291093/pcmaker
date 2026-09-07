@@ -14,6 +14,13 @@ function formatearFecha(fecha) {
 }
 
 async function enviarEmailVenta(destinatario, ventaId) {
+  if (!process.env.RESEND_API_KEY) {
+    console.log(
+      `📧 Email deshabilitado (RESEND_API_KEY no configurado) — se omite envío de ticket de venta ${ventaId} a ${destinatario}`,
+    );
+    return;
+  }
+
   // ── Ticket ──────────────────────────────────────────────
   const datosTicket = await obtenerDatosTicket(ventaId);
 
