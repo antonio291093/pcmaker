@@ -192,6 +192,15 @@ frontend/src/
 - `catalogo.pcmaker.mx` → `catalogo_app:3000` (SSR), `/api/*` → `backend_app:5000`
 - `/catalogo-img/` → archivos en `backend/uploads/catalogo/`
 
+### Ambiente demo (`demo.pcmaker.mx`)
+
+Ambiente de demostración para prospectos/ventas, aislado por completo de producción (Opción A — ver `database/DECISIONS.md` #16):
+
+- BD separada `pcmaker_demo` (38 tablas, schema clonado de producción vía `database/schema.sql`), sembrada con `database/demo/seed.sql`: 3 sucursales, 7 usuarios, 43 ítems de inventario, 13 ventas, 36 comisiones, 4 garantías, 5 pedidos, 4 apartados
+- `database/demo/seed.sql` está en `.gitignore` (contiene hashes de contraseñas reales) — **nunca se sube a git**; se transfiere por `scp` manual al VPS
+- `database/demo/reset.sh` sí está versionado — trunca todas las tablas y vuelve a sembrar; aborta si `DATABASE_URL` no contiene `"demo"`
+- **Pendiente:** contenedor `backend_demo` en `docker-compose.yml` (puerto propio, emails Resend deshabilitados/mockeados), server block de nginx para `demo.pcmaker.mx`, certificado SSL, y build del frontend con `NEXT_PUBLIC_API_URL` apuntando al subdominio demo
+
 ## Environment Variables
 
 ```env
@@ -323,8 +332,11 @@ Leer `database/schema.sql` antes de crear cualquier endpoint o tabla nueva.
 | `backend/src/routes/apartadosRutas.js` | Endpoints: crear, listar, detalle, abonar, liquidar, cancelar |
 | `frontend/src/app/ventas/components/Apartados.tsx` | UI de ventas: crear apartado, ver activos, registrar abono, liquidar |
 | `database/migrations/002_apartados.sql` | Crea tablas `apartados` y `apartado_abonos`; inserta config en `configuraciones` |
+| `e2e/apartados.spec.ts` | Suite E2E (6 casos): crear, abonar parcial, liquidar, enganche insuficiente, abono excesivo, permisos por rol |
 
 > La configuración de apartados (enganche mínimo, días límite) se gestiona en la tabla `configuraciones` con claves `apartados_*`. Editable desde el panel admin sin nueva migración.
+>
+> Módulo completo y desplegado: migración aplicada en local, `pcmaker_demo` y producción (con backup previo vía `pg_dump -F c`); 4 configuraciones sembradas (`apartados_enganche_tipo`, `apartados_enganche_valor`, `apartados_dias_limite`, `apartados_dias_sin_abono`); protegido con `RolGuard rolesPermitidos={[1, 3]}`.
 
 ### Protección de roles y servicio
 
@@ -334,3 +346,12 @@ Leer `database/schema.sql` antes de crear cualquier endpoint o tabla nueva.
 | `frontend/src/app/components/ServicioGuard.tsx` | Consulta estado del servicio al montar; redirige a `/servicio-inactivo` si está desactivado |
 | `frontend/src/app/servicio-inactivo/page.tsx` | Página pública mostrada cuando el acceso está bloqueado por servicio inactivo |
 | `backend/src/routes/servicioRutas.js` | `POST /api/admin/servicio/toggle` — activa/desactiva servicio; protegido por header `X-Admin-Token` |
+
+## Próximos pasos
+
+| Módulo | Estado |
+|--------|--------|
+| Apartados | **Completo.** Código, migración y BD en los 3 ambientes (local, `pcmaker_demo`, producción), suite E2E de 6 casos pasando (18/18 en la suite completa del proyecto) |
+| `database/schema.sql` | **Completo.** Regenerado desde `pg_dump` real el 2026-09-06 (ver `database/DECISIONS.md` #15); ya no se edita a mano |
+| Comisiones — cálculo server-side | Código listo (transacción atómica, sin migración nueva requerida); pendiente validación manual en UI antes de cerrar |
+| Ambiente demo | BD (`pcmaker_demo`) lista y validada con seed completo; falta la capa de infraestructura: contenedor `backend_demo`, server block de nginx, SSL, build de frontend apuntando a `demo.pcmaker.mx` (ver sección "Ambiente demo" arriba) |

@@ -172,3 +172,53 @@ UPDATE inventario SET cantidad = cantidad - 1
 WHERE memoria_ram_id = $1 AND cantidad > 0
 -- Falta: AND sucursal_id = $2
 ```
+
+---
+
+## 15. `database/schema.sql` regenerado desde `pg_dump` real (2026-09-06)
+
+**Decisión:** `schema.sql` dejó de ser un archivo mantenido a mano y pasa a ser un snapshot generado con `pg_dump --schema-only --no-owner --no-privileges` contra la base de datos de desarrollo, limpiando solo metadata de entorno (comentarios `-- Name: ...; Owner: -` de pg_dump, los tokens `\restrict`/`\unrestrict`, y los `SET` de sesión irrelevantes para recrear el esquema).
+
+**Por qué fue necesario:** Al preparar y validar el ambiente demo (`pcmaker_demo`, ver sección "Ambiente demo" en `CLAUDE.md`) se comparó el DDL real contra `schema.sql` y aparecieron discrepancias silenciosas, acumuladas por ediciones manuales que no se sincronizaron con migraciones aplicadas directamente en psql:
+
+| Tabla / columna | `schema.sql` (obsoleto) | Realidad (pg_dump) |
+|---|---|---|
+| `catalogo_almacenamiento` | solo `descripcion` | `tipo` + `capacidad_gb` + `descripcion` |
+| RAM de catálogo | tabla plana `catalogo_memoria_ram` | 3 tablas normalizadas: `catalogo_tipo_ram`, `catalogo_frecuencia_ram`, `catalogo_capacidad_ram` (+ `catalogo_memoria_ram` como tabla puente) |
+| `catalogo_categorias` | 6 categorías inventadas en comentarios | 5 categorías reales |
+| `roles.nombre` | asumía `'Admin'` | valor real `'Administrador'` |
+| `catalogo_estados.visual_color` | asumía valores hex | valores reales son nombres de color (`'yellow'`, etc.) |
+| `caja_cortes.hora_corte` | no documentada como `TIME` | `TIME WITHOUT TIME ZONE`, no `TIMESTAMP` |
+| `garantias` | no existía en el archivo | tabla legacy real, distinta de `garantia_solicitudes`, sin documentar en ningún lado |
+| `apartados` / `apartado_abonos` | no existían | ya en producción (ver módulo de Apartados en `CLAUDE.md`) |
+
+**Consecuencia práctica de haberlo editado a mano:** cualquier `CREATE TABLE`/`ALTER TABLE` aplicado directamente contra la BD (vía psql/pgAdmin, sin actualizar `schema.sql` a la par) desincroniza el archivo versionado sin que nada lo señale — no hay CI que compare schema.sql contra la BD real. El archivo puede parecer correcto (compila, tiene forma de SQL válido) y aun así describir una base de datos que ya no existe.
+
+**Regla a partir de ahora:** `schema.sql` **no se edita a mano nunca más**. Cuando el schema real cambie (nueva migración en `database/migrations/`, cambio aplicado directo en un ambiente), se regenera completo con:
+
+```bash
+pg_dump --schema-only --no-owner --no-privileges \
+  -h <host> -U <user> -d <db> -f database/schema.sql
+```
+
+seguido de la misma limpieza de metadata de entorno (quitar `\restrict`/`\unrestrict`, comentarios `-- Name: ...; Owner: -`, `SET` de sesión). Cualquier discrepancia futura entre `schema.sql` y la BD real se resuelve regenerando el archivo, no parcheando líneas sueltas.
+
+**Snapshot vigente:** Regenerado el 2026-09-06 desde la base de datos de desarrollo local, la misma usada para aplicar y validar `database/migrations/002_apartados.sql`. Refleja 38 tablas, incluyendo las 3 tablas normalizadas de RAM y las 2 tablas de apartados.
+
+---
+
+## 16. Ambiente demo — contenedor y BD separados de producción (Opción A)
+
+**Decisión:** El ambiente de demostración (`demo.pcmaker.mx`, para prospectos/ventas) corre con aislamiento total respecto a producción: un segundo contenedor `backend_demo` en `docker-compose.yml` (puerto interno propio) contra una base de datos separada `pcmaker_demo`, en vez de reutilizar el backend de producción con un flag de "modo demo" o un schema separado en la misma BD.
+
+**Por qué no un flag de modo demo en el backend de producción:**
+- Un bug en la lógica de "si es demo, no hagas X" es un riesgo directo sobre datos reales de producción. Aislar el proceso completo elimina esa clase de bug por diseño.
+- Un demo público (compartido con prospectos) puede ensuciarse, resetearse o romperse sin ninguna posibilidad de afectar `pcmaker` (producción).
+
+**Estado de la BD (`pcmaker_demo`):** 38 tablas (schema clonado de producción, ver decisión 15), sembrada con datos realistas: 3 sucursales, 7 usuarios, 43 ítems de inventario, 13 ventas, 36 comisiones, 4 garantías, 5 pedidos, 4 apartados.
+
+**Manejo de datos sensibles del seed:**
+- `database/demo/seed.sql` contiene hashes de contraseñas reales de usuarios demo → está en `.gitignore`, **nunca se sube a git** (el repo es público). Se transfiere manualmente por `scp` del PC local al VPS.
+- `database/demo/reset.sh` sí está versionado (no tiene datos sensibles, solo `TRUNCATE ... CASCADE` + llamada a `seed.sql`), con salvaguarda que aborta si `DATABASE_URL` no contiene la cadena `"demo"` — mitiga el riesgo de truncar producción por error de variable de entorno.
+
+**Pendiente (no bloquea lo anterior, es la siguiente capa):** contenedor `backend_demo` en `docker-compose.yml`, con emails vía Resend deshabilitados o mockeados (un demo público no debe disparar correos reales); server block de nginx para `demo.pcmaker.mx`; certificado SSL (Certbot); build del frontend con `NEXT_PUBLIC_API_URL` apuntando al subdominio demo. La BD y el seed ya están listos y validados — falta únicamente la capa de infraestructura para exponerlo.
