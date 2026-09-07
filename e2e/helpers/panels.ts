@@ -21,6 +21,16 @@ export function panelPedido(page: Page): Locator {
   return page.locator('div.sticky.top-4')
 }
 
+/**
+ * Modal de detalle de un apartado (ModalDetalle en Apartados.tsx) — necesario
+ * porque comparte clases con ModalNuevoApartado (ambos "rounded-2xl shadow-xl")
+ * y la fila de la lista repite el mismo texto de estado que el badge del
+ * modal; solo uno de los dos modales está abierto a la vez.
+ */
+export function panelApartado(page: Page): Locator {
+  return page.locator('div.rounded-2xl.shadow-xl')
+}
+
 /** Fila de una comisión en ComisionesCard, identificada por un texto distintivo del detalle (venta/equipo/mantenimiento). */
 export function filaComision(page: Page, textoDistintivo: string): Locator {
   return page.locator('li').filter({ hasText: textoDistintivo })

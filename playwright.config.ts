@@ -42,7 +42,7 @@ export default defineConfig({
       // cada flujo (crea la solicitud de garantía / el pedido / la venta); los
       // specs abren sus propios browser.newContext({ storageState }) para técnico/admin.
       name: 'chromium-ventas',
-      testMatch: [/garantias\.spec\.ts$/, /pedidos\.spec\.ts$/, /comisiones\.spec\.ts$/],
+      testMatch: [/garantias\.spec\.ts$/, /pedidos\.spec\.ts$/, /comisiones\.spec\.ts$/, /apartados\.spec\.ts$/],
       use: { ...devices['Desktop Chrome'], storageState: 'e2e/.auth/ventas.json' },
       dependencies: ['setup-ventas', 'setup-tecnico', 'setup-admin'],
     },

@@ -21,6 +21,9 @@ export interface Fixtures {
     catalogoMantenimientoNormal: { id: number; costo: number }
     catalogoMantenimientoOtro: { id: number; costo: number }
   }
+  apartados: {
+    productoApartado: { id: number; precio: number; stockInicial: number; descripcion: string; sku: string }
+  }
 }
 
 /** Lee e2e/.fixtures.json, escrito por backend/scripts/seedE2EFixtures.js (globalSetup). */

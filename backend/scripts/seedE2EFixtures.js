@@ -25,6 +25,7 @@ const path = require("path");
 const pool = require("../src/config/db");
 const { withAuditContext } = require("../src/utils/auditContext");
 const { cancelarPedido } = require("../src/models/pedido");
+const { cancelarApartado } = require("../src/models/apartados");
 const {
   obtenerCortePendiente,
   obtenerResumenPorFecha,
@@ -49,12 +50,16 @@ const SKU = {
   equipoPedidoCompletar: "E2E-PEDIDO-EQUIPO-A",
   equipoPedidoCancelar: "E2E-PEDIDO-EQUIPO-B",
   productoComisionVenta: "E2E-COMISION-VENTA-001",
+  productoApartado: "E2E-APARTADO-PRODUCTO-001",
 };
 
 const STOCK_COMPONENTE_REPARACION = 100;
 const STOCK_PRODUCTO_REEMPLAZO = 50;
 const STOCK_PRODUCTO_COMISION_VENTA = 20;
 const PRECIO_PRODUCTO_COMISION_VENTA = 1000;
+const STOCK_PRODUCTO_APARTADO = 20;
+const PRECIO_PRODUCTO_APARTADO = 1000;
+const DESCRIPCION_PRODUCTO_APARTADO = "[E2E] Producto Apartado";
 
 const CATALOGO_MANTENIMIENTO_NORMAL = {
   descripcion: "[E2E] Mantenimiento Costo Fijo",
@@ -409,6 +414,83 @@ async function resetComisionFixtures({ adminId, sucursalId }) {
   };
 }
 
+/**
+ * Cancela cualquier apartado que haya quedado "activo" de una corrida
+ * anterior (test interrumpido antes de su cleanup) sobre el producto fixture
+ * de apartados — si no, su stock reservado (calcularStockDisponible resta las
+ * cantidades de apartados con estado='activo') se iría acumulando entre
+ * corridas. Usa la función real del modelo, igual que cancelarPedidosColgados
+ * hace con pedidos.
+ */
+async function cancelarApartadosColgados(productoId) {
+  const { rows: activos } = await pool.query(
+    `SELECT id FROM apartados WHERE producto_id = $1 AND estado = 'activo'`,
+    [productoId]
+  );
+
+  for (const { id } of activos) {
+    await cancelarApartado(id, "Reset automático de fixtures E2E (backend/scripts/seedE2EFixtures.js)");
+    console.log(`  ↳ apartado colgado #${id} cancelado (reset de fixture)`);
+  }
+}
+
+/**
+ * Upsert de una clave de `configuraciones` — ON CONFLICT DO NOTHING (no
+ * DO UPDATE) porque estos son valores de negocio reales que ya inserta
+ * database/migrations/002_apartados.sql: solo garantiza que existan en un
+ * ambiente donde esa migración nunca corrió, sin pisar un valor que alguien
+ * ya haya configurado a propósito. Los specs leen el valor vigente vía
+ * GET /api/apartados/configuraciones en vez de asumir estos defaults.
+ */
+async function upsertConfiguracionSiNoExiste(nombre, valor, descripcion) {
+  await pool.query(
+    `INSERT INTO configuraciones (nombre, valor, descripcion) VALUES ($1, $2, $3)
+     ON CONFLICT (nombre) DO NOTHING`,
+    [nombre, valor, descripcion]
+  );
+}
+
+/**
+ * Fixtures para e2e/apartados.spec.ts: un producto dedicado (cantidad y
+ * precio fijos, no compartido con otros specs) + las 4 claves de
+ * configuraciones que necesita el flujo de apartados (ver
+ * database/migrations/002_apartados.sql y models/apartados.js
+ * obtenerConfiguracionesApartado).
+ */
+async function resetApartadosFixtures({ adminId, sucursalId }) {
+  const producto = await withAuditContext({ userId: adminId, contexto: CONTEXTO, referenciaId: null }, (client) =>
+    upsertInventarioPorSku(client, {
+      sku: SKU.productoApartado,
+      especificacion: DESCRIPCION_PRODUCTO_APARTADO,
+      tipo: "Otro",
+      cantidad: STOCK_PRODUCTO_APARTADO,
+      precio: PRECIO_PRODUCTO_APARTADO,
+      sucursal_id: sucursalId,
+    })
+  );
+
+  await cancelarApartadosColgados(producto.id);
+
+  await upsertConfiguracionSiNoExiste("apartados_enganche_tipo", "porcentaje", "Tipo de enganche mínimo: porcentaje o fijo");
+  await upsertConfiguracionSiNoExiste("apartados_enganche_valor", "30", "Valor del enganche: % del total o monto fijo en MXN");
+  await upsertConfiguracionSiNoExiste("apartados_dias_limite", "30", "Días máximos para liquidar un apartado");
+  await upsertConfiguracionSiNoExiste("apartados_dias_sin_abono", "30", "Días sin registrar un abono antes de cancelar automáticamente");
+
+  console.log(
+    `✔ Fixtures apartados: producto (id=${producto.id}, stock=${STOCK_PRODUCTO_APARTADO}, precio=${PRECIO_PRODUCTO_APARTADO})`
+  );
+
+  return {
+    productoApartado: {
+      id: producto.id,
+      precio: PRECIO_PRODUCTO_APARTADO,
+      stockInicial: STOCK_PRODUCTO_APARTADO,
+      descripcion: DESCRIPCION_PRODUCTO_APARTADO,
+      sku: SKU.productoApartado,
+    },
+  };
+}
+
 async function main() {
   const adminId = await obtenerUsuarioPorEmail("e2e.admin@pcmaker.test");
   const ventasUserId = await obtenerUsuarioPorEmail("e2e.ventas@pcmaker.test");
@@ -418,6 +500,7 @@ async function main() {
 
   const garantias = await resetGarantiaFixtures({ adminId, ventasUserId, sucursalId: origenId });
   const comisiones = await resetComisionFixtures({ adminId, sucursalId: origenId });
+  const apartados = await resetApartadosFixtures({ adminId, sucursalId: origenId });
 
   const equipoPedidoCompletar = await resetPedidoFixture({
     adminId,
@@ -442,6 +525,7 @@ async function main() {
       equipoPedidoCancelar,
     },
     comisiones,
+    apartados,
   };
 
   fs.writeFileSync(FIXTURES_OUT, JSON.stringify(fixtures, null, 2));
