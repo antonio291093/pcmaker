@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 import { useUser } from '@/context/UserContext'
 import EtiquetaA4Modal from '../../components/EtiquetaA4Modal';
+import SearchableSelect from '../../components/SearchableSelect';
 import type { Etiqueta } from '../../components/Types';
 
 import { API_URL } from '@/utils/api'
@@ -586,6 +587,15 @@ export default function SpecsCard() {
 
   const soloStock = selectedEstadoId === 4;
 
+  const opcionesRam = ramOptions.map(opt => ({
+    value: opt.id,
+    label: `${opt.descripcion}${opt.tipo_modulo ? ` (${opt.tipo_modulo})` : ""}${opt.cantidad != null ? ` — Stock: ${opt.cantidad}` : ""}`,
+  }));
+  const opcionesAlmacenamiento = storageOptions.map(opt => ({
+    value: opt.id,
+    label: `${opt.descripcion}${opt.cantidad != null ? ` — Stock: ${opt.cantidad}` : ""}`,
+  }));
+
   return (
     <motion.div
       initial={{ y: 30, opacity: 0 }}
@@ -707,24 +717,16 @@ export default function SpecsCard() {
           </div>
             {ramModules.map((mod, idx) => (
             <div key={idx} className="flex flex-col sm:flex-row gap-2 mt-2 items-stretch">
-              <select
-                className="border rounded-md p-2 w-full"
+              <SearchableSelect
+                options={opcionesRam}
                 value={mod.memoria_ram_id}
-                onChange={(e) => updateRamModule(idx, Number(e.target.value))}
+                onChange={(v) => updateRamModule(idx, v)}
+                placeholder={ramOptions.length
+                  ? "Buscar tipo RAM..."
+                  : soloStock ? "Sin stock disponible" : "Sin opciones disponibles"}
                 disabled={camposDeshabilitados || ramOptions.length === 0}
-              >
-                <option value="">
-                  {ramOptions.length
-                    ? "Selecciona tipo RAM"
-                    : soloStock ? "Sin stock disponible" : "Sin opciones disponibles"}
-                </option>
-                {ramOptions.map(opt => (
-                  <option key={opt.id} value={opt.id}>
-                    {opt.descripcion}{opt.tipo_modulo ? ` (${opt.tipo_modulo})` : ""}
-                    {opt.cantidad != null ? ` — Stock: ${opt.cantidad}` : ""}
-                  </option>
-                ))}
-              </select>
+                ariaLabel={`Módulo RAM ${idx + 1}`}
+              />
               {ramModules.length > 1 && (
                 <button
                   type="button"
@@ -751,24 +753,16 @@ export default function SpecsCard() {
           </div>
           {storages.map((sto, idx) => (
             <div key={idx} className="flex flex-col sm:flex-row gap-2 mt-2 items-stretch">
-              <select
-                className="border rounded-md p-2 w-full"
+              <SearchableSelect
+                options={opcionesAlmacenamiento}
                 value={sto.almacenamiento_id}
-                onChange={(e) => updateStorage(idx, Number(e.target.value))}
+                onChange={(v) => updateStorage(idx, v)}
+                placeholder={storageOptions.length
+                  ? "Buscar tipo almacenamiento..."
+                  : soloStock ? "Sin stock disponible" : "Sin opciones disponibles"}
                 disabled={camposDeshabilitados || storageOptions.length === 0}
-              >
-                <option value="">
-                  {storageOptions.length
-                    ? "Selecciona tipo almacenamiento"
-                    : soloStock ? "Sin stock disponible" : "Sin opciones disponibles"}
-                </option>
-                {storageOptions.map(opt => (
-                  <option key={opt.id} value={opt.id}>
-                    {opt.descripcion}
-                    {opt.cantidad != null ? ` — Stock: ${opt.cantidad}` : ""}
-                  </option>
-                ))}
-              </select>
+                ariaLabel={`Almacenamiento ${idx + 1}`}
+              />
               {storages.length > 1 && (
                 <button
                   type="button"
