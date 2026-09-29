@@ -154,17 +154,18 @@ export default function ModalSeleccionarProducto({
       return;
     }
 
+    const coincide = (...campos: (string | null | undefined)[]) =>
+      campos.some(c => c?.toLowerCase().includes(valor));
+
     setInventarioFiltrado(
       inventario.filter(item =>
-        item.sku?.toLowerCase() === valor
+        coincide(item.descripcion, item.tipo, item.especificacion, item.sku)
       )
     );
 
     setEquiposFiltrados(
       equiposUnificadosMemo.filter(eq =>
-        eq.sku?.toLowerCase() === valor ||
-        eq.serie?.toLowerCase() === valor ||
-        eq.etiqueta?.toLowerCase() === valor
+        coincide(eq.nombre, eq.procesador, eq.sku, eq.serie, eq.etiqueta)
       )
     );
   }, [skuBusqueda, inventario, equiposUnificadosMemo]);
@@ -250,7 +251,7 @@ export default function ModalSeleccionarProducto({
         <div className="relative mb-3 max-w-sm">
           <input
             type="text"
-            placeholder="Escanear o escribir SKU"
+            placeholder="Buscar por nombre, SKU o procesador..."
             value={skuBusqueda}
             onChange={(e) => setSkuBusqueda(e.target.value)}
             onKeyDown={(e) => {
