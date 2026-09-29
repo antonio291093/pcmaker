@@ -30,6 +30,19 @@ interface StorageDevice {
   orden?: number;
 }
 
+interface ComponenteRam {
+  id: number;
+  descripcion: string;
+  tipo_modulo?: string;
+  cantidad?: number; // solo viene del inventario (estado 4)
+}
+
+interface ComponenteAlmacenamiento {
+  id: number;
+  descripcion: string;
+  cantidad?: number; // solo viene del inventario (estado 4)
+}
+
 interface Serie {
   lote_etiqueta_id: number;  
   lote_id: number;
@@ -66,8 +79,9 @@ export default function SpecsCard() {
   const [loadingEtiquetas, setLoadingEtiquetas] = useState(false);
 
   // Dentro de SpecsCard agrega al inicio:
-  const [ramOptions, setRamOptions] = useState<{ id: number; descripcion: string; tipo_modulo?: string}[]>([]);
-  const [storageOptions, setStorageOptions] = useState<{ id: number; descripcion: string }[]>([]);
+  const [ramOptions, setRamOptions] = useState<ComponenteRam[]>([]);
+  const [storageOptions, setStorageOptions] = useState<ComponenteAlmacenamiento[]>([]);
+  const [recargaComponentes, setRecargaComponentes] = useState(0);
 
   const [ramModules, setRamModules] = useState<RamModule[]>([{ memoria_ram_id: "" }]);
   const [storages, setStorages] = useState<StorageDevice[]>([{ almacenamiento_id: "" }]);
@@ -102,33 +116,45 @@ export default function SpecsCard() {
       });
   }, []); 
 
-  // En un useEffect para cargar las opciones de RAM y Almacenamiento desde la API
+  // Armado (estado 4): solo insumos con stock en la sucursal.
+  // Revisión (otros estados): catálogo completo para registrar piezas retiradas.
   useEffect(() => {
     if (!sucursalId) return;
+    let cancelado = false;
 
-    let url = "";
+    const cargarOpciones = async (): Promise<{ ram: ComponenteRam[]; almacenamiento: ComponenteAlmacenamiento[] }> => {
+      if (selectedEstadoId === 4) {
+        const res = await fetch(`${API_URL}/api/inventario/componentes-disponibles?sucursal_id=${sucursalId}`, { credentials: 'include' });
+        if (!res.ok) throw new Error();
+        return res.json();
+      }
 
-    if (selectedEstadoId === 4) {
-      // 🔥 SOLO RAM DISPONIBLE (inventario)
-      url = `${API_URL}/api/inventario/hardware/ram?sucursal_id=${sucursalId}`;
-    } else {
-      // 📚 TODAS LAS RAM (catálogo)
-      url = `${API_URL}/api/catalogoMemoriaRam`;
-    }
+      const [resRam, resAlm] = await Promise.all([
+        fetch(`${API_URL}/api/catalogoMemoriaRam`, { credentials: 'include' }),
+        fetch(`${API_URL}/api/catalogoAlmacenamiento`, { credentials: 'include' }),
+      ]);
+      if (!resRam.ok || !resAlm.ok) throw new Error();
+      return { ram: await resRam.json(), almacenamiento: await resAlm.json() };
+    };
 
-    fetch(url, { credentials: 'include' })
-      .then(res => res.json())
-      .then(data => setRamOptions(data))
-      .catch(() => setRamOptions([]));
+    cargarOpciones()
+      .then(({ ram, almacenamiento }) => {
+        if (cancelado) return;
+        setRamOptions(ram);
+        setStorageOptions(almacenamiento);
+      })
+      .catch(() => {
+        if (cancelado) return;
+        setRamOptions([]);
+        setStorageOptions([]);
+      });
 
-    fetch(`${API_URL}/api/catalogoAlmacenamiento`, { credentials: 'include' })
-      .then(res => res.json())
-      .then(data => setStorageOptions(data))
-      .catch(() => setStorageOptions([]));
-  }, [sucursalId, selectedEstadoId]);
+    return () => { cancelado = true; };
+  }, [sucursalId, selectedEstadoId, recargaComponentes]);
 
   useEffect(() => {
     setRamModules([{ memoria_ram_id: "" }]);
+    setStorages([{ almacenamiento_id: "" }]);
   }, [selectedEstadoId]);
 
   //Buscar Equipo en base a la etiqueta
@@ -548,6 +574,7 @@ export default function SpecsCard() {
       setSelectedEstadoId("");
       setRamModules([{ memoria_ram_id: "" }]);
       setStorages([{ almacenamiento_id: "" }]);
+      setRecargaComponentes(n => n + 1);
     } else {
       Swal.fire({
         icon: "error",
@@ -556,7 +583,9 @@ export default function SpecsCard() {
       });
     }
   };
-  
+
+  const soloStock = selectedEstadoId === 4;
+
   return (
     <motion.div
       initial={{ y: 30, opacity: 0 }}
@@ -682,11 +711,18 @@ export default function SpecsCard() {
                 className="border rounded-md p-2 w-full"
                 value={mod.memoria_ram_id}
                 onChange={(e) => updateRamModule(idx, Number(e.target.value))}
-                disabled={camposDeshabilitados}
+                disabled={camposDeshabilitados || ramOptions.length === 0}
               >
-                <option value="">Selecciona tipo RAM</option>
+                <option value="">
+                  {ramOptions.length
+                    ? "Selecciona tipo RAM"
+                    : soloStock ? "Sin stock disponible" : "Sin opciones disponibles"}
+                </option>
                 {ramOptions.map(opt => (
-                  <option key={opt.id} value={opt.id}>{opt.descripcion} {opt.tipo_modulo ? `(${opt.tipo_modulo})` : ""}</option>
+                  <option key={opt.id} value={opt.id}>
+                    {opt.descripcion}{opt.tipo_modulo ? ` (${opt.tipo_modulo})` : ""}
+                    {opt.cantidad != null ? ` — Stock: ${opt.cantidad}` : ""}
+                  </option>
                 ))}
               </select>
               {ramModules.length > 1 && (
@@ -719,11 +755,18 @@ export default function SpecsCard() {
                 className="border rounded-md p-2 w-full"
                 value={sto.almacenamiento_id}
                 onChange={(e) => updateStorage(idx, Number(e.target.value))}
-                disabled={camposDeshabilitados}
+                disabled={camposDeshabilitados || storageOptions.length === 0}
               >
-                <option value="">Selecciona tipo almacenamiento</option>
+                <option value="">
+                  {storageOptions.length
+                    ? "Selecciona tipo almacenamiento"
+                    : soloStock ? "Sin stock disponible" : "Sin opciones disponibles"}
+                </option>
                 {storageOptions.map(opt => (
-                  <option key={opt.id} value={opt.id}>{opt.descripcion}</option>
+                  <option key={opt.id} value={opt.id}>
+                    {opt.descripcion}
+                    {opt.cantidad != null ? ` — Stock: ${opt.cantidad}` : ""}
+                  </option>
                 ))}
               </select>
               {storages.length > 1 && (

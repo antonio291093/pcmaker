@@ -14,6 +14,9 @@ const {
   actualizarEquipoArmado,
   obtenerMemoriasRamDisponibles,
   obtenerAlmacenamientosDisponibles,
+  obtenerComponentesDisponibles,
+  obtenerComponentesInventario,
+  actualizarComponenteInventario,
   insertarInventarioRecepcionDirecta,
   obtenerInventarioRecepcionDirecta,
   obtenerEquipoPorInventario,
@@ -271,6 +274,67 @@ exports.obtenerAlmacenamientosDisponibles = async (req, res) => {
     res.json(almacenamientos);
   } catch (error) {
     console.error("Error al obtener almacenamientos disponibles:", error);
+    res.status(500).json({ message: "Error en el servidor" });
+  }
+};
+
+exports.obtenerComponentesDisponibles = async (req, res) => {
+  try {
+    const sucursal_id = Number(req.query.sucursal_id);
+
+    if (!sucursal_id) {
+      return res.status(400).json({ message: "sucursal_id es requerido" });
+    }
+
+    const componentes = await obtenerComponentesDisponibles(sucursal_id);
+    res.json(componentes);
+  } catch (error) {
+    console.error("Error al obtener componentes disponibles:", error);
+    res.status(500).json({ message: "Error en el servidor" });
+  }
+};
+
+exports.obtenerComponentesInventario = async (req, res) => {
+  try {
+    const sucursal_id = Number(req.query.sucursal_id);
+
+    if (!sucursal_id) {
+      return res.status(400).json({ message: "sucursal_id es requerido" });
+    }
+
+    const componentes = await obtenerComponentesInventario(sucursal_id);
+    res.json(componentes);
+  } catch (error) {
+    console.error("Error al obtener componentes de inventario:", error);
+    res.status(500).json({ message: "Error en el servidor" });
+  }
+};
+
+exports.actualizarComponenteInventario = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const cantidad = Number(req.body.cantidad);
+    const precio = Number(req.body.precio);
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ message: "id inválido" });
+    }
+    if (!Number.isInteger(cantidad) || cantidad < 0) {
+      return res.status(400).json({ message: "La cantidad debe ser un entero mayor o igual a 0" });
+    }
+    if (!Number.isFinite(precio) || precio < 0) {
+      return res.status(400).json({ message: "El precio debe ser mayor o igual a 0" });
+    }
+
+    const actualizado = await actualizarComponenteInventario(id, { cantidad, precio }, req.userId);
+
+    if (!actualizado) {
+      return res.status(404).json({ message: "Componente no encontrado" });
+    }
+
+    res.json(actualizado);
+  } catch (error) {
+    console.error("Error al actualizar componente:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };

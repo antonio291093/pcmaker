@@ -338,6 +338,18 @@ Leer `database/schema.sql` antes de crear cualquier endpoint o tabla nueva.
 >
 > Módulo completo y desplegado: migración aplicada en local, `pcmaker_demo` y producción (con backup previo vía `pg_dump -F c`); 4 configuraciones sembradas (`apartados_enganche_tipo`, `apartados_enganche_valor`, `apartados_dias_limite`, `apartados_dias_sin_abono`); protegido con `RolGuard rolesPermitidos={[1, 3]}`.
 
+### Componentes internos (RAM y almacenamiento)
+
+| Archivo | Qué contiene |
+|---------|-------------|
+| `backend/src/models/inventario.js` | `obtenerComponentesInventario` (todas las filas de la sucursal, incluido stock 0), `actualizarComponenteInventario` (solo `cantidad` y `precio`), `obtenerComponentesDisponibles` (agrupado por tipo, solo con stock) |
+| `frontend/src/app/components/InventoryComponentsSection.tsx` | Tercera card "Componentes" del `InventorySelectorCard`: alta, edición de cantidad/precio y eliminación de RAM y almacenamiento |
+| `frontend/src/app/tecnico/components/SpecsCard.tsx` | Estado 4 (armado): selects desde `GET /api/inventario/componentes-disponibles`; otros estados: catálogos completos para registrar piezas retiradas |
+
+> Un componente se identifica por `memoria_ram_id IS NOT NULL` o `almacenamiento_id IS NOT NULL`. `obtenerInventario` (`GET /api/inventario`) los excluye, así que no aparecen en Hardware ni en el modal de ventas.
+>
+> No usar `PUT /api/inventario/:id` para componentes: sobrescribe todas las columnas (FK, sucursal, sku). Usar `PUT /api/inventario/componentes/:id`.
+
 ### Protección de roles y servicio
 
 | Archivo | Qué contiene |

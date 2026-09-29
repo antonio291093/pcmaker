@@ -211,6 +211,88 @@ async function obtenerAlmacenamientosDisponibles() {
   return rows;
 }
 
+// 🔹 RAM y almacenamiento con stock en una sucursal (selects de revisión del técnico)
+async function obtenerComponentesDisponibles(sucursal_id) {
+  const [ram, almacenamiento] = await Promise.all([
+    pool.query(
+      `SELECT
+         cmr.id,
+         cmr.descripcion,
+         cmr.tipo_modulo,
+         SUM(i.cantidad)::int AS cantidad
+       FROM inventario i
+       JOIN catalogo_memoria_ram cmr ON i.memoria_ram_id = cmr.id
+       WHERE i.cantidad > 0
+         AND i.eliminado = FALSE
+         AND i.sucursal_id = $1
+       GROUP BY cmr.id, cmr.descripcion, cmr.tipo_modulo
+       ORDER BY cmr.descripcion ASC`,
+      [sucursal_id]
+    ),
+    pool.query(
+      `SELECT
+         ca.id,
+         ca.descripcion,
+         SUM(i.cantidad)::int AS cantidad
+       FROM inventario i
+       JOIN catalogo_almacenamiento ca ON i.almacenamiento_id = ca.id
+       WHERE i.cantidad > 0
+         AND i.eliminado = FALSE
+         AND i.sucursal_id = $1
+       GROUP BY ca.id, ca.descripcion
+       ORDER BY ca.descripcion ASC`,
+      [sucursal_id]
+    ),
+  ]);
+
+  return { ram: ram.rows, almacenamiento: almacenamiento.rows };
+}
+
+// 🔹 Componentes (RAM y almacenamiento) de una sucursal, uno por registro, incluidos los de stock 0
+async function obtenerComponentesInventario(sucursal_id) {
+  const { rows } = await pool.query(
+    `SELECT
+       i.id,
+       i.tipo,
+       i.memoria_ram_id,
+       i.almacenamiento_id,
+       COALESCE(cm.descripcion || ' - ' || cm.tipo_modulo, cm.descripcion, ca.descripcion) AS descripcion,
+       i.cantidad,
+       i.precio,
+       i.estado,
+       i.sucursal_id,
+       s.nombre AS sucursal_nombre
+     FROM inventario i
+     LEFT JOIN catalogo_memoria_ram cm ON i.memoria_ram_id = cm.id
+     LEFT JOIN catalogo_almacenamiento ca ON i.almacenamiento_id = ca.id
+     LEFT JOIN sucursales s ON i.sucursal_id = s.id
+     WHERE i.eliminado = FALSE
+       AND i.equipo_id IS NULL
+       AND (i.memoria_ram_id IS NOT NULL OR i.almacenamiento_id IS NOT NULL)
+       AND i.sucursal_id = $1
+     ORDER BY descripcion ASC, i.id ASC`,
+    [sucursal_id]
+  );
+  return rows;
+}
+
+// 🔹 Actualiza solo cantidad y precio de un componente (no toca tipo, FK ni sucursal)
+async function actualizarComponenteInventario(id, { cantidad, precio }, userId = null) {
+  return withAuditContext({ userId }, async (client) => {
+    const { rows } = await client.query(
+      `UPDATE inventario
+       SET cantidad = $1,
+           precio = $2
+       WHERE id = $3
+         AND eliminado = FALSE
+         AND (memoria_ram_id IS NOT NULL OR almacenamiento_id IS NOT NULL)
+       RETURNING id, cantidad, precio`,
+      [cantidad, precio, id]
+    );
+    return rows[0] || null;
+  });
+}
+
 async function actualizarEquipoArmado(id, data, userId = null) {
   const {
     nombre,
@@ -608,6 +690,7 @@ async function agregarOActualizarInventario({
       buscarQuery = `
         SELECT * FROM inventario
         WHERE memoria_ram_id = $1 AND especificacion = $2 AND sucursal_id = $3
+          AND eliminado = FALSE
         ORDER BY cantidad DESC LIMIT 1;
       `;
       buscarValues = [memoria_ram_id, especificacion, sucursal_id];
@@ -615,6 +698,7 @@ async function agregarOActualizarInventario({
       buscarQuery = `
         SELECT * FROM inventario
         WHERE almacenamiento_id = $1 AND especificacion = $2 AND sucursal_id = $3
+          AND eliminado = FALSE
         ORDER BY cantidad DESC LIMIT 1;
       `;
       buscarValues = [almacenamiento_id, especificacion, sucursal_id];
@@ -711,6 +795,9 @@ async function obtenerInventario(sucursalId = null) {
     WHERE i.equipo_id IS NULL
     AND i.origen IS DISTINCT FROM 'recepcion_directa'
     and i.eliminado = FALSE
+    -- RAM y almacenamiento son componentes para armar equipos, no artículos de venta
+    AND i.memoria_ram_id IS NULL
+    AND i.almacenamiento_id IS NULL
   `;
 
   const values = [];
@@ -1308,6 +1395,9 @@ module.exports = {
   actualizarEquipoArmado,
   obtenerMemoriasRamDisponibles,
   obtenerAlmacenamientosDisponibles,
+  obtenerComponentesDisponibles,
+  obtenerComponentesInventario,
+  actualizarComponenteInventario,
   obtenerStockEquipo,
   insertarInventarioRecepcionDirecta,
   obtenerInventarioRecepcionDirecta,

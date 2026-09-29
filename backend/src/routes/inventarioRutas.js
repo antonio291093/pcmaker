@@ -27,6 +27,12 @@ router.get("/hardware/ram", authMiddleware, inventarioController.obtenerMemorias
 
 router.get("/hardware/almacenamiento", authMiddleware, inventarioController.obtenerAlmacenamientosDisponibles);
 
+router.get("/componentes-disponibles", authMiddleware, inventarioController.obtenerComponentesDisponibles);
+
+router.get("/componentes", authMiddleware, inventarioController.obtenerComponentesInventario);
+
+router.put("/componentes/:id", authMiddleware, inventarioController.actualizarComponenteInventario);
+
 router.get("/equipos-armados", authMiddleware, inventarioController.obtenerEquiposArmados);
 
 router.get("/por-inventario/:inventario_id", authMiddleware, inventarioController.obtenerEquipoPorInventario);

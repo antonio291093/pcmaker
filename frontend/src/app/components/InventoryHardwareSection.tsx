@@ -864,34 +864,6 @@ export default function InventoryHardwareSection() {
     abrirModalEdicion(editandoEquipo);
   }, [editandoEquipo]);
 
-  const guardarInventarioCatalogo = async (body: {
-    tipo: 'RAM' | 'Almacenamiento'
-    especificacion?: string
-    cantidad: number    
-    precio: number
-    estado: string
-    memoria_ram_id: number | null
-    almacenamiento_id: number | null
-    sucursal_id: number
-    categoria_catalogo_id: number
-  }) => {
-    const resp = await fetch(`${API_URL}/api/inventario`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({
-        ...body,
-        fecha_creacion: new Date().toISOString(),
-      }),
-    })
-
-    if (!resp.ok) {
-      throw new Error('Error guardando inventario de catálogo')
-    }
-
-    return resp.json()
-  }
-
   // 🔸 Guardar / editar artículo
   const guardarInventario = async (item: InventarioItem) => {
     try {
@@ -1016,30 +988,10 @@ export default function InventoryHardwareSection() {
     }
   };
 
+  // RAM y almacenamiento se agregan desde la sección "Componentes" (InventoryComponentsSection)
   const abrirModalInventario = async () => {
-    // 🔹 Cargar catálogos
-    const [ramResp, almacenamientoResp, categoriasResp] = await Promise.all([
-      fetch(`${API_URL}/api/catalogoMemoriaRam`, { credentials: 'include' }),
-      fetch(`${API_URL}/api/catalogoAlmacenamiento`, { credentials: 'include' }),
-      fetch(`${API_URL}/api/catalogo-categorias`, { credentials: 'include' })
-    ])
-
-    const catalogoRam = await ramResp.json()
-    const catalogoAlmacenamiento = await almacenamientoResp.json()
+    const categoriasResp = await fetch(`${API_URL}/api/catalogo-categorias`, { credentials: 'include' })
     const catalogoCategorias = await categoriasResp.json()
-
-    // 🔹 Opciones HTML
-    const opcionesRam = catalogoRam
-      .map((r: any) => 
-        `<option value="${r.id}">
-          ${r.descripcion} - ${r.tipo_modulo}
-        </option>`
-      )
-      .join('')
-
-    const opcionesAlmacenamiento = catalogoAlmacenamiento
-      .map((a: any) => `<option value="${a.id}">${a.descripcion}</option>`)
-      .join('')
 
     const opcionesCategorias = catalogoCategorias
       .map((c: any) => `<option value="${c.id}">${c.descripcion}</option>`)
@@ -1050,39 +1002,13 @@ export default function InventoryHardwareSection() {
       html: `
         <div style="text-align:left">
 
-          <label><strong>Tipo de artículo</strong></label>
-          <div style="margin-bottom:10px">
-            <label>
-              <input type="radio" name="tipo" value="otro" checked />
-              Otro
-            </label><br/>
-            <label>
-              <input type="radio" name="tipo" value="ram" />
-              Memoria RAM
-            </label><br/>
-            <label>
-              <input type="radio" name="tipo" value="almacenamiento" />
-              Almacenamiento
-            </label>
-          </div>
-
-          <input id="descripcion" class="swal2-input" placeholder="Descripción (solo para Otro)" />
+          <input id="descripcion" class="swal2-input" placeholder="Descripción" />
 
           <input
             id="sku"
             class="swal2-input"
             placeholder="Código / SKU (escanea o escribe)"
           />
-
-          <select id="ram-select" class="swal2-select" style="display:none">
-            <option value="">Selecciona memoria RAM</option>
-            ${opcionesRam}
-          </select>
-
-          <select id="almacenamiento-select" class="swal2-select" style="display:none">
-            <option value="">Selecciona almacenamiento</option>
-            ${opcionesAlmacenamiento}
-          </select>
 
           <input id="precio" type="number" min="0" step="0.01" class="swal2-input" placeholder="Precio (MXN)" />
 
@@ -1100,35 +1026,8 @@ export default function InventoryHardwareSection() {
       showCancelButton: true,
       confirmButtonText: 'Guardar',
       cancelButtonText: 'Cancelar',
-      didOpen: () => {
-        const radios = document.querySelectorAll<HTMLInputElement>('input[name="tipo"]')
-        const descripcion = document.getElementById('descripcion') as HTMLInputElement
-        const ramSelect = document.getElementById('ram-select') as HTMLSelectElement
-        const almSelect = document.getElementById('almacenamiento-select') as HTMLSelectElement
-
-        radios.forEach(radio => {
-          radio.addEventListener('change', () => {
-            if (radio.value === 'ram') {
-              descripcion.style.display = 'none'
-              ramSelect.style.display = 'block'
-              almSelect.style.display = 'none'
-            } else if (radio.value === 'almacenamiento') {
-              descripcion.style.display = 'none'
-              ramSelect.style.display = 'none'
-              almSelect.style.display = 'block'
-            } else {
-              descripcion.style.display = 'block'
-              ramSelect.style.display = 'none'
-              almSelect.style.display = 'none'
-            }
-          })
-        })
-      },
       preConfirm: () => {
-        const tipo = (document.querySelector('input[name="tipo"]:checked') as HTMLInputElement).value
         const descripcion = (document.getElementById('descripcion') as HTMLInputElement).value
-        const ramId = (document.getElementById('ram-select') as HTMLSelectElement).value
-        const almId = (document.getElementById('almacenamiento-select') as HTMLSelectElement).value
         const precio = parseFloat((document.getElementById('precio') as HTMLInputElement).value)
         const sku = (document.getElementById('sku') as HTMLInputElement).value.trim()
         const estado = (document.getElementById('estado') as HTMLSelectElement).value
@@ -1144,27 +1043,14 @@ export default function InventoryHardwareSection() {
           return
         }
 
-        if (tipo === 'otro' && !descripcion.trim()) {
+        if (!descripcion.trim()) {
           Swal.showValidationMessage('La descripción es obligatoria')
           return
         }
 
-        if (tipo === 'ram' && !ramId) {
-          Swal.showValidationMessage('Selecciona una memoria RAM')
-          return
-        }
-
-        if (tipo === 'almacenamiento' && !almId) {
-          Swal.showValidationMessage('Selecciona un almacenamiento')
-          return
-        }
-
         return {
-          tipo,
           descripcion,
           sku: sku || null,
-          memoria_ram_id: tipo === 'ram' ? Number(ramId) : null,
-          almacenamiento_id: tipo === 'almacenamiento' ? Number(almId) : null,
           precio,
           estado,
           categoria_catalogo_id: categoriaId ? Number(categoriaId) : null
@@ -1181,38 +1067,6 @@ export default function InventoryHardwareSection() {
       const data = res.value
 
       try {
-        if (data.tipo === 'ram') {
-          await guardarInventarioCatalogo({
-            tipo: 'RAM',
-            cantidad: 1,
-            precio: data.precio,
-            estado: data.estado,
-            memoria_ram_id: data.memoria_ram_id,
-            almacenamiento_id: null,
-            sucursal_id: sucursalId, // ✅ ya es number
-            categoria_catalogo_id: data.categoria_catalogo_id
-          })
-
-          Swal.fire('Agregado', 'Memoria RAM agregada al inventario', 'success')
-          return
-        }
-
-        if (data.tipo === 'almacenamiento') {
-          await guardarInventarioCatalogo({
-            tipo: 'Almacenamiento',
-            cantidad: 1,
-            precio: data.precio,
-            estado: data.estado,
-            memoria_ram_id: null,
-            almacenamiento_id: data.almacenamiento_id,
-            sucursal_id: sucursalId, // ✅
-            categoria_catalogo_id: data.categoria_catalogo_id
-          })
-
-          Swal.fire('Agregado', 'Almacenamiento agregado al inventario', 'success')
-          return
-        }
-
         await guardarInventario({
           id: 0,
           tipo: 'Otro',
