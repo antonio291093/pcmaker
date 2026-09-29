@@ -222,3 +222,29 @@ seguido de la misma limpieza de metadata de entorno (quitar `\restrict`/`\unrest
 - `database/demo/reset.sh` sí está versionado (no tiene datos sensibles, solo `TRUNCATE ... CASCADE` + llamada a `seed.sql`), con salvaguarda que aborta si `DATABASE_URL` no contiene la cadena `"demo"` — mitiga el riesgo de truncar producción por error de variable de entorno.
 
 **Pendiente (no bloquea lo anterior, es la siguiente capa):** contenedor `backend_demo` en `docker-compose.yml`, con emails vía Resend deshabilitados o mockeados (un demo público no debe disparar correos reales); server block de nginx para `demo.pcmaker.mx`; certificado SSL (Certbot); build del frontend con `NEXT_PUBLIC_API_URL` apuntando al subdominio demo. La BD y el seed ya están listos y validados — falta únicamente la capa de infraestructura para exponerlo.
+
+---
+
+## 17. Pendiente — los apartados vencidos nunca se cancelan automáticamente (detectado 2026-09-23)
+
+**Hallazgo:** En `pcmaker_demo` se encontró un apartado con `fecha_limite` vencida (19/09/2026) que sigue en `estado = 'activo'`. Revisado el código: **no existe ninguna lógica que cambie el estado de un apartado por vencimiento**. No es un job que falló, es funcionalidad que nunca se implementó.
+
+**Qué hay y qué no:**
+- `apartados_dias_limite` **sí se usa**, pero solo para calcular `fecha_limite` al crear el apartado (`controladorApartados.js`, función de creación). Después nadie la vuelve a comparar contra la fecha actual.
+- `apartados_dias_sin_abono` **no se usa en ningún lado**: se lee en `obtenerConfiguracionesApartado()` y se devuelve al frontend, pero ninguna query ni job la evalúa. Su descripción en `configuraciones` ("Días sin registrar un abono antes de cancelar automáticamente", migración `002_apartados.sql`) promete un comportamiento que no existe.
+- El único job programado del backend es `backend/src/jobs/limpiezaAuditoria.js` (`node-cron`, 3:00 am, purga `inventario_auditoria`). No hay job de apartados.
+- `cancelarApartado()` en `models/apartados.js` solo se invoca desde el endpoint manual de cancelación.
+- Ningún endpoint de lectura (`obtenerApartados`, `obtenerApartadoPorId`) hace un chequeo "lazy" de vencimiento, y el frontend (`Apartados.tsx`) muestra `fecha_limite` como texto sin marcarlo como vencido.
+
+**Consecuencias:**
+- **Stock bloqueado indefinidamente:** `calcularStockDisponible()` resta todo apartado con `estado = 'activo'`, así que un apartado abandonado retiene el producto para siempre hasta que alguien lo cancele a mano.
+- **Se pueden seguir registrando abonos y liquidar** un apartado vencido: `registrarAbono` y `liquidarApartado` solo validan `estado = 'activo'`, no la fecha.
+
+**Pendiente de decidir antes de implementar:**
+1. ¿Cancelación automática (job `node-cron` diario en `backend/src/jobs/`, siguiendo el patrón de `limpiezaAuditoria.js`) o solo marcar como "vencido" y dejar que ventas/admin decida? El CHECK actual de `apartados.estado` solo admite `activo | liquidado | cancelado`, así que un estado `vencido` requeriría migración.
+2. ¿Qué pasa con el dinero abonado al cancelar (reembolso, crédito a favor, se pierde)? Hoy `cancelarApartado` no toca caja ni abonos.
+3. Regla de `dias_sin_abono`: contar desde el último registro de `apartado_abonos` (o desde `fecha_creacion` si solo hay enganche).
+4. Si se usa cron: con dos backends (`backend_app` y `backend_demo`) cada uno correrá su propio job contra su BD — correcto, pero hay que tenerlo presente.
+5. Si `registrarAbono`/`liquidarApartado` deben rechazar apartados con `fecha_limite` vencida.
+
+**Nota menor:** `fecha_limite` se calcula con `toISOString().split('T')[0]` (UTC), el mismo patrón que en el frontend está prohibido (regla de `toDateString`), y puede desfasar un día en creaciones nocturnas (hora de México).
