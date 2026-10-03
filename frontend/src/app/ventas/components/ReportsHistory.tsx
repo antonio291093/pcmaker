@@ -21,25 +21,22 @@ type VentaRow = {
   descripcion: string
   especificaciones: string | null
   subtotal: number
+  requiere_factura: boolean
 }
 
-type Totales = {
+type TotalesBase = {
   efectivo: number
   transferencia: number
   terminal: number
+  facturacion_subtotal: number
+  facturacion_iva: number
   facturacion: number
   total: number
 }
 
-type TotalesPorVendedor = {
-  usuario_id: number
-  vendedor: string
-  efectivo: number
-  transferencia: number
-  terminal: number
-  facturacion: number
-  total: number
-}
+type Totales = TotalesBase & { total_sin_iva: number }
+
+type TotalesPorVendedor = TotalesBase & { usuario_id: number; vendedor: string }
 
 function getWeekRange() {
   const now = new Date()
@@ -63,6 +60,52 @@ const metodoColors: Record<string, string> = {
   transferencia: 'bg-blue-100 text-blue-700',
   terminal: 'bg-purple-100 text-purple-700',
   facturacion: 'bg-yellow-100 text-yellow-700'
+}
+
+const etiquetasTotales: Record<string, string> = {
+  facturacion: 'factura',
+  facturacion_subtotal: 'factura subtotal',
+  facturacion_iva: 'factura iva',
+  total_sin_iva: 'total sin iva'
+}
+
+const CARDS_PAGO = ['efectivo', 'transferencia', 'terminal'] as const
+const CARDS_FACTURA = ['facturacion_subtotal', 'facturacion_iva', 'facturacion'] as const
+
+function TarjetaTotal({ etiqueta, valor, factura = false }: { etiqueta: string; valor: number; factura?: boolean }) {
+  return (
+    <div className={`rounded-xl p-4 shadow-sm ${factura ? 'bg-yellow-50 border border-yellow-200' : 'bg-gray-50'}`}>
+      <p className='text-xs text-gray-500 uppercase'>{etiqueta}</p>
+      <p className='text-lg font-semibold text-gray-700'>${valor.toFixed(2)}</p>
+    </div>
+  )
+}
+
+function GrupoTotales({ datos }: { datos: Totales | TotalesPorVendedor }) {
+  return (
+    <>
+      <div className='grid grid-cols-2 md:grid-cols-5 gap-4'>
+        {CARDS_PAGO.map(k => (
+          <TarjetaTotal key={k} etiqueta={k} valor={datos[k]} />
+        ))}
+        {'total_sin_iva' in datos && (
+          <TarjetaTotal etiqueta={etiquetasTotales.total_sin_iva} valor={datos.total_sin_iva} />
+        )}
+        <TarjetaTotal etiqueta='total' valor={datos.total} />
+      </div>
+
+      {datos.facturacion > 0 && (
+        <div className='mt-3'>
+          <p className='text-xs font-semibold text-yellow-700 uppercase mb-2'>Facturación</p>
+          <div className='grid grid-cols-2 md:grid-cols-5 gap-4'>
+            {CARDS_FACTURA.map(k => (
+              <TarjetaTotal key={k} etiqueta={etiquetasTotales[k]} valor={datos[k]} factura />
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  )
 }
 
 export default function ReportsHistory() {
@@ -276,9 +319,18 @@ export default function ReportsHistory() {
                     <td className='p-2'>{v.cliente}</td>
                     <td className='p-2'>{v.vendedor}</td>
                     <td className='p-2'>
-                      <span className={`px-2 py-1 rounded text-xs ${metodoColors[v.metodo_pago]}`}>
-                        {v.metodo_pago}
-                      </span>
+                      <div className='flex flex-wrap gap-1'>
+                        {(v.metodo_pago ?? '').split(' + ').filter(Boolean).map(m => (
+                          <span key={m} className={`px-2 py-1 rounded text-xs ${metodoColors[m] ?? 'bg-gray-100 text-gray-700'}`}>
+                            {m}
+                          </span>
+                        ))}
+                        {v.requiere_factura && (
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${metodoColors.facturacion}`}>
+                            Factura
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className='p-2 text-right'>
                       ${Number(v.subtotal).toFixed(2)}
@@ -320,29 +372,7 @@ export default function ReportsHistory() {
         {totalesPorVendedor.map(tv => (
           <div key={tv.usuario_id} className='mt-6'>
             <p className='text-sm font-semibold text-gray-600 mb-2'>Vendedor: {tv.vendedor}</p>
-            <div className='grid grid-cols-2 md:grid-cols-5 gap-4'>
-              {Object.entries(tv)
-                .filter(([k]) => k !== 'usuario_id' && k !== 'vendedor')
-                .filter(([k, v]) => k !== 'facturacion' || (v as number) > 0)
-
-                // 🔹 Forzar TOTAL al final
-                .sort(([a], [b]) => {
-                  if (a === 'total') return 1
-                  if (b === 'total') return -1
-                  return 0
-                })
-
-                .map(([k, v]) => (
-                  <div key={k} className='bg-gray-50 rounded-xl p-4 shadow-sm'>
-                    <p className='text-xs text-gray-500 uppercase'>
-                      {k === 'facturacion' ? 'factura' : k}
-                    </p>
-                    <p className='text-lg font-semibold text-gray-700'>
-                      ${(v as number).toFixed(2)}
-                    </p>
-                  </div>
-                ))}
-            </div>
+            <GrupoTotales datos={tv} />
           </div>
         ))}
 
@@ -350,41 +380,7 @@ export default function ReportsHistory() {
         {totales && (
           <div className='mt-6 sticky bottom-0 bg-white pt-4'>
             <p className='text-sm font-semibold text-gray-600 mb-2'>Total general</p>
-            <div className='grid grid-cols-2 md:grid-cols-5 gap-4'>
-
-              {Object.entries(totales)
-                .filter(([k]) => k !== 'facturacion' || totales.facturacion > 0)
-
-                // 🔹 Forzar TOTAL al final
-                .sort(([a], [b]) => {
-                  if (a === 'total') return 1
-                  if (b === 'total') return -1
-                  return 0
-                })
-
-                .map(([k, v]) => {
-
-                  let label = k
-
-                  // 🔹 Unificar nombres
-                  if (k === 'facturacion') label = 'factura'
-                  if (k === 'facturacion_subtotal') label = 'factura subtotal'
-                  if (k === 'facturacion_iva') label = 'factura iva'
-                  if (k === 'total_sin_iva') label = 'total sin iva'
-
-                  return (
-                    <div key={k} className='bg-gray-50 rounded-xl p-4 shadow-sm'>
-                      <p className='text-xs text-gray-500 uppercase'>
-                        {label}
-                      </p>
-                      <p className='text-lg font-semibold text-gray-700'>
-                        ${v.toFixed(2)}
-                      </p>
-                    </div>
-                  )
-                })}
-
-            </div>
+            <GrupoTotales datos={totales} />
           </div>
         )}
       </div>

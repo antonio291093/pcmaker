@@ -59,6 +59,7 @@ async function obtenerReporteVentas({ from, to, sucursal_id, usuario_id }) {
         WHERE vp.venta_id = v.id
       ) AS metodo_pago,
       v.fecha_venta::date AS fecha_venta,
+      v.requiere_factura,
 
       -- ✅ Subtotal calculado (CLAVE)
       (d.cantidad * d.precio_unitario) AS subtotal,
@@ -95,6 +96,7 @@ async function obtenerReporteVentas({ from, to, sucursal_id, usuario_id }) {
   const totalesQuery = `
     SELECT
       vp.metodo_pago AS metodo_pago,
+      COALESCE(v.requiere_factura, false) AS facturada,
       SUM(vp.monto) AS total
     FROM ventas v
     JOIN ventas_pagos vp
@@ -102,7 +104,7 @@ async function obtenerReporteVentas({ from, to, sucursal_id, usuario_id }) {
     WHERE v.fecha_venta::date BETWEEN $1 AND $2
       AND ($3::INTEGER IS NULL OR v.sucursal_id = $3)
       AND ($4::INTEGER IS NULL OR v.user_venta = $4)
-    GROUP BY vp.metodo_pago;
+    GROUP BY vp.metodo_pago, COALESCE(v.requiere_factura, false);
   `;
 
   const totalesPorVendedorQuery = `
@@ -110,6 +112,7 @@ async function obtenerReporteVentas({ from, to, sucursal_id, usuario_id }) {
       v.user_venta AS usuario_id,
       u.nombre AS vendedor,
       vp.metodo_pago AS metodo_pago,
+      COALESCE(v.requiere_factura, false) AS facturada,
       SUM(vp.monto) AS total
     FROM ventas v
     JOIN ventas_pagos vp
@@ -119,7 +122,7 @@ async function obtenerReporteVentas({ from, to, sucursal_id, usuario_id }) {
     WHERE v.fecha_venta::date BETWEEN $1 AND $2
       AND ($3::INTEGER IS NULL OR v.sucursal_id = $3)
       AND ($4::INTEGER IS NULL OR v.user_venta = $4)
-    GROUP BY v.user_venta, u.nombre, vp.metodo_pago;
+    GROUP BY v.user_venta, u.nombre, vp.metodo_pago, COALESCE(v.requiere_factura, false);
   `;
 
   const facturacionQuery = `
@@ -134,13 +137,28 @@ async function obtenerReporteVentas({ from, to, sucursal_id, usuario_id }) {
       AND ($4::INTEGER IS NULL OR user_venta = $4);
   `;
 
+  const facturacionPorVendedorQuery = `
+    SELECT
+      v.user_venta AS usuario_id,
+      SUM(v.subtotal) AS subtotal,
+      SUM(v.iva) AS iva,
+      SUM(v.total) AS total
+    FROM ventas v
+    WHERE v.requiere_factura = true
+      AND v.fecha_venta::date BETWEEN $1 AND $2
+      AND ($3::INTEGER IS NULL OR v.sucursal_id = $3)
+      AND ($4::INTEGER IS NULL OR v.user_venta = $4)
+    GROUP BY v.user_venta;
+  `;
+
   const params = [from, to, sucursal_id, usuario_id ?? null];
 
-  const [detalle, totalesRaw, totalesPorVendedorRaw, facturacionRaw] = await Promise.all([
+  const [detalle, totalesRaw, totalesPorVendedorRaw, facturacionRaw, facturacionPorVendedorRaw] = await Promise.all([
     pool.query(detalleQuery, params),
     pool.query(totalesQuery, params),
     pool.query(totalesPorVendedorQuery, params),
     pool.query(facturacionQuery, params),
+    pool.query(facturacionPorVendedorQuery, params),
   ]);
 
   const totales = {
@@ -160,14 +178,8 @@ async function obtenerReporteVentas({ from, to, sucursal_id, usuario_id }) {
     const monto = Number(r.total);
     const metodo = r.metodo_pago;
 
-    if (metodo === "factura") {
-      const subtotal = monto / 1.16;
-      const iva = monto - subtotal;
-
-      totales.facturacion += monto;
-      totales.facturacion_subtotal += subtotal;
-      totales.facturacion_iva += iva;
-    } else if (totales[metodo] !== undefined) {
+    // Los pagos de ventas facturadas se desglosan aparte (facturacionQuery)
+    if (!r.facturada && totales[metodo] !== undefined) {
       totales[metodo] += monto;
     }
 
@@ -197,6 +209,8 @@ async function obtenerReporteVentas({ from, to, sucursal_id, usuario_id }) {
         efectivo: 0,
         transferencia: 0,
         terminal: 0,
+        facturacion_subtotal: 0,
+        facturacion_iva: 0,
         facturacion: 0,
         total: 0,
       });
@@ -204,11 +218,20 @@ async function obtenerReporteVentas({ from, to, sucursal_id, usuario_id }) {
 
     const vendedorTotales = porVendedorMap.get(r.usuario_id);
 
-    if (vendedorTotales[metodo] !== undefined) {
+    if (!r.facturada && vendedorTotales[metodo] !== undefined) {
       vendedorTotales[metodo] += monto;
     }
 
     vendedorTotales.total += monto;
+  });
+
+  facturacionPorVendedorRaw.rows.forEach((f) => {
+    const vendedorTotales = porVendedorMap.get(f.usuario_id);
+    if (!vendedorTotales) return;
+
+    vendedorTotales.facturacion_subtotal = Number(f.subtotal) || 0;
+    vendedorTotales.facturacion_iva = Number(f.iva) || 0;
+    vendedorTotales.facturacion = Number(f.total) || 0;
   });
 
   const totalesPorVendedor = Array.from(porVendedorMap.values());
