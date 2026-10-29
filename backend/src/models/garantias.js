@@ -3,9 +3,10 @@ const pool = require("../config/db");
 async function obtenerDatosGarantia(ventaId) {
   const ventaResult = await pool.query(
     `
-    SELECT id, cliente, fecha_venta, sucursal_id
-    FROM ventas
-    WHERE id = $1
+    SELECT v.id, v.cliente, v.fecha_venta, v.sucursal_id, u.nombre AS vendedor
+    FROM ventas v
+    LEFT JOIN usuarios u ON u.id = v.user_venta
+    WHERE v.id = $1
     `,
     [ventaId],
   );

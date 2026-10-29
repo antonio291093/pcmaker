@@ -88,6 +88,8 @@ async function enviarEmailVenta(destinatario, ventaId) {
       equipos,
       total: totalGarantia,
       fecha: formatearFecha(ventaGarantia.fecha_venta),
+      fecha_venta: ventaGarantia.fecha_venta,
+      vendedor: ventaGarantia.vendedor,
     });
 
     attachments.push({

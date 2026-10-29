@@ -43,6 +43,7 @@ exports.generarGarantiaPorVenta = async (req, res) => {
       total,
       fecha: fechaVenta,
       fecha_venta: venta.fecha_venta,
+      vendedor: venta.vendedor,
     })
 
     res.setHeader('Content-Type', 'application/pdf')

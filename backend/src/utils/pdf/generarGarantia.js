@@ -8,7 +8,12 @@ const garantiaTemplates = {
   2: { archivo: 'garantia_base_monterrey.pdf', dibujar: dibujarFormatoCaracteristicas },
 }
 
-async function generarGarantiaPDF({ sucursal_id, equipos, total, fecha, fecha_venta }) {
+// Vendedores con teléfono propio en el pie de la garantía de Monterrey (nombre normalizado)
+const telefonosPorVendedor = {
+  'osmara bocanegra': '8123892372',
+}
+
+async function generarGarantiaPDF({ sucursal_id, equipos, total, fecha, fecha_venta, vendedor }) {
 
   const template =
     garantiaTemplates[Number(sucursal_id)] ||
@@ -22,7 +27,7 @@ async function generarGarantiaPDF({ sucursal_id, equipos, total, fecha, fecha_ve
 
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
 
-  template.dibujar({ page, font, equipos, total, fecha, fecha_venta })
+  template.dibujar({ page, font, equipos, total, fecha, fecha_venta, vendedor })
 
   const pdfFinal = await pdfDoc.save()
 
@@ -30,7 +35,7 @@ async function generarGarantiaPDF({ sucursal_id, equipos, total, fecha, fecha_ve
 }
 
 // 📄 Formato de 5 líneas "Cantidad + Características" (Monterrey)
-function dibujarFormatoCaracteristicas({ page, font, equipos, total, fecha_venta }) {
+function dibujarFormatoCaracteristicas({ page, font, equipos, total, fecha_venta, vendedor }) {
 
   const partes = Object.fromEntries(
     new Intl.DateTimeFormat('es-MX', {
@@ -68,6 +73,13 @@ function dibujarFormatoCaracteristicas({ page, font, equipos, total, fecha_venta
 
   // 🧮 TOTAL
   page.drawText(formatearMoneda(total), { x: 470, y: 147.7, size: 11, font })
+
+  // 📞 El pie trae impreso "8120003304": se tapa y se dibuja el del vendedor si tiene uno propio
+  const telefono = telefonosPorVendedor[normalizarNombre(vendedor)]
+  if (telefono) {
+    page.drawRectangle({ x: 396.5, y: 78.5, width: 69, height: 15.5, color: rgb(1, 1, 1) })
+    page.drawText(telefono, { x: 397.5, y: 82, size: 12, font })
+  }
 }
 
 // 📄 Formato de 3 bloques de equipo + productos simples (Saltillo)
@@ -196,6 +208,16 @@ function ajustarTexto(texto, font, maxWidth, sizeMax = 10, sizeMin = 7) {
   }
 
   return { texto: recortado.trimEnd() + '…', size: sizeMin }
+}
+
+// Minúsculas, sin acentos y sin espacios repetidos, para comparar nombres de usuario
+function normalizarNombre(nombre) {
+  return String(nombre || '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
 }
 
 function formatearMoneda(valor) {
