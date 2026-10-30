@@ -71,6 +71,7 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
       - ./frontend-static:/var/www/pcmaker/frontend-static:ro
+      - ./frontend-static-demo:/var/www/pcmaker/frontend-static-demo:ro
       - ./backend/uploads:/var/www/pcmaker/backend/uploads:ro
       - certbot_web:/var/www/certbot
       - certbot_certs:/etc/letsencrypt
@@ -92,7 +93,7 @@ services:
       -c "certbot certonly --webroot -w /var/www/certbot
       --email soporte@pcmaker.mx --agree-tos --no-eff-email
       --non-interactive --keep-until-expiring
-      -d erp.pcmaker.mx -d catalogo.pcmaker.mx &&
+      -d erp.pcmaker.mx -d catalogo.pcmaker.mx -d demo.pcmaker.mx &&
       echo '0 3 * * * certbot renew --webroot -w /var/www/certbot --quiet && nginx -s reload' > /etc/crontabs/root &&
       crond -f"
     volumes:
