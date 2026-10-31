@@ -28,3 +28,6 @@ playwright-report/
 blob-report/
 playwright/.cache/
 database/demo/seed.sql
+
+# Reportes de auditoría de seguridad (repo público: nunca versionar)
+security/
