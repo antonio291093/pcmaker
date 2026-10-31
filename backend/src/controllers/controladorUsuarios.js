@@ -129,26 +129,23 @@ exports.login = async (req, res) => {
 };
 
 // Obtener usuario actual (me)
+// authMiddleware ya verificó el JWT y que el usuario exista y esté activo
 exports.me = async (req, res) => {
-  const token = req.cookies.token;
-  if (!token) {
-    return res.status(401).json({ message: "No autenticado" });
-  }
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const query = `
       SELECT id, email, nombre, rol_id, activo, sucursal_id
       FROM usuarios
       WHERE id = $1
     `;
-    const { rows } = await pool.query(query, [decoded.id]);
+    const { rows } = await pool.query(query, [req.userId]);
     const user = rows[0];
     if (!user) {
-      return res.status(404).json({ message: "Usuario no encontrado" });
+      return res.status(401).json({ message: "Sesión no válida" });
     }
     res.json({ user });
-  } catch (err) {
-    return res.status(401).json({ message: "Token inválido o expirado" });
+  } catch (error) {
+    console.error("Error al obtener usuario actual:", error);
+    res.status(500).json({ message: "Error en el servidor" });
   }
 };
 
