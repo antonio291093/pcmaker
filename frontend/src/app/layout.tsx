@@ -15,8 +15,8 @@ const DESCRIPCION_DEMO =
   'Controla tu negocio de cómputo: ventas, servicios, inventario y comisiones. Solicita acceso a la demo.'
 const IMAGEN_DEMO = {
   url: '/og-image.png',
-  width: 1200,
-  height: 627,
+  width: 2400,
+  height: 1254,
   alt: 'PCMaker, ERP para tiendas y talleres de cómputo',
 }
 
