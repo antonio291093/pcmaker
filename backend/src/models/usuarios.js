@@ -1,5 +1,8 @@
 const pool = require("../config/db");
 
+// Columnas seguras para responder al cliente (nunca incluir contraseña)
+const COLUMNAS_USUARIO = `id, nombre, email, rol_id, activo, fecha_creacion, sucursal_id`;
+
 // Crear usuario con sucursal_id
 async function crearUsuario({
   nombre,
@@ -12,7 +15,7 @@ async function crearUsuario({
   const query = `
     INSERT INTO usuarios (nombre, email, contraseña, rol_id, activo, sucursal_id)
     VALUES ($1, $2, $3, $4, $5, $6)
-    RETURNING *;
+    RETURNING ${COLUMNAS_USUARIO};
   `;
   const values = [nombre, email, contraseña, rol_id, activo, sucursal_id];
   const { rows } = await pool.query(query, values);
@@ -20,7 +23,7 @@ async function crearUsuario({
 }
 
 async function obtenerUsuarios(rol = null) {
-  let query = `SELECT * FROM usuarios`;
+  let query = `SELECT ${COLUMNAS_USUARIO} FROM usuarios`;
   const params = [];
 
   if (rol) {
@@ -47,7 +50,7 @@ async function actualizarUsuario(
       UPDATE usuarios
       SET nombre = $1, email = $2, contraseña = $3, rol_id = $4, activo = $5, sucursal_id = $6
       WHERE id = $7
-      RETURNING *;
+      RETURNING ${COLUMNAS_USUARIO};
     `;
     values = [nombre, email, contraseña, rol_id, activo, sucursal_id, id];
   } else {
@@ -55,7 +58,7 @@ async function actualizarUsuario(
       UPDATE usuarios
       SET nombre = $1, email = $2, rol_id = $3, activo = $4, sucursal_id = $5
       WHERE id = $6
-      RETURNING *;
+      RETURNING ${COLUMNAS_USUARIO};
     `;
     values = [nombre, email, rol_id, activo, sucursal_id, id];
   }
@@ -66,7 +69,7 @@ async function actualizarUsuario(
 
 // Eliminar usuario
 async function eliminarUsuario(id) {
-  const query = `DELETE FROM usuarios WHERE id = $1 RETURNING *;`;
+  const query = `DELETE FROM usuarios WHERE id = $1 RETURNING ${COLUMNAS_USUARIO};`;
   const { rows } = await pool.query(query, [id]);
   return rows[0];
 }
