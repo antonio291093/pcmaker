@@ -5,6 +5,10 @@ const cookieParser = require("cookie-parser");
 const pool = require("./config/db");
 
 const app = express();
+
+// Detrás de un solo nginx: req.ip toma la IP real del cliente (X-Forwarded-For)
+app.set("trust proxy", 1);
+
 const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:3001",

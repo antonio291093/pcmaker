@@ -89,20 +89,27 @@ exports.eliminarUsuario = async (req, res) => {
   }
 };
 
+// Hash ficticio (mismo cost que los reales) para comparar cuando el correo no existe:
+// así el tiempo de respuesta no revela si la cuenta existe
+const HASH_FICTICIO = bcrypt.hashSync("hash-ficticio-sin-cuenta", 10);
+
 // Login
 exports.login = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password } = req.body || {};
   try {
-    const query = "SELECT * FROM usuarios WHERE email=$1;";
+    // El hash solo se usa para comparar; nunca se incluye en la respuesta
+    const query = "SELECT id, email, rol_id, activo, contraseña FROM usuarios WHERE email=$1;";
     const { rows } = await pool.query(query, [email]);
     const user = rows[0];
-    if (!user) {
-      return res.status(401).json({ message: "Usuario no encontrado" });
-    }
 
-    const valid = await bcrypt.compare(password, user.contraseña);
-    if (!valid) {
-      return res.status(401).json({ message: "Contraseña incorrecta" });
+    const valid = await bcrypt.compare(
+      typeof password === "string" ? password : "",
+      user ? user.contraseña : HASH_FICTICIO,
+    );
+
+    // Mismo status y mensaje para correo inexistente, contraseña incorrecta o usuario inactivo
+    if (!user || !valid || !user.activo) {
+      return res.status(401).json({ message: "Credenciales inválidas" });
     }
 
     const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: "1d" });

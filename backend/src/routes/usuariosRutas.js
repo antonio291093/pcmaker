@@ -3,6 +3,7 @@ const router = express.Router();
 const usuariosController = require("../controllers/controladorUsuarios");
 const authMiddleware = require("../middlewares/authMiddleware"); // asumiendo que tienes este para proteger rutas
 const requireAdmin = require("../middlewares/requireAdmin");
+const { loginLimiter } = require("../middlewares/rateLimit");
 
 // Crear usuario (solo admin)
 router.post("/", authMiddleware, requireAdmin, usuariosController.crearUsuario);
@@ -19,8 +20,8 @@ router.delete("/:id", authMiddleware, requireAdmin, usuariosController.eliminarU
 // Ruta para obtener información del usuario autenticado
 router.get("/me", authMiddleware, usuariosController.me);
 
-// Login no protegido
-router.post("/login", usuariosController.login);
+// Login no protegido (limitado por IP: solo cuentan los intentos fallidos)
+router.post("/login", loginLimiter, usuariosController.login);
 
 // Logout no protegido
 router.post("/logout", usuariosController.logout);

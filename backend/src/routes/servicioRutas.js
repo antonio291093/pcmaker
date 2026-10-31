@@ -1,10 +1,21 @@
+const crypto = require("crypto");
 const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
+const { servicioToggleLimiter } = require("../middlewares/rateLimit");
+
+// Comparación en tiempo constante: se comparan los SHA-256 para que ambos
+// buffers midan lo mismo y la longitud del token tampoco se filtre
+function tokenAdminValido(recibido) {
+  const esperado = process.env.ADMIN_SECRET_TOKEN;
+  if (!esperado || typeof recibido !== "string" || !recibido) return false;
+  const a = crypto.createHash("sha256").update(recibido).digest();
+  const b = crypto.createHash("sha256").update(esperado).digest();
+  return crypto.timingSafeEqual(a, b);
+}
 
 function adminTokenMiddleware(req, res, next) {
-  const token = req.headers["x-admin-token"];
-  if (!token || token !== process.env.ADMIN_SECRET_TOKEN) {
+  if (!tokenAdminValido(req.headers["x-admin-token"])) {
     return res.status(401).json({ message: "Token de administrador inválido" });
   }
   next();
@@ -25,7 +36,7 @@ router.get("/status", async (req, res) => {
 });
 
 // POST /api/admin/servicio/toggle — protegido por X-Admin-Token
-router.post("/toggle", adminTokenMiddleware, async (req, res) => {
+router.post("/toggle", servicioToggleLimiter, adminTokenMiddleware, async (req, res) => {
   const { activo } = req.body;
   if (typeof activo !== "boolean") {
     return res.status(400).json({ message: "El campo 'activo' debe ser un booleano" });
