@@ -1,13 +1,41 @@
 /**
  * Crea (o actualiza) los usuarios dedicados para las pruebas E2E de Playwright.
- * Uso: cd backend && node scripts/seedE2EUsers.js
+ * Uso: cd backend && E2E_SEED_PASSWORD='...' node scripts/seedE2EUsers.js
  * Requiere backend/.env con DATABASE_URL apuntando a la base de datos de desarrollo.
+ * La contraseña de los 3 usuarios se lee de E2E_SEED_PASSWORD (variable de entorno o
+ * backend/.env) y debe coincidir con las E2E_*_PASSWORD de e2e/.env.
+ * Aborta si DATABASE_URL no apunta a localhost o a una BD de pruebas: el script crea un admin.
  * Idempotente: usa upsert por email, se puede correr varias veces sin duplicar.
  */
 const bcrypt = require("bcryptjs");
+// config/db carga backend/.env; el pool no se conecta hasta la primera consulta
 const pool = require("../src/config/db");
 
-const PASSWORD = "E2eTest#2026";
+const PASSWORD = process.env.E2E_SEED_PASSWORD;
+
+const HOSTS_LOCALES = ["localhost", "127.0.0.1", "::1", "[::1]"];
+
+function validarAmbiente() {
+  if (!PASSWORD) {
+    throw new Error("Falta la variable de entorno E2E_SEED_PASSWORD.");
+  }
+
+  let url;
+  try {
+    url = new URL(process.env.DATABASE_URL);
+  } catch {
+    throw new Error("DATABASE_URL no está definida o no es válida.");
+  }
+
+  const nombreBd = decodeURIComponent(url.pathname.replace(/^\//, ""));
+  const esLocal = HOSTS_LOCALES.includes(url.hostname);
+  const esBdPruebas = /(^|[_-])(test|e2e)([_-]|$)/i.test(nombreBd);
+  if (!esLocal && !esBdPruebas) {
+    throw new Error(
+      `DATABASE_URL apunta a ${url.hostname}/${nombreBd}: solo se permite localhost o una BD de pruebas (nombre con test/e2e).`
+    );
+  }
+}
 
 const USUARIOS_E2E = [
   {
@@ -54,6 +82,7 @@ async function upsertUsuarioE2E({ nombre, email, rol_id }, sucursal_id, hashedPa
 }
 
 async function main() {
+  validarAmbiente();
   const sucursal_id = await obtenerSucursalId();
   const hashedPassword = await bcrypt.hash(PASSWORD, 10);
 
@@ -62,11 +91,10 @@ async function main() {
     console.log(`✔ ${creado.email} (id=${creado.id}, rol_id=${creado.rol_id}, sucursal_id=${creado.sucursal_id})`);
   }
 
-  console.log(`\nContraseña de ambos usuarios: ${PASSWORD}`);
   await pool.end();
 }
 
 main().catch((err) => {
-  console.error("Error creando usuarios E2E:", err);
+  console.error("Error creando usuarios E2E:", err.message);
   process.exit(1);
 });
