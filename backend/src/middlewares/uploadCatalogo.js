@@ -24,7 +24,11 @@ const fileFilter = (req, file, cb) => {
   ) {
     cb(null, true)
   } else {
-    cb(new Error('Formato no permitido'), false)
+    // status/expose: el manejador global responde 400 con este mensaje
+    const error = new Error('Formato no permitido')
+    error.status = 400
+    error.expose = true
+    cb(error, false)
   }
 }
 

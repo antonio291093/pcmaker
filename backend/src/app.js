@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
+const multer = require("multer");
 const pool = require("./config/db");
 
 const app = express();
@@ -10,20 +11,24 @@ const app = express();
 app.set("trust proxy", 1);
 
 const allowedOrigins = [
-  "http://localhost:3000",
-  "http://localhost:3001",
   process.env.CORS_ORIGIN || "https://erp.pcmaker.mx",
   "https://catalogo.pcmaker.mx",
 ];
 
+// Orígenes de desarrollo: nunca en producción
+if (process.env.NODE_ENV !== "production") {
+  allowedOrigins.push("http://localhost:3000", "http://localhost:3001");
+}
+
 app.use(
   cors({
     origin: function (origin, callback) {
-      console.log("CORS origin request:", origin);
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        callback(new Error("Not allowed by CORS"));
+        const error = new Error("Origen no permitido por CORS");
+        error.code = "CORS_NO_PERMITIDO";
+        callback(error);
       }
     },
     credentials: true,
@@ -98,5 +103,29 @@ app.use("/api/apartados", apartadosRoutes);
 app.use("/api/admin/servicio", servicioRoutes);
 app.use("/api/admin/auditoria", auditoriaRoutes);
 app.use("/api/garantia-solicitudes", garantiaSolicitudRoutes);
+
+// Manejador global de errores (va al final): siempre JSON { message }, sin stack ni detalles internos
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+
+  if (err instanceof multer.MulterError) {
+    const message =
+      err.code === "LIMIT_FILE_SIZE" ? "El archivo excede el tamaño permitido" : "Archivo no válido";
+    return res.status(400).json({ message });
+  }
+
+  if (err.code === "CORS_NO_PERMITIDO") {
+    return res.status(403).json({ message: "Origen no permitido" });
+  }
+
+  // Errores 4xx marcados como públicos (JSON malformado, body demasiado grande, formato de archivo)
+  const status = err.status || err.statusCode;
+  if (status >= 400 && status < 500) {
+    return res.status(status).json({ message: err.expose ? err.message : "Solicitud inválida" });
+  }
+
+  console.error("Error no controlado:", err);
+  res.status(500).json({ message: "Error interno del servidor" });
+});
 
 module.exports = { app };
