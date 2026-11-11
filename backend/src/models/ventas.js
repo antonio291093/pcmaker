@@ -68,6 +68,16 @@ async function registrarVenta({
 
     const totalReal = Number((subtotalReal + ivaReal).toFixed(2));
 
+    // 🔹 Los pagos deben cubrir exactamente el total calculado en servidor
+    const sumaPagos = pagos.reduce((acc, p) => acc + Number(p.monto || 0), 0);
+    if (Math.round(sumaPagos * 100) !== Math.round(totalReal * 100)) {
+      const err = new Error(
+        `La suma de los pagos ($${sumaPagos.toFixed(2)}) no coincide con el total de la venta ($${totalReal.toFixed(2)})`
+      );
+      err.statusCode = 400;
+      throw err;
+    }
+
     // 1️⃣ Insertar encabezado
     const ventaResult = await client.query(
       `

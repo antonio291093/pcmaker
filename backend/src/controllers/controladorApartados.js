@@ -264,6 +264,6 @@ exports.liquidar = async (req, res) => {
     res.json({ message: 'Apartado liquidado', venta_id: venta.venta_id })
   } catch (error) {
     console.error('Error al liquidar apartado:', error)
-    res.status(500).json({ message: error.message || 'Error en el servidor' })
+    res.status(error.statusCode || 500).json({ message: error.message || 'Error en el servidor' })
   }
 }

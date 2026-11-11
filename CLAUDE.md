@@ -266,7 +266,7 @@ El esquema completo con todas las tablas, columnas, PKs, FKs, CHECK constraints 
 | `API_URL` | Siempre desde `import { API_URL } from '@/utils/api'` — nunca hardcodear la URL |
 | Fechas YYYY-MM-DD | Siempre `toDateString(date?)` desde `@/utils/fecha` — nunca `getFullYear/getMonth/getDate` inline ni `toISOString().split('T')[0]` |
 | Errores del backend | Leer siempre `error.message` — el backend responde `{ message: '...' }` en todos los endpoints |
-| IVA sobre servicios | **Nunca.** El IVA (16%) aplica solo sobre productos. `subtotalServicios` no entra en la base del IVA |
+| IVA | Solo cuando `requiere_factura = true`, y entonces aplica sobre **todo** el subtotal (productos + servicios): `iva = round2(subtotal × 0.16)`. No existe IVA sin factura. El backend recalcula subtotal/IVA/total y rechaza (400) si la suma de pagos no coincide con el total |
 | Tipos TypeScript | No usar `any`. Los tipos compartidos entre componentes van en `frontend/src/app/components/Types.ts` |
 | RolGuard | Todos los layouts de rol deben envolver su contenido con `<RolGuard rolRequerido={X}>` — el middleware de Next.js no protege navegación client-side |
 | ServicioGuard | Va **dentro** de `RolGuard` en cada layout — orden obligatorio: `RolGuard` (afuera) → `ServicioGuard` (adentro) → contenido |

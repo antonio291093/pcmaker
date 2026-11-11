@@ -18,16 +18,17 @@ El "por qué" es lo que importa: el código muestra el qué, este archivo muestr
 
 ---
 
-## 2. El IVA nunca aplica sobre servicios
+## 2. El IVA aplica sobre todo el subtotal cuando la venta requiere factura
 
-**Decisión:** El cálculo `iva = requiere_factura ? subtotalProductos * 0.16 : 0` usa exclusivamente `subtotalProductos`, excluyendo `subtotalServicios`.
+**Decisión:** `iva = requiere_factura ? round2((subtotalProductos + subtotalServicios) × 0.16) : 0`. No hay IVA sin factura ni toggle independiente.
 
-**Por qué:**
-- Los servicios de mantenimiento registrados en este sistema son cobros por mano de obra técnica que ya fueron acordados con el cliente cuando se creó el mantenimiento (`catalogo_mantenimiento.costo` o `costo_personalizado`). No son una nueva venta gravable en el momento del cobro.
-- Los servicios llegan a la venta desde `mantenimientos` con estado `'pendiente'` y se marcan `'cobrado'`. Son un cobro de servicio previo, no una venta de producto físico.
-- En el contexto fiscal mexicano del negocio (pcmaker.mx), la separación producto/servicio tiene implicaciones en la facturación. Gravar los servicios con IVA en este punto duplicaría o incorrectamente incrementaría la base gravable.
+**Historial:** Antes el IVA excluía los servicios. El frontend se implementó así, pero el backend
+siempre calculó sobre productos + servicios. En ventas con factura y servicios, los pagos sumaban el
+total del frontend mientras `ventas.total` y la caja guardaban el del backend, y la venta quedaba
+descuadrada. El negocio decidió (2026-11-10) gravar todo por igual al facturar.
 
-**Implementación:** `useVenta.ts` separa `subtotalProductos` y `subtotalServicios` en dos `useMemo` distintos. Solo `subtotalProductos` alimenta el IVA. El `subtotal` que se envía al backend sigue siendo la suma total (productos + servicios, sin IVA).
+**Implementación:** `useVenta.ts` y `models/ventas.js` usan la misma fórmula. El backend es la fuente
+de verdad y valida que la suma de pagos sea igual a `totalReal`.
 
 ---
 
@@ -111,14 +112,11 @@ async function descontarStockVenta(params, client = pool) { ... }
 
 ## 9. Los totales del formulario de venta se calculan en el frontend, no se consultan al backend
 
-**Decisión:** `subtotal`, `iva` y `total` se calculan en `useVenta.ts` con `useMemo` y se envían al backend como parte del `POST /api/ventas`. El backend los almacena directamente en la tabla `ventas` sin recalcular.
+**Decisión:** `subtotal`, `iva` y `total` se calculan en `useVenta.ts` con `useMemo` solo para mostrarlos en tiempo real. El backend (`registrarVenta`) los **recalcula** a partir de `productos` (cantidad × precio_unitario), del costo de los servicios en BD y de `requiere_factura`, ignora los valores numéricos del body y valida que la suma de pagos coincida con el total.
 
 **Por qué:**
 - El formulario necesita mostrar el total en tiempo real mientras el usuario selecciona productos, cambia cantidades y activa/desactiva la factura. Hacer un request al backend por cada cambio sería costoso e innecesario.
 - Los precios ya están en el frontend (vienen del modal de selección de productos). El cálculo es determinístico: `sum(precio × cantidad) + IVA condicional`.
-
-**Riesgo aceptado:** Un cliente malicioso podría manipular los valores antes del POST. Para este sistema (ERP interno, acceso autenticado con roles, no e-commerce público), este riesgo se considera aceptable. Si se necesitara mayor seguridad, el backend debería recalcular los totales desde los IDs de productos recibidos.
-
 ---
 
 ## 10. Permisos de PostgreSQL al crear tablas nuevas

@@ -9,6 +9,8 @@ import { ConfiguracionPago } from '../../components/Types'
 
 const IVA = 0.16
 
+const round2 = (n: number) => Math.round(n * 100) / 100
+
 export function useVenta() {
   const { user, loading: userLoading } = useUser()
 
@@ -99,11 +101,11 @@ export function useVenta() {
   )
 
   const iva = useMemo(
-    () => (formData.requiere_factura ? subtotalProductos * IVA : 0),
-    [subtotalProductos, formData.requiere_factura]
+    () => (formData.requiere_factura ? round2(subtotal * IVA) : 0),
+    [subtotal, formData.requiere_factura]
   )
 
-  const total = useMemo(() => subtotal + iva, [subtotal, iva])
+  const total = useMemo(() => round2(subtotal + iva), [subtotal, iva])
 
   const totalPagado = useMemo(
     () => Number(pagos.efectivo) + Number(pagos.terminal) + Number(pagos.transferencia),
@@ -169,7 +171,7 @@ export function useVenta() {
       }
     }
 
-    if (totalPagado !== total) {
+    if (round2(totalPagado) !== total) {
       Swal.fire({ icon: 'error', title: 'Monto incorrecto', text: 'La suma de los pagos debe ser igual al total de la venta.', confirmButtonColor: '#4F46E5' })
       return
     }

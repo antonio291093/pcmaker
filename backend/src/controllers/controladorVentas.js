@@ -127,7 +127,7 @@ exports.crearVenta = async (req, res) => {
     });
   } catch (error) {
     console.error("Error al registrar venta:", error);
-    res.status(500).json({
+    res.status(error.statusCode || 500).json({
       message: error.message || "Error al registrar venta",
     });
   }
